@@ -1,0 +1,160 @@
+import { useState } from 'react';
+import { toId } from '../utils/format';
+
+export default function FolderSidebar({
+  rootFolder,
+  subfolders = [],
+  selectedSubfolderId,
+  onSelect,
+  canManageSubfolders,
+  newSubfolderName,
+  onNewSubfolderNameChange,
+  onCreateSubfolder,
+  onDeleteSubfolder,
+}) {
+  const [expanded, setExpanded] = useState({});
+
+  const ROOT_ID = rootFolder?._id;
+
+  const toggleFolder = (id) => {
+    setExpanded((prev) => ({
+      ...prev,
+      [id]: !prev[id],
+    }));
+  };
+
+  const getChildren = (parentId) => {
+    return subfolders.filter((f) => {
+      const pid = f.parentFolderId ? toId(f.parentFolderId) : null;
+      return pid === parentId;
+    });
+  };
+
+  const renderFolders = (parentId, level = 0) => {
+    const folders = getChildren(parentId);
+
+    return folders.map((folder) => {
+      const id = toId(folder._id);
+
+      const children = getChildren(id);
+      const hasChildren = children.length > 0;
+
+      const isExpanded = expanded[id];
+      const isSelected = selectedSubfolderId === id;
+
+      return (
+        <div key={id}>
+          <div className={`group flex items-center ${isSelected ? 'bg-brand-50' : 'hover:bg-slate-50'}`}>
+            <button
+              type="button"
+              onClick={() => {
+                onSelect(id);
+              }}
+              className="flex w-full items-center gap-2 py-2 pr-2 text-left text-sm"
+              style={{ paddingLeft: `${16 + level * 20}px` }}
+            >
+              {/* arrow */}
+              <span
+                className="w-4 shrink-0 text-xs text-slate-400 cursor-pointer"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (hasChildren) toggleFolder(id);
+                }}
+              >
+                {hasChildren ? (isExpanded ? '▼' : '▶') : ''}
+              </span>
+
+              {/* icon */}
+              <span className="shrink-0">
+                {folder.hasFiles
+                  ? (isExpanded ? '📂📄' : '📁📄')
+                  : (isExpanded ? '📂' : '📁')}
+              </span>
+
+              {/* name */}
+              <span className="truncate">{folder.name}</span>
+            </button>
+
+            {canManageSubfolders && (
+              <button
+                type="button"
+                onClick={() => onDeleteSubfolder(id, folder.name)}
+                className="mr-2 hidden text-xs text-red-500 group-hover:inline"
+              >
+                ×
+              </button>
+            )}
+          </div>
+
+          {/* CHILDREN */}
+          {hasChildren && isExpanded && (
+            <div>{renderFolders(id, level + 1)}</div>
+          )}
+        </div>
+      );
+    });
+  };
+
+  return (
+    <aside className="flex w-64 shrink-0 flex-col border-r border-slate-200 bg-white">
+      {/* header */}
+      <div className="border-b border-slate-200 px-4 py-3">
+        <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
+          Folders
+        </p>
+        <p className="mt-1 truncate font-semibold text-slate-900">
+          {rootFolder?.name || '—'}
+        </p>
+      </div>
+
+      {/* tree */}
+      <nav className="flex-1 overflow-y-auto py-2">
+        {/* ROOT VIEW */}
+        <button
+          type="button"
+          onClick={() => onSelect(null)}
+          className={`flex w-full items-center gap-2 px-4 py-2 text-left text-sm ${!selectedSubfolderId
+              ? 'bg-brand-50 font-medium text-brand-700'
+              : 'text-slate-700 hover:bg-slate-50'
+            }`}
+        >
+          <span>📂</span>
+          <span>(root)</span>
+        </button>
+
+        {/* START FROM ROOT FOLDER ID */}
+        {renderFolders(ROOT_ID, 0)}
+      </nav>
+
+      {/* create subfolder */}
+      {canManageSubfolders && (
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+
+            onCreateSubfolder({
+              name: newSubfolderName,
+              parentFolderId: selectedSubfolderId || ROOT_ID,
+            });
+          }}
+          className="border-t border-slate-200 p-3"
+        >
+          <input
+            type="text"
+            value={newSubfolderName}
+            onChange={(e) => onNewSubfolderNameChange(e.target.value)}
+            placeholder="New subfolder"
+            className="mb-2 w-full rounded-lg border border-slate-300 px-2 py-1.5 text-sm"
+          />
+
+          <button
+            type="submit"
+            className="w-full rounded-lg bg-slate-800 px-3 py-1.5 text-sm font-medium text-white hover:bg-slate-900"
+          >
+            Add subfolder
+          </button>
+        </form>
+      )}
+    </aside>
+  );
+}
