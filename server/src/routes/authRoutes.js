@@ -3,14 +3,15 @@ import bcrypt from 'bcrypt';
 import rateLimit from 'express-rate-limit';
 import { User } from '../models/User.js';
 import { RefreshToken } from '../models/RefreshToken.js';
-import { Group } from '../models/Group.js';
 import { ROLES } from '../config/constants.js';
 import {
   signAccessToken,
   signRefreshToken,
   getRefreshExpiryDate,
   verifyRefreshToken,
+  decodeAccessToken,
 } from '../utils/tokens.js';
+import { REFRESH_TOKEN_EXPIRY_MS } from '../config/constants.js';
 import { authMiddleware } from '../middleware/authMiddleware.js';
 
 const router = Router();
@@ -21,13 +22,47 @@ const authLimiter = rateLimit({
   message: { message: 'Too many requests, please try again later' },
 });
 
-const cookieOptions = {
+const accessCookieOptions = {
   httpOnly: true,
   secure: process.env.NODE_ENV === 'production',
   sameSite: 'strict',
-  maxAge: 7 * 24 * 60 * 60 * 1000,
+  maxAge: REFRESH_TOKEN_EXPIRY_MS,
   path: '/',
 };
+
+function setAccessTokenCookie(res, accessToken) {
+  res.cookie('accessToken', accessToken, accessCookieOptions);
+}
+
+function clearAccessTokenCookie(res) {
+  res.clearCookie('accessToken', { path: '/' });
+  res.clearCookie('refreshToken', { path: '/' });
+}
+
+async function createSession(user) {
+  const accessToken = signAccessToken(user);
+  const refreshToken = signRefreshToken(user);
+
+  await RefreshToken.create({
+    userId: user._id,
+    token: refreshToken,
+    expiresAt: getRefreshExpiryDate(),
+  });
+
+  return accessToken;
+}
+
+async function getUserIdFromAccessCookie(req) {
+  const token = req.cookies.accessToken;
+  if (!token) return null;
+
+  try {
+    const decoded = decodeAccessToken(token);
+    return decoded.userId;
+  } catch {
+    return null;
+  }
+}
 
 router.post('/register', authLimiter, async (req, res, next) => {
   try {
@@ -55,27 +90,19 @@ router.post('/register', authLimiter, async (req, res, next) => {
       groupId: null,
     });
 
-    const accessToken = signAccessToken(user);
-    const refreshToken = signRefreshToken(user);
-
-    await RefreshToken.create({
-      userId: user._id,
-      token: refreshToken,
-      expiresAt: getRefreshExpiryDate(),
-    });
-
-    res.cookie('refreshToken', refreshToken, cookieOptions);
+    const accessToken = await createSession(user);
+    clearAccessTokenCookie(res);
+    setAccessTokenCookie(res, accessToken);
 
     res.status(201).json({
       user: sanitizeUser(user),
-      accessToken,
     });
   } catch (err) {
     next(err);
   }
 });
 
-router.post('/login',  async (req, res, next) => {
+router.post('/login', async (req, res, next) => {
   try {
     const { email, password } = req.body;
 
@@ -93,17 +120,11 @@ router.post('/login',  async (req, res, next) => {
       return res.status(401).json({ message: 'Invalid credentials' });
     }
 
-    const accessToken = signAccessToken(user);
-    const refreshToken = signRefreshToken(user);
-
     await RefreshToken.deleteMany({ userId: user._id });
-    await RefreshToken.create({
-      userId: user._id,
-      token: refreshToken,
-      expiresAt: getRefreshExpiryDate(),
-    });
 
-    res.cookie('refreshToken', refreshToken, cookieOptions);
+    const accessToken = await createSession(user);
+    clearAccessTokenCookie(res);
+    setAccessTokenCookie(res, accessToken);
 
     const populated = await User.findById(user._id)
       .select('-passwordHash')
@@ -111,7 +132,6 @@ router.post('/login',  async (req, res, next) => {
 
     res.json({
       user: sanitizeUser(populated),
-      accessToken,
     });
   } catch (err) {
     next(err);
@@ -120,25 +140,32 @@ router.post('/login',  async (req, res, next) => {
 
 router.post('/refresh', authLimiter, async (req, res, next) => {
   try {
-    const token = req.cookies.refreshToken;
-    if (!token) {
-      return res.status(401).json({ message: 'Refresh token missing' });
+    const userId = await getUserIdFromAccessCookie(req);
+    if (!userId) {
+      return res.status(401).json({ message: 'Session expired' });
     }
 
-    let decoded;
+    const stored = await RefreshToken.findOne({ userId });
+    if (!stored || stored.expiresAt < new Date()) {
+      clearAccessTokenCookie(res);
+      if (stored) {
+        await RefreshToken.deleteOne({ _id: stored._id });
+      }
+      return res.status(401).json({ message: 'Session expired or revoked' });
+    }
+
     try {
-      decoded = verifyRefreshToken(token);
+      verifyRefreshToken(stored.token);
     } catch {
+      await RefreshToken.deleteOne({ _id: stored._id });
+      clearAccessTokenCookie(res);
       return res.status(401).json({ message: 'Invalid refresh token' });
     }
 
-    const stored = await RefreshToken.findOne({ token, userId: decoded.userId });
-    if (!stored || stored.expiresAt < new Date()) {
-      return res.status(401).json({ message: 'Refresh token expired or revoked' });
-    }
-
-    const user = await User.findById(decoded.userId);
+    const user = await User.findById(userId);
     if (!user) {
+      await RefreshToken.deleteOne({ _id: stored._id });
+      clearAccessTokenCookie(res);
       return res.status(401).json({ message: 'User not found' });
     }
 
@@ -152,20 +179,21 @@ router.post('/refresh', authLimiter, async (req, res, next) => {
       expiresAt: getRefreshExpiryDate(),
     });
 
-    res.cookie('refreshToken', newRefreshToken, cookieOptions);
-    res.json({ accessToken });
+    setAccessTokenCookie(res, accessToken);
+
+    res.json({ message: 'Token refreshed' });
   } catch (err) {
     next(err);
   }
 });
 
-router.post('/logout', authMiddleware, async (req, res, next) => {
+router.post('/logout', async (req, res, next) => {
   try {
-    const token = req.cookies.refreshToken;
-    if (token) {
-      await RefreshToken.deleteOne({ token });
+    const userId = await getUserIdFromAccessCookie(req);
+    if (userId) {
+      await RefreshToken.deleteMany({ userId });
     }
-    res.clearCookie('refreshToken', { path: '/' });
+    clearAccessTokenCookie(res);
     res.json({ message: 'Logged out' });
   } catch (err) {
     next(err);

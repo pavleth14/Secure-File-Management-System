@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import api, { setAccessToken, getAccessToken } from '../api/client';
+import api from '../api/client';
 
 const AuthContext = createContext(null);
 
@@ -20,16 +20,23 @@ export function AuthProvider({ children }) {
       return data.user;
     } catch {
       setUser(null);
-      setAccessToken(null);
       return null;
     }
   }, []);
 
   useEffect(() => {
     async function init() {
-      if (getAccessToken()) {
-        await fetchMe();
+      let authenticated = await fetchMe();
+
+      if (!authenticated) {
+        try {
+          await api.post('/auth/refresh');
+          authenticated = await fetchMe();
+        } catch {
+          setUser(null);
+        }
       }
+
       setLoading(false);
     }
     init();
@@ -37,14 +44,12 @@ export function AuthProvider({ children }) {
 
   const login = async (email, password) => {
     const { data } = await api.post('/auth/login', { email, password });
-    setAccessToken(data.accessToken);
     setUser(data.user);
     return data.user;
   };
 
   const register = async (name, email, password) => {
     const { data } = await api.post('/auth/register', { name, email, password });
-    setAccessToken(data.accessToken);
     setUser(data.user);
     return data.user;
   };
@@ -53,7 +58,6 @@ export function AuthProvider({ children }) {
     try {
       await api.post('/auth/logout');
     } finally {
-      setAccessToken(null);
       setUser(null);
     }
   };

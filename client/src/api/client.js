@@ -5,28 +5,7 @@ const api = axios.create({
   withCredentials: true,
 });
 
-let accessToken = localStorage.getItem('accessToken') || null;
 let refreshPromise = null;
-
-export function setAccessToken(token) {
-  accessToken = token;
-  if (token) {
-    localStorage.setItem('accessToken', token);
-  } else {
-    localStorage.removeItem('accessToken');
-  }
-}
-
-export function getAccessToken() {
-  return accessToken;
-}
-
-api.interceptors.request.use((config) => {
-  if (accessToken) {
-    config.headers.Authorization = `Bearer ${accessToken}`;
-  }
-  return config;
-});
 
 api.interceptors.response.use(
   (response) => response,
@@ -38,19 +17,15 @@ api.interceptors.response.use(
       !original._retry &&
       !original.url?.includes('/auth/login') &&
       !original.url?.includes('/auth/register') &&
-      !original.url?.includes('/auth/refresh')
+      !original.url?.includes('/auth/refresh') &&
+      !original.url?.includes('/auth/logout')
     ) {
       original._retry = true;
 
       if (!refreshPromise) {
         refreshPromise = api
           .post('/auth/refresh')
-          .then((res) => {
-            setAccessToken(res.data.accessToken);
-            return res.data.accessToken;
-          })
           .catch((err) => {
-            setAccessToken(null);
             throw err;
           })
           .finally(() => {
@@ -59,8 +34,7 @@ api.interceptors.response.use(
       }
 
       try {
-        const newToken = await refreshPromise;
-        original.headers.Authorization = `Bearer ${newToken}`;
+        await refreshPromise;
         return api(original);
       } catch {
         return Promise.reject(error);

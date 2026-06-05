@@ -26,12 +26,19 @@ export function signRefreshToken(user) {
   );
 }
 
+
 export function getRefreshExpiryDate() {
   return new Date(Date.now() + REFRESH_TOKEN_EXPIRY_MS);
 }
 
 export function verifyAccessToken(token) {
   return jwt.verify(token, process.env.JWT_ACCESS_SECRET);
+}
+
+export function decodeAccessToken(token) {
+  return jwt.verify(token, process.env.JWT_ACCESS_SECRET, {
+    ignoreExpiration: true,
+  });
 }
 
 export function verifyRefreshToken(token) {

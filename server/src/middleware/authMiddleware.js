@@ -3,12 +3,12 @@ import { User } from '../models/User.js';
 
 export async function authMiddleware(req, res, next) {
   try {
-    const authHeader = req.headers.authorization;
-    if (!authHeader?.startsWith('Bearer ')) {
+    const token = req.cookies.accessToken;
+
+    if (!token) {
       return res.status(401).json({ message: 'Authentication required' });
     }
 
-    const token = authHeader.split(' ')[1];
     const decoded = verifyAccessToken(token);
 
     const user = await User.findById(decoded.userId).select('-passwordHash');
