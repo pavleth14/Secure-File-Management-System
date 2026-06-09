@@ -5,6 +5,8 @@ import { Group } from '../models/Group.js';
 import { ROLES } from '../config/constants.js';
 import { authMiddleware } from '../middleware/authMiddleware.js';
 import { roleMiddleware, canManageTargetUser } from '../middleware/roleMiddleware.js';
+import { auditLog, buildActorLabel } from '../services/auditLogService.js';
+import { AUDIT_ACTIONS, AUDIT_CATEGORIES, TARGET_TYPES } from '../config/auditConstants.js';
 
 const router = Router();
 
@@ -76,6 +78,18 @@ router.post('/', async (req, res, next) => {
       .select('-passwordHash')
       .populate('groupId', 'name');
 
+    await auditLog({
+      user: req.user,
+      action: AUDIT_ACTIONS.USER_CREATE,
+      category: AUDIT_CATEGORIES.USERS,
+      targetType: TARGET_TYPES.USER,
+      targetId: user._id,
+      targetName: user.name,
+      details: `${buildActorLabel(req.user)} created user ${user.name}`,
+      newValues: { name: user.name, email: user.email, role: user.role, groupId: user.groupId },
+      req,
+    });
+
     res.status(201).json({ user: formatUser(populated) });
   } catch (err) {
     next(err);
@@ -94,6 +108,14 @@ router.put('/:id', async (req, res, next) => {
     }
 
     const { name, email, password, role, groupId } = req.body;
+    const oldRole = target.role;
+    const oldGroupId = target.groupId?.toString() || null;
+    const oldValues = {
+      name: target.name,
+      email: target.email,
+      role: target.role,
+      groupId: oldGroupId,
+    };
 
     if (name) target.name = name;
     if (email) target.email = email.toLowerCase();
@@ -130,6 +152,74 @@ router.put('/:id', async (req, res, next) => {
 
     await target.save();
 
+    const newValues = {
+      name: target.name,
+      email: target.email,
+      role: target.role,
+      groupId: target.groupId?.toString() || null,
+    };
+
+    if (password) {
+      await auditLog({
+        user: req.user,
+        action: AUDIT_ACTIONS.PASSWORD_RESET,
+        category: AUDIT_CATEGORIES.AUTH,
+        targetType: TARGET_TYPES.USER,
+        targetId: target._id,
+        targetName: target.name,
+        details: `${buildActorLabel(req.user)} reset password for user ${target.name}`,
+        req,
+      });
+    }
+
+    if (role !== undefined && role !== oldRole) {
+      const roleLabels = { USER: 'User', ADMIN: 'Admin', SUPER_ADMIN: 'Super Admin' };
+      await auditLog({
+        user: req.user,
+        action: AUDIT_ACTIONS.ROLE_CHANGE,
+        category: AUDIT_CATEGORIES.PERMISSIONS,
+        targetType: TARGET_TYPES.ROLE,
+        targetId: target._id,
+        targetName: target.name,
+        details: `${buildActorLabel(req.user)} changed role of user ${target.name} from ${roleLabels[oldRole] || oldRole} to ${roleLabels[role] || role}`,
+        oldValues: { role: oldRole },
+        newValues: { role },
+        req,
+      });
+    }
+
+    if (groupId !== undefined && (target.groupId?.toString() || null) !== oldGroupId) {
+      const oldGroup = oldGroupId ? await Group.findById(oldGroupId) : null;
+      const newGroup = target.groupId ? await Group.findById(target.groupId) : null;
+      await auditLog({
+        user: req.user,
+        action: AUDIT_ACTIONS.PERMISSION_UPDATE,
+        category: AUDIT_CATEGORIES.PERMISSIONS,
+        targetType: TARGET_TYPES.USER,
+        targetId: target._id,
+        targetName: target.name,
+        details: `${buildActorLabel(req.user)} changed group assignment for user ${target.name} from ${oldGroup?.name || 'None'} to ${newGroup?.name || 'None'}`,
+        oldValues: { groupId: oldGroupId, groupName: oldGroup?.name || null },
+        newValues: { groupId: target.groupId?.toString() || null, groupName: newGroup?.name || null },
+        req,
+      });
+    }
+
+    if (name || email) {
+      await auditLog({
+        user: req.user,
+        action: AUDIT_ACTIONS.USER_UPDATE,
+        category: AUDIT_CATEGORIES.USERS,
+        targetType: TARGET_TYPES.USER,
+        targetId: target._id,
+        targetName: target.name,
+        details: `${buildActorLabel(req.user)} updated user ${target.name}`,
+        oldValues,
+        newValues,
+        req,
+      });
+    }
+
     const populated = await User.findById(target._id)
       .select('-passwordHash')
       .populate('groupId', 'name');
@@ -158,6 +248,17 @@ router.delete('/:id', async (req, res, next) => {
     if (target._id.toString() === req.user._id.toString()) {
       return res.status(400).json({ message: 'Cannot delete yourself' });
     }
+
+    await auditLog({
+      user: req.user,
+      action: AUDIT_ACTIONS.USER_DELETE,
+      category: AUDIT_CATEGORIES.USERS,
+      targetType: TARGET_TYPES.USER,
+      targetId: target._id,
+      targetName: target.name,
+      details: `${buildActorLabel(req.user)} deleted user ${target.name}`,
+      req,
+    });
 
     await User.deleteOne({ _id: target._id });
     res.json({ message: 'User deleted' });

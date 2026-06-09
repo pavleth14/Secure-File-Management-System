@@ -63,6 +63,7 @@ export function AuthProvider({ children }) {
   };
 
   const isSuperAdmin = user?.role === ROLES.SUPER_ADMIN;
+  const isAdminOnly = user?.role === ROLES.ADMIN;
   const isAdmin = user?.role === ROLES.ADMIN || isSuperAdmin;
   const isUser = user?.role === ROLES.USER;
 
@@ -76,6 +77,7 @@ export function AuthProvider({ children }) {
         logout,
         fetchMe,
         isSuperAdmin,
+        isAdminOnly,
         isAdmin,
         isUser,
       }}

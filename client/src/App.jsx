@@ -10,6 +10,7 @@ import FolderFilesPage from './pages/FolderFilesPage';
 import AdminPage from './pages/AdminPage';
 import UsersPage from './pages/UsersPage';
 import GroupsPage from './pages/GroupsPage';
+import LogsPage from './pages/LogsPage';
 
 function ProtectedRoute({ children, roles }) {
   const { user, loading } = useAuth();
@@ -89,6 +90,14 @@ export default function App() {
           element={
             <RoleGuard roles={['SUPER_ADMIN']}>
               <GroupsPage />
+            </RoleGuard>
+          }
+        />
+        <Route
+          path="/admin/logs"
+          element={
+            <RoleGuard roles={['SUPER_ADMIN', 'ADMIN']}>
+              <LogsPage />
             </RoleGuard>
           }
         />

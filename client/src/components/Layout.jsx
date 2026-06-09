@@ -20,6 +20,7 @@ export default function Layout() {
 
   if (isAdmin) {
     links.push({ to: '/users', label: 'Users' });
+    links.push({ to: '/admin/logs', label: 'Logs' });
   }
   if (isSuperAdmin) {
     links.push({ to: '/groups', label: 'Groups' });
@@ -35,15 +36,21 @@ export default function Layout() {
               Secure File Manager
             </Link>
             <nav className="flex gap-1">
-              {links.map((link) => (
-                <Link
-                  key={link.to}
-                  to={link.to}
-                  className={navLinkClass(location.pathname.startsWith(link.to))}
-                >
-                  {link.label}
-                </Link>
-              ))}
+              {links.map((link) => {
+                const isActive =
+                  link.to === '/admin'
+                    ? location.pathname === '/admin'
+                    : location.pathname.startsWith(link.to);
+                return (
+                  <Link
+                    key={link.to}
+                    to={link.to}
+                    className={navLinkClass(isActive)}
+                  >
+                    {link.label}
+                  </Link>
+                );
+              })}
             </nav>
           </div>
           <div className="flex flex-1 items-center justify-end gap-4">

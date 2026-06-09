@@ -14,6 +14,8 @@ import {
 } from '../services/aclService.js';
 import { UPLOADS_BASE, resolveUploadDir } from '../config/multer.js';
 import { getDescendantsFlat } from '../utils/folderTree.js';
+import { auditLog, buildActorLabel } from '../services/auditLogService.js';
+import { AUDIT_ACTIONS, AUDIT_CATEGORIES, TARGET_TYPES } from '../config/auditConstants.js';
 
 const router = Router();
 
@@ -171,6 +173,17 @@ router.post(
         const dir = await resolveUploadDir(root._id, subfolder._id);
         fs.mkdirSync(dir, { recursive: true });
 
+        await auditLog({
+          user: req.user,
+          action: AUDIT_ACTIONS.FOLDER_CREATE,
+          category: AUDIT_CATEGORIES.FOLDERS,
+          targetType: TARGET_TYPES.FOLDER,
+          targetId: subfolder._id,
+          targetName: subfolder.name,
+          details: `${buildActorLabel(req.user)} created folder ${subfolder.name}`,
+          req,
+        });
+
         return res.status(201).json({ folder: subfolder });
       }
 
@@ -190,6 +203,18 @@ router.post(
       });
 
       fs.mkdirSync(path.join(UPLOADS_BASE, folderName), { recursive: true });
+
+      await auditLog({
+        user: req.user,
+        action: AUDIT_ACTIONS.FOLDER_CREATE,
+        category: AUDIT_CATEGORIES.FOLDERS,
+        targetType: TARGET_TYPES.FOLDER,
+        targetId: folder._id,
+        targetName: folder.name,
+        details: `${buildActorLabel(req.user)} created folder ${folder.name}`,
+        req,
+      });
+
       res.status(201).json({ folder });
     } catch (err) {
       next(err);
@@ -210,6 +235,7 @@ router.put('/:id', async (req, res, next) => {
     }
 
     const newName = name.trim();
+    const oldName = folder.name;
 
     if (folder.isRoot) {
       if (req.user.role !== ROLES.SUPER_ADMIN) {
@@ -232,6 +258,20 @@ router.put('/:id', async (req, res, next) => {
       }
       folder.name = newName;
       await folder.save();
+
+      await auditLog({
+        user: req.user,
+        action: AUDIT_ACTIONS.FOLDER_RENAME,
+        category: AUDIT_CATEGORIES.FOLDERS,
+        targetType: TARGET_TYPES.FOLDER,
+        targetId: folder._id,
+        targetName: newName,
+        details: `${buildActorLabel(req.user)} renamed folder ${oldName} to ${newName}`,
+        oldValues: { name: oldName },
+        newValues: { name: newName },
+        req,
+      });
+
       return res.json({ folder });
     }
 
@@ -249,6 +289,20 @@ router.put('/:id', async (req, res, next) => {
 
     folder.name = newName;
     await folder.save();
+
+    await auditLog({
+      user: req.user,
+      action: AUDIT_ACTIONS.FOLDER_RENAME,
+      category: AUDIT_CATEGORIES.FOLDERS,
+      targetType: TARGET_TYPES.FOLDER,
+      targetId: folder._id,
+      targetName: newName,
+      details: `${buildActorLabel(req.user)} renamed folder ${oldName} to ${newName}`,
+      oldValues: { name: oldName },
+      newValues: { name: newName },
+      req,
+    });
+
     res.json({ folder });
   } catch (err) {
     next(err);
@@ -282,6 +336,17 @@ router.delete('/:id', async (req, res, next) => {
         fs.rmSync(dirPath, { recursive: true, force: true });
       }
 
+      await auditLog({
+        user: req.user,
+        action: AUDIT_ACTIONS.FOLDER_DELETE,
+        category: AUDIT_CATEGORIES.FOLDERS,
+        targetType: TARGET_TYPES.FOLDER,
+        targetId: folder._id,
+        targetName: folder.name,
+        details: `${buildActorLabel(req.user)} deleted folder ${folder.name}`,
+        req,
+      });
+
       await Folder.deleteOne({ _id: folder._id });
       return res.json({ message: 'Root folder deleted' });
     }
@@ -306,6 +371,17 @@ router.delete('/:id', async (req, res, next) => {
     if (childCount > 0 || fileCount > 0) {
       return res.status(400).json({ message: 'Folder is not empty' });
     }
+
+    await auditLog({
+      user: req.user,
+      action: AUDIT_ACTIONS.FOLDER_DELETE,
+      category: AUDIT_CATEGORIES.FOLDERS,
+      targetType: TARGET_TYPES.FOLDER,
+      targetId: folder._id,
+      targetName: folder.name,
+      details: `${buildActorLabel(req.user)} deleted folder ${folder.name}`,
+      req,
+    });
 
     await Folder.deleteOne({ _id: folder._id });
     res.json({ message: 'Folder deleted' });

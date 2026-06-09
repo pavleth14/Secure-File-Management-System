@@ -12,6 +12,7 @@ import groupRoutes from './routes/groupRoutes.js';
 import folderRoutes from './routes/folderRoutes.js';
 import fileRoutes from './routes/fileRoutes.js';
 import searchRoutes from './routes/searchRoutes.js';
+import logRoutes from './routes/logRoutes.js';
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -44,6 +45,7 @@ app.use('/api/groups', groupRoutes);
 app.use('/api/folders', folderRoutes);
 app.use('/api/files', fileRoutes);
 app.use('/api/search', searchRoutes);
+app.use('/api/logs', logRoutes);
 
 app.use(errorHandler);
 

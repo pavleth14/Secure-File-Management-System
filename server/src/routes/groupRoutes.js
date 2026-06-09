@@ -4,6 +4,8 @@ import { Folder } from '../models/Folder.js';
 import { ROLES, ALL_PERMISSIONS } from '../config/constants.js';
 import { authMiddleware } from '../middleware/authMiddleware.js';
 import { roleMiddleware } from '../middleware/roleMiddleware.js';
+import { auditLog, buildActorLabel } from '../services/auditLogService.js';
+import { AUDIT_ACTIONS, AUDIT_CATEGORIES, TARGET_TYPES } from '../config/auditConstants.js';
 
 const router = Router();
 
@@ -45,6 +47,18 @@ router.post('/', roleMiddleware(ROLES.SUPER_ADMIN), async (req, res, next) => {
       permissions: validated,
     });
 
+    await auditLog({
+      user: req.user,
+      action: AUDIT_ACTIONS.GROUP_CREATE,
+      category: AUDIT_CATEGORIES.GROUPS,
+      targetType: TARGET_TYPES.GROUP,
+      targetId: group._id,
+      targetName: group.name,
+      details: `${buildActorLabel(req.user)} created group ${group.name}`,
+      newValues: { permissions: validated },
+      req,
+    });
+
     res.status(201).json({ group });
   } catch (err) {
     next(err);
@@ -59,6 +73,8 @@ router.put('/:id', async (req, res, next) => {
     }
 
     const { name, permissions } = req.body;
+    const oldName = group.name;
+    const oldPermissions = JSON.parse(JSON.stringify(group.permissions || []));
 
     if (name !== undefined) {
       if (req.user.role !== ROLES.SUPER_ADMIN) {
@@ -75,6 +91,42 @@ router.put('/:id', async (req, res, next) => {
     }
 
     await group.save();
+
+    if (name !== undefined && name.toLowerCase() !== oldName) {
+      await auditLog({
+        user: req.user,
+        action: AUDIT_ACTIONS.GROUP_UPDATE,
+        category: AUDIT_CATEGORIES.GROUPS,
+        targetType: TARGET_TYPES.GROUP,
+        targetId: group._id,
+        targetName: group.name,
+        details: `${buildActorLabel(req.user)} updated group ${oldName} to ${group.name}`,
+        oldValues: { name: oldName },
+        newValues: { name: group.name },
+        req,
+      });
+    }
+
+    if (permissions !== undefined) {
+      const newPermissions = group.permissions;
+      const oldActions = summarizePermissions(oldPermissions);
+      const newActions = summarizePermissions(newPermissions);
+
+      await auditLog({
+        user: req.user,
+        action: AUDIT_ACTIONS.PERMISSION_UPDATE,
+        category: AUDIT_CATEGORIES.PERMISSIONS,
+        targetType: TARGET_TYPES.GROUP,
+        targetId: group._id,
+        targetName: group.name,
+        details: `${buildActorLabel(req.user)} modified permissions for group ${group.name}`,
+        oldValues: { permissions: oldActions },
+        newValues: { permissions: newActions },
+        req,
+      });
+
+      diffPermissions(req, group, oldPermissions, newPermissions);
+    }
     const populated = await Group.findById(group._id).populate(
       'permissions.folderId',
       'name isRoot'
@@ -92,6 +144,18 @@ router.delete('/:id', roleMiddleware(ROLES.SUPER_ADMIN), async (req, res, next) 
     if (!group) {
       return res.status(404).json({ message: 'Group not found' });
     }
+
+    await auditLog({
+      user: req.user,
+      action: AUDIT_ACTIONS.GROUP_DELETE,
+      category: AUDIT_CATEGORIES.GROUPS,
+      targetType: TARGET_TYPES.GROUP,
+      targetId: group._id,
+      targetName: group.name,
+      details: `${buildActorLabel(req.user)} deleted group ${group.name}`,
+      req,
+    });
+
     res.json({ message: 'Group deleted' });
   } catch (err) {
     next(err);
@@ -126,6 +190,78 @@ async function validatePermissions(permissions) {
     });
   }
   return validated;
+}
+
+function permKey(perm) {
+  return `${perm.folderId}_${perm.subfolderId || 'root'}`;
+}
+
+function summarizePermissions(permissions) {
+  return (permissions || []).map((p) => ({
+    folderId: p.folderId?.toString?.() || p.folderId,
+    subfolderId: p.subfolderId?.toString?.() || p.subfolderId || null,
+    allowedActions: [...(p.allowedActions || [])].sort(),
+  }));
+}
+
+async function diffPermissions(req, group, oldPermissions, newPermissions) {
+  const oldMap = new Map(oldPermissions.map((p) => [permKey(p), p]));
+  const newMap = new Map(newPermissions.map((p) => [permKey(p), p]));
+
+  for (const [key, newPerm] of newMap) {
+    const oldPerm = oldMap.get(key);
+    const oldActions = new Set(oldPerm?.allowedActions || []);
+    const newActions = new Set(newPerm.allowedActions || []);
+
+    for (const action of newActions) {
+      if (!oldActions.has(action)) {
+        await auditLog({
+          user: req.user,
+          action: AUDIT_ACTIONS.PERMISSION_ADD,
+          category: AUDIT_CATEGORIES.PERMISSIONS,
+          targetType: TARGET_TYPES.GROUP,
+          targetId: group._id,
+          targetName: group.name,
+          details: `${buildActorLabel(req.user)} granted ${action} permission to ${group.name} group`,
+          newValues: { action, folderId: newPerm.folderId, subfolderId: newPerm.subfolderId },
+          req,
+        });
+      }
+    }
+
+    for (const action of oldActions) {
+      if (!newActions.has(action)) {
+        await auditLog({
+          user: req.user,
+          action: AUDIT_ACTIONS.PERMISSION_REMOVE,
+          category: AUDIT_CATEGORIES.PERMISSIONS,
+          targetType: TARGET_TYPES.GROUP,
+          targetId: group._id,
+          targetName: group.name,
+          details: `${buildActorLabel(req.user)} removed ${action} permission from ${group.name} group`,
+          oldValues: { action, folderId: oldPerm.folderId, subfolderId: oldPerm.subfolderId },
+          req,
+        });
+      }
+    }
+  }
+
+  for (const [key, oldPerm] of oldMap) {
+    if (!newMap.has(key)) {
+      const actions = (oldPerm.allowedActions || []).join(', ');
+      await auditLog({
+        user: req.user,
+        action: AUDIT_ACTIONS.PERMISSION_REMOVE,
+        category: AUDIT_CATEGORIES.PERMISSIONS,
+        targetType: TARGET_TYPES.GROUP,
+        targetId: group._id,
+        targetName: group.name,
+        details: `${buildActorLabel(req.user)} removed permissions (${actions}) from ${group.name} group`,
+        oldValues: summarizePermissions([oldPerm]),
+        req,
+      });
+    }
+  }
 }
 
 export default router;

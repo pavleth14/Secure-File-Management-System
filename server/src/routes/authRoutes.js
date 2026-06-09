@@ -13,6 +13,8 @@ import {
 } from '../utils/tokens.js';
 import { REFRESH_TOKEN_EXPIRY_MS } from '../config/constants.js';
 import { authMiddleware } from '../middleware/authMiddleware.js';
+import { auditLog, buildActorLabel } from '../services/auditLogService.js';
+import { AUDIT_ACTIONS, AUDIT_CATEGORIES, TARGET_TYPES } from '../config/auditConstants.js';
 
 const router = Router();
 
@@ -112,11 +114,27 @@ router.post('/login', async (req, res, next) => {
 
     const user = await User.findOne({ email: email.toLowerCase() });
     if (!user) {
+      await auditLog({
+        action: AUDIT_ACTIONS.LOGIN_FAILED,
+        category: AUDIT_CATEGORIES.AUTH,
+        targetType: TARGET_TYPES.AUTH,
+        targetName: email.toLowerCase(),
+        details: `Failed login attempt for user ${email.toLowerCase()}`,
+        req,
+      });
       return res.status(401).json({ message: 'Invalid credentials' });
     }
 
     const valid = await bcrypt.compare(password, user.passwordHash);
     if (!valid) {
+      await auditLog({
+        action: AUDIT_ACTIONS.LOGIN_FAILED,
+        category: AUDIT_CATEGORIES.AUTH,
+        targetType: TARGET_TYPES.AUTH,
+        targetName: user.email,
+        details: `Failed login attempt for user ${user.email}`,
+        req,
+      });
       return res.status(401).json({ message: 'Invalid credentials' });
     }
 
@@ -129,6 +147,17 @@ router.post('/login', async (req, res, next) => {
     const populated = await User.findById(user._id)
       .select('-passwordHash')
       .populate('groupId', 'name');
+
+    await auditLog({
+      user,
+      action: AUDIT_ACTIONS.LOGIN,
+      category: AUDIT_CATEGORIES.AUTH,
+      targetType: TARGET_TYPES.AUTH,
+      targetId: user._id,
+      targetName: user.name,
+      details: `${buildActorLabel(user)} logged in`,
+      req,
+    });
 
     res.json({
       user: sanitizeUser(populated),
@@ -191,6 +220,19 @@ router.post('/logout', async (req, res, next) => {
   try {
     const userId = await getUserIdFromAccessCookie(req);
     if (userId) {
+      const user = await User.findById(userId);
+      if (user) {
+        await auditLog({
+          user,
+          action: AUDIT_ACTIONS.LOGOUT,
+          category: AUDIT_CATEGORIES.AUTH,
+          targetType: TARGET_TYPES.AUTH,
+          targetId: user._id,
+          targetName: user.name,
+          details: `${buildActorLabel(user)} logged out`,
+          req,
+        });
+      }
       await RefreshToken.deleteMany({ userId });
     }
     clearAccessTokenCookie(res);

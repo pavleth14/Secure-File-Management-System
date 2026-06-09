@@ -8,6 +8,8 @@ import { aclFromFile } from '../middleware/aclMiddleware.js';
 import { createUploadMiddleware } from '../config/multer.js';
 import { checkGroupPermission, getRootFolder } from '../services/aclService.js';
 import { listFolderFiles } from '../services/searchService.js';
+import { auditLog, buildActorLabel } from '../services/auditLogService.js';
+import { AUDIT_ACTIONS, AUDIT_CATEGORIES, TARGET_TYPES } from '../config/auditConstants.js';
 
 const router = Router();
 const upload = createUploadMiddleware();
@@ -61,6 +63,17 @@ router.post('/upload', async (req, res, next) => {
       'name email'
     );
 
+    await auditLog({
+      user: req.user,
+      action: AUDIT_ACTIONS.FILE_UPLOAD,
+      category: AUDIT_CATEGORIES.UPLOAD,
+      targetType: TARGET_TYPES.FILE,
+      targetId: fileRecord._id,
+      targetName: fileRecord.originalName,
+      details: `${buildActorLabel(req.user)} uploaded file ${fileRecord.originalName}`,
+      req,
+    });
+
     res.status(201).json({ file: populated });
   } catch (err) {
     if (req.file?.path) fs.unlink(req.file.path, () => {});
@@ -74,6 +87,17 @@ router.get('/preview/:id', aclFromFile(PERMISSIONS.READ), async (req, res, next)
     if (!fs.existsSync(file.path)) {
       return res.status(404).json({ message: 'File not found on disk' });
     }
+    await auditLog({
+      user: req.user,
+      action: AUDIT_ACTIONS.FILE_READ,
+      category: AUDIT_CATEGORIES.READ,
+      targetType: TARGET_TYPES.FILE,
+      targetId: file._id,
+      targetName: file.originalName,
+      details: `${buildActorLabel(req.user)} viewed file ${file.originalName}`,
+      req,
+    });
+
     res.setHeader('Content-Type', file.mimeType || 'application/octet-stream');
     res.setHeader('Content-Disposition', `inline; filename="${encodeURIComponent(file.originalName)}"`);
     fs.createReadStream(file.path).pipe(res);
@@ -88,6 +112,18 @@ router.get('/download/:id', aclFromFile(PERMISSIONS.DOWNLOAD), async (req, res, 
     if (!fs.existsSync(file.path)) {
       return res.status(404).json({ message: 'File not found on disk' });
     }
+
+    await auditLog({
+      user: req.user,
+      action: AUDIT_ACTIONS.FILE_DOWNLOAD,
+      category: AUDIT_CATEGORIES.DOWNLOAD,
+      targetType: TARGET_TYPES.FILE,
+      targetId: file._id,
+      targetName: file.originalName,
+      details: `${buildActorLabel(req.user)} downloaded file ${file.originalName}`,
+      req,
+    });
+
     res.download(file.path, file.originalName);
   } catch (err) {
     next(err);
@@ -129,6 +165,17 @@ router.delete('/:id', aclFromFile(PERMISSIONS.DELETE), async (req, res, next) =>
     if (fs.existsSync(file.path)) {
       fs.unlinkSync(file.path);
     }
+
+    await auditLog({
+      user: req.user,
+      action: AUDIT_ACTIONS.FILE_DELETE,
+      category: AUDIT_CATEGORIES.DELETE,
+      targetType: TARGET_TYPES.FILE,
+      targetId: file._id,
+      targetName: file.originalName,
+      details: `${buildActorLabel(req.user)} deleted file ${file.originalName}`,
+      req,
+    });
 
     await FileModel.deleteOne({ _id: file._id });
     res.json({ message: 'File deleted' });

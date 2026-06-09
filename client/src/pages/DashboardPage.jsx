@@ -18,6 +18,12 @@ export default function DashboardPage() {
       show: isAdmin,
     },
     {
+      title: 'Audit Logs',
+      desc: 'View security and compliance audit trail',
+      to: '/admin/logs',
+      show: isAdmin,
+    },
+    {
       title: 'Group Permissions',
       desc: 'Configure ACL permissions per group and folder',
       to: '/groups',
