@@ -5,6 +5,7 @@ import helmet from 'helmet';
 import cookieParser from 'cookie-parser';
 import { connectDB } from './config/db.js';
 import { seedDatabase } from './seed/seed.js';
+import { corsOriginChecker } from './config/cors.js';
 import { errorHandler } from './middleware/errorHandler.js';
 import authRoutes from './routes/authRoutes.js';
 import userRoutes from './routes/userRoutes.js';
@@ -28,7 +29,7 @@ for (const key of requiredEnv) {
 app.use(helmet());
 app.use(
   cors({
-    origin: process.env.FRONTEND_URL || 'http://localhost:5173',
+    origin: corsOriginChecker,
     credentials: true,
   })
 );
@@ -52,8 +53,8 @@ app.use(errorHandler);
 async function start() {
   await connectDB();
   await seedDatabase();
-  app.listen(PORT, () => {
-    console.log(`Server running on http://localhost:${PORT}`);
+  app.listen(PORT, '0.0.0.0', () => {
+    console.log(`Server running on http://0.0.0.0:${PORT}`);
   });
 }
 

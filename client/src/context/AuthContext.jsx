@@ -25,6 +25,13 @@ export function AuthProvider({ children }) {
   }, []);
 
   useEffect(() => {
+    localStorage.removeItem('accessToken');
+    localStorage.removeItem('token');
+    sessionStorage.removeItem('accessToken');
+    sessionStorage.removeItem('token');
+  }, []);
+
+  useEffect(() => {
     async function init() {
       let authenticated = await fetchMe();
 

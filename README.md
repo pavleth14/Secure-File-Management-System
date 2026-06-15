@@ -29,8 +29,8 @@ cp server/.env.example server/.env
 npm run dev
 ```
 
-- Frontend: http://localhost:5173
-- Backend API: http://localhost:5000
+- Frontend: [http://localhost:5173](http://localhost:5173)
+- Backend API: [http://localhost:5000](http://localhost:5000)
 
 ### Default Super Admin
 
@@ -56,28 +56,32 @@ SUPER_ADMIN_PASSWORD=SuperSecure123!
 
 ## Groups & ACL
 
+
 | Group       | Default folder | Permissions        |
-|------------|----------------|--------------------|
-| eld        | folder1        | READ, UPLOAD       |
-| dispatch   | folder2        | READ, DOWNLOAD     |
-| safety     | folder3        | READ, DELETE       |
-| maintenance| folder4        | READ, UPLOAD, EDIT |
+| ----------- | -------------- | ------------------ |
+| eld         | folder1        | READ, UPLOAD       |
+| dispatch    | folder2        | READ, DOWNLOAD     |
+| safety      | folder3        | READ, DELETE       |
+| maintenance | folder4        | READ, UPLOAD, EDIT |
+
 
 Admins configure permissions via **Groups** (super admin) or assign users to groups (admin).
 
 ## API Endpoints
 
-| Method | Endpoint              | Access        |
-|--------|-----------------------|---------------|
-| POST   | /api/auth/register    | Public        |
-| POST   | /api/auth/login       | Public        |
-| POST   | /api/auth/refresh     | Cookie        |
-| POST   | /api/auth/logout      | Auth          |
-| GET    | /api/users            | Admin+        |
-| GET    | /api/groups           | Admin+        |
-| GET    | /api/folders          | Auth (ACL)    |
-| GET    | /api/files/:folderId  | Auth (ACL)    |
-| POST   | /api/files/upload     | Auth (ACL)    |
+
+| Method | Endpoint             | Access     |
+| ------ | -------------------- | ---------- |
+| POST   | /api/auth/register   | Public     |
+| POST   | /api/auth/login      | Public     |
+| POST   | /api/auth/refresh    | Cookie     |
+| POST   | /api/auth/logout     | Auth       |
+| GET    | /api/users           | Admin+     |
+| GET    | /api/groups          | Admin+     |
+| GET    | /api/folders         | Auth (ACL) |
+| GET    | /api/files/:folderId | Auth (ACL) |
+| POST   | /api/files/upload    | Auth (ACL) |
+
 
 ## Roles
 

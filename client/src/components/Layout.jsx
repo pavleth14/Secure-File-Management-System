@@ -24,7 +24,7 @@ export default function Layout() {
   }
   if (isSuperAdmin) {
     links.push({ to: '/groups', label: 'Groups' });
-    links.push({ to: '/admin', label: 'Admin' });
+    // links.push({ to: '/admin', label: 'Admin' });
   }
 
   return (
