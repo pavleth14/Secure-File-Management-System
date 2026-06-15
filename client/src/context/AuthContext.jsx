@@ -2,7 +2,7 @@ import { createContext, useContext, useState, useEffect, useCallback, useRef } f
 import api from '../api/client';
 
 const AuthContext = createContext(null);
-const INACTIVITY_TIMEOUT_MS = 5000;
+const INACTIVITY_TIMEOUT_MS = 1000 * 60 *30;
 
 export const ROLES = {
   SUPER_ADMIN: 'SUPER_ADMIN',
