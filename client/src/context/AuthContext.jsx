@@ -1,7 +1,8 @@
-import { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import api from '../api/client';
 
 const AuthContext = createContext(null);
+const INACTIVITY_TIMEOUT_MS = 5000;
 
 export const ROLES = {
   SUPER_ADMIN: 'SUPER_ADMIN',
@@ -12,6 +13,7 @@ export const ROLES = {
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const logoutRef = useRef(null);
 
   const fetchMe = useCallback(async () => {
     try {
@@ -61,13 +63,55 @@ export function AuthProvider({ children }) {
     return data.user;
   };
 
-  const logout = async () => {
+  const logout = useCallback(async () => {
     try {
       await api.post('/auth/logout');
     } finally {
       setUser(null);
     }
-  };
+  }, []);
+
+  logoutRef.current = logout;
+
+  useEffect(() => {
+    const handleInactivityTimeout = () => {
+      setUser(null);
+    };
+
+    window.addEventListener('auth:inactivity-timeout', handleInactivityTimeout);
+    return () => {
+      window.removeEventListener('auth:inactivity-timeout', handleInactivityTimeout);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!user) {
+      return undefined;
+    }
+
+    let timeoutId;
+
+    const resetTimer = () => {
+      clearTimeout(timeoutId);
+      timeoutId = window.setTimeout(() => {
+        logoutRef.current?.();
+      }, INACTIVITY_TIMEOUT_MS);
+    };
+
+    const activityEvents = ['mousedown', 'keydown', 'scroll', 'touchstart', 'click'];
+    activityEvents.forEach((event) => {
+      window.addEventListener(event, resetTimer, { passive: true });
+    });
+
+    resetTimer();
+
+    return () => {
+      clearTimeout(timeoutId);
+      activityEvents.forEach((event) => {
+        window.removeEventListener(event, resetTimer);
+      });
+    };
+  }, [user]);
 
   const isSuperAdmin = user?.role === ROLES.SUPER_ADMIN;
   const isAdminOnly = user?.role === ROLES.ADMIN;

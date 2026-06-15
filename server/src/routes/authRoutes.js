@@ -19,6 +19,10 @@ import {
 import { authMiddleware } from '../middleware/authMiddleware.js';
 import { auditLog, buildActorLabel } from '../services/auditLogService.js';
 import { AUDIT_ACTIONS, AUDIT_CATEGORIES, TARGET_TYPES } from '../config/auditConstants.js';
+import {
+  validateSessionActivity,
+  revokeSession,
+} from '../services/sessionService.js';
 
 const router = Router();
 
@@ -50,6 +54,7 @@ async function createSession(user, res) {
     userId: user._id,
     token: refreshToken,
     expiresAt: getRefreshExpiryDate(),
+    lastActivityAt: new Date(),
   });
 
   setAccessTokenCookie(res, accessToken);
@@ -212,6 +217,21 @@ router.post('/refresh', authLimiter, async (req, res, next) => {
       return res.status(401).json({ message: 'Session expired or revoked' });
     }
 
+    const activity = await validateSessionActivity(session.stored);
+    if (!activity.valid) {
+      await revokeSession(session.stored);
+      clearAuthCookies(res);
+
+      if (activity.reason === 'inactive') {
+        return res.status(401).json({
+          message: 'Session expired due to inactivity',
+          code: 'INACTIVITY_TIMEOUT',
+        });
+      }
+
+      return res.status(401).json({ message: 'Session expired or revoked' });
+    }
+
     const user = await User.findById(session.userId);
     if (!user) {
       await RefreshToken.deleteOne({ _id: session.stored._id });
@@ -227,6 +247,7 @@ router.post('/refresh', authLimiter, async (req, res, next) => {
       userId: user._id,
       token: newRefreshToken,
       expiresAt: getRefreshExpiryDate(),
+      lastActivityAt: new Date(),
     });
 
     setAccessTokenCookie(res, accessToken);

@@ -10,11 +10,16 @@ let refreshPromise = null;
 api.interceptors.response.use(
   (response) => response,
   async (error) => {
+    if (error.response?.data?.code === 'INACTIVITY_TIMEOUT') {
+      window.dispatchEvent(new CustomEvent('auth:inactivity-timeout'));
+    }
+
     const original = error.config;
 
     if (
       error.response?.status === 401 &&
       !original._retry &&
+      error.response?.data?.code !== 'INACTIVITY_TIMEOUT' &&
       !original.url?.includes('/auth/login') &&
       !original.url?.includes('/auth/register') &&
       !original.url?.includes('/auth/refresh') &&
