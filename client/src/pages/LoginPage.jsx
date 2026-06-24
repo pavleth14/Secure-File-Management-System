@@ -46,13 +46,14 @@ export default function LoginPage() {
 
       {/* Login card */}
       <div className="relative z-10 w-full max-w-md rounded-2xl bg-white p-8 shadow-2xl">
-        <h1 className="mb-2 text-2xl font-bold text-slate-900">
-          Sign in
-        </h1>
-
-        <p className="mb-6 text-sm text-slate-500">
-          Secure File Management System
-        </p>
+        <div className="text-center">
+          <h1 className="mb-2 text-2xl font-bold text-slate-900">
+            Sign in
+          </h1>
+          <p className="mb-6 text-sm text-slate-500">
+            Secure File Management System
+          </p>
+        </div>
 
         {error && (
           <div className="mb-4 rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">
