@@ -15,7 +15,6 @@ import {
 } from '../utils/tokens.js';
 import {
   getAccessTokenCookieOptions,
-  getRefreshTokenCookieOptions,
   getClearCookieOptions,
 } from '../config/cookies.js';
 import { authMiddleware } from '../middleware/authMiddleware.js';
@@ -38,19 +37,20 @@ function setAccessTokenCookie(res, accessToken) {
   res.cookie('accessToken', accessToken, getAccessTokenCookieOptions());
 }
 
-function setRefreshTokenCookie(res, refreshToken) {
-  res.cookie('refreshToken', refreshToken, getRefreshTokenCookieOptions());
-}
-
 function clearAuthCookies(res) {
   const options = getClearCookieOptions();
   res.clearCookie('accessToken', options);
+  // Clear any legacy refreshToken cookie set by older builds. The refresh token
+  // is no longer exposed to the browser, but this keeps existing clients clean.
   res.clearCookie('refreshToken', options);
 }
 
 async function createSession(user, res) {
   const sid = generateSessionId();
   const accessToken = signAccessToken(user, sid);
+  // The refresh token is persisted server-side ONLY. It is never sent to the
+  // browser (no cookie, no response body) and is used solely to validate and
+  // rotate the access token from the server.
   const refreshToken = signRefreshToken(user, sid);
 
   await RefreshToken.create({
@@ -62,7 +62,6 @@ async function createSession(user, res) {
   });
 
   setAccessTokenCookie(res, accessToken);
-  setRefreshTokenCookie(res, refreshToken);
 
   return accessToken;
 }
@@ -215,27 +214,13 @@ router.post('/login', async (req, res, next) => {
   }
 });
 
+// Resolves the active session for a refresh request. Because the refresh token
+// is never sent to the client, the user is identified from the access-token
+// cookie (its signature is verified, but expiry is ignored so an expired
+// access token can still be refreshed). The session id embedded in the cookie
+// must match the single active session stored in the database, otherwise the
+// session has been revoked (logged out or signed in on another device).
 async function resolveRefreshSession(req) {
-  const refreshToken = req.cookies.refreshToken;
-  if (refreshToken) {
-    try {
-      const decoded = verifyRefreshToken(refreshToken);
-      const stored = await RefreshToken.findOne({
-        userId: decoded.userId,
-        token: refreshToken,
-      });
-
-      // The presented refresh token must match a stored session AND carry the
-      // active session id. This prevents a stale token from one device from
-      // reviving or hijacking a session that now belongs to another device.
-      if (stored && stored.expiresAt >= new Date() && stored.sid === decoded.sid) {
-        return { userId: decoded.userId, stored, refreshToken };
-      }
-    } catch {
-      // Fall back to access-token lookup below.
-    }
-  }
-
   const token = req.cookies.accessToken;
   if (!token) return null;
 
@@ -249,20 +234,20 @@ async function resolveRefreshSession(req) {
   const userId = decodedAccess.userId;
   const stored = await RefreshToken.findOne({ userId });
   if (!stored || stored.expiresAt < new Date()) {
-    return { userId, stored: null, refreshToken: null };
+    return { userId, stored: null };
   }
 
-  // Only allow the access-cookie fallback when its session id still matches the
-  // active session. A revoked session (logged in elsewhere) must not refresh.
+  // The cookie's session id must match the current active session.
   if (!decodedAccess.sid || stored.sid !== decodedAccess.sid) {
-    return { userId, stored: null, refreshToken: null };
+    return { userId, stored: null };
   }
 
+  // Validate the server-side refresh token itself (signature + expiry).
   try {
     verifyRefreshToken(stored.token);
-    return { userId, stored, refreshToken: stored.token };
+    return { userId, stored };
   } catch {
-    return { userId, stored: null, refreshToken: null };
+    return { userId, stored: null };
   }
 }
 
@@ -303,6 +288,8 @@ router.post('/refresh', authLimiter, async (req, res, next) => {
     // session identity stays stable until the user logs out or logs in elsewhere.
     const sid = session.stored.sid || generateSessionId();
     const accessToken = signAccessToken(user, sid);
+    // Rotate the server-only refresh token and slide the session expiry. The
+    // new refresh token is stored in the DB and never returned to the client.
     const newRefreshToken = signRefreshToken(user, sid);
 
     await RefreshToken.deleteOne({ _id: session.stored._id });
@@ -315,7 +302,6 @@ router.post('/refresh', authLimiter, async (req, res, next) => {
     });
 
     setAccessTokenCookie(res, accessToken);
-    setRefreshTokenCookie(res, newRefreshToken);
 
     res.json({ message: 'Token refreshed' });
   } catch (err) {
@@ -325,16 +311,9 @@ router.post('/refresh', authLimiter, async (req, res, next) => {
 
 router.post('/logout', async (req, res, next) => {
   try {
-    let userId = await getUserIdFromAccessCookie(req);
-
-    if (!userId && req.cookies.refreshToken) {
-      try {
-        const decoded = verifyRefreshToken(req.cookies.refreshToken);
-        userId = decoded.userId;
-      } catch {
-        userId = null;
-      }
-    }
+    // Identify the user from the access-token cookie (signature verified, expiry
+    // ignored so logout works even with an expired token).
+    const userId = await getUserIdFromAccessCookie(req);
 
     if (userId) {
       const user = await User.findById(userId);
@@ -350,8 +329,11 @@ router.post('/logout', async (req, res, next) => {
           req,
         });
       }
+      // Fully invalidate the session server-side: delete every stored refresh
+      // token for the user so no access token can be refreshed afterwards.
       await RefreshToken.deleteMany({ userId });
     }
+
     clearAuthCookies(res);
     res.json({ message: 'Logged out' });
   } catch (err) {

@@ -36,18 +36,13 @@ export function AuthProvider({ children }) {
   }, []);
 
   useEffect(() => {
+    // On startup/reload, restore auth state from the HttpOnly access-token
+    // cookie. If the access token has expired, the axios interceptor transparently
+    // calls /auth/refresh (which validates the server-side session) and retries,
+    // so a single fetchMe() is enough. A valid session keeps the user signed in
+    // and prevents any redirect to the login page.
     async function init() {
-      let authenticated = await fetchMe();
-
-      if (!authenticated) {
-        try {
-          await api.post('/auth/refresh');
-          authenticated = await fetchMe();
-        } catch {
-          setUser(null);
-        }
-      }
-
+      await fetchMe();
       setLoading(false);
     }
     init();
