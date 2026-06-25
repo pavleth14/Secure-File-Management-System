@@ -38,7 +38,7 @@ On server start, a super admin is created from:
 
 ```
 SUPER_ADMIN_EMAIL=admin@example.com
-SUPER_ADMIN_PASSWORD=SuperSecure123!
+SUPER_ADMIN_PASSWORD=change-me-strong-password
 ```
 
 ## Project Structure

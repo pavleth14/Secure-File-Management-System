@@ -74,22 +74,40 @@ export async function seedDatabase() {
   }
 
   const existing = await User.findOne({ email: email.toLowerCase() });
-  const passwordHash = await bcrypt.hash(password, 12);
 
   if (!existing) {
     await User.create({
       name: 'Super Admin',
       email: email.toLowerCase(),
-      passwordHash,
+      passwordHash: await bcrypt.hash(password, 12),
       role: ROLES.SUPER_ADMIN,
       groupId: null,
     });
     console.log('Super admin created');
-  } else if (existing.role !== ROLES.SUPER_ADMIN) {
-    existing.role = ROLES.SUPER_ADMIN;
-    existing.passwordHash = passwordHash;
-    await existing.save();
-    console.log('Existing user promoted to super admin');
+  } else {
+    // Keep the super admin account synchronized with the configured environment
+    // variables. Re-running the seed (it runs on every server start) re-applies
+    // the SUPER_ADMIN role and re-syncs the password whenever SUPER_ADMIN_PASSWORD
+    // changes, so the password can be rotated through env config alone — without
+    // editing code or running manual DB updates. The bcrypt.compare check keeps
+    // this idempotent: the hash is only rewritten when the password differs.
+    let changed = false;
+
+    if (existing.role !== ROLES.SUPER_ADMIN) {
+      existing.role = ROLES.SUPER_ADMIN;
+      changed = true;
+    }
+
+    const passwordMatches = await bcrypt.compare(password, existing.passwordHash);
+    if (!passwordMatches) {
+      existing.passwordHash = await bcrypt.hash(password, 12);
+      changed = true;
+    }
+
+    if (changed) {
+      await existing.save();
+      console.log('Super admin synchronized with environment configuration');
+    }
   }
 
   console.log('Database seed completed');
