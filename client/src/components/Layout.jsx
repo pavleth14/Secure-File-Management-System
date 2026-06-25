@@ -3,7 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import GlobalSearch from './GlobalSearch';
 import ThemeToggle from './ThemeToggle';
 import UploadManager from './UploadManager';
-import logo from '../assets/tbf.jpg';
+import logo from '../assets/logo2.png';
 
 const navLinkClass = (active) =>
   `px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
@@ -26,6 +26,7 @@ export default function Layout() {
     links.push({ to: '/register', label: 'Register' });
     links.push({ to: '/admin/logs', label: 'Logs' });
   }
+
   if (isSuperAdmin) {
     links.push({ to: '/groups', label: 'Groups' });
   }
@@ -34,41 +35,63 @@ export default function Layout() {
     <div className="min-h-screen">
       <header className="border-b border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-900">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-4 sm:px-6">
+          {/* Left Section */}
           <div className="flex items-center gap-8">
-            <div className="flex items-center gap-1">
-              <img src={logo} alt="TBF File Manager" className="w-24 h-20 rounded" />
-              <Link to="/dashboard" className="text-lg font-bold text-brand-700 dark:text-brand-300">
+            <div className="flex items-center gap-6">
+              <img
+                src={logo}
+                alt="TBF File Manager"
+                className="h-16 w-24 rounded"
+              />
+
+              <Link
+                to="/dashboard"
+                className="text-xl font-bold text-brand-700 dark:text-brand-300"
+              >
                 Two Brothers Freight File Manager
               </Link>
             </div>
-            <nav className="flex gap-1">
-              {links.map((link) => {
-                const isActive =
-                  link.to === '/admin'
-                    ? location.pathname === '/admin'
-                    : location.pathname.startsWith(link.to);
-                return (
-                  <Link
-                    key={link.to}
-                    to={link.to}
-                    className={navLinkClass(isActive)}
-                  >
-                    {link.label}
-                  </Link>
-                );
-              })}
-            </nav>
+
+            {/* Navigation + Search */}
+            <div className="flex min-w-[500px] flex-col gap-3">
+              <nav className="flex flex-wrap gap-1">
+                {links.map((link) => {
+                  const isActive =
+                    link.to === '/admin'
+                      ? location.pathname === '/admin'
+                      : location.pathname.startsWith(link.to);
+
+                  return (
+                    <Link
+                      key={link.to}
+                      to={link.to}
+                      className={navLinkClass(isActive)}
+                    >
+                      {link.label}
+                    </Link>
+                  );
+                })}
+              </nav>
+
+              <GlobalSearch />
+            </div>
           </div>
-          <div className="flex flex-1 items-center justify-end gap-4">
-            <GlobalSearch />
+
+          {/* Right Section */}
+          <div className="flex items-center gap-4">
             <ThemeToggle />
-            <div className="text-right text-nowrap flex flex-col text-sm">
-              <p className="font-medium text-slate-900 dark:text-slate-100">{user?.name}</p>
+
+            <div className="flex flex-col text-right text-sm whitespace-nowrap">
+              <p className="font-medium text-slate-900 dark:text-slate-100">
+                {user?.name}
+              </p>
+
               <p className="text-slate-500 dark:text-slate-400">
                 {user?.role}
                 {user?.group?.name && ` · ${user.group.name}`}
               </p>
             </div>
+
             <button
               onClick={logout}
               className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-700"
@@ -78,9 +101,12 @@ export default function Layout() {
           </div>
         </div>
       </header>
+
       <main
         className={`mx-auto w-full px-4 sm:px-6 ${
-          location.pathname.includes('/files') ? 'max-w-full py-0' : 'max-w-7xl py-8'
+          location.pathname.includes('/files')
+            ? 'max-w-full py-0'
+            : 'max-w-7xl py-8'
         }`}
       >
         <Outlet />
