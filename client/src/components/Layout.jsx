@@ -1,13 +1,15 @@
 import { Link, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import GlobalSearch from './GlobalSearch';
+import ThemeToggle from './ThemeToggle';
+import UploadManager from './UploadManager';
 import logo from '../assets/tbf.jpg';
 
 const navLinkClass = (active) =>
   `px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
     active
       ? 'bg-brand-600 text-white'
-      : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+      : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-700 dark:hover:text-white'
   }`;
 
 export default function Layout() {
@@ -21,23 +23,23 @@ export default function Layout() {
 
   if (isAdmin) {
     links.push({ to: '/users', label: 'Users' });
+    links.push({ to: '/register', label: 'Register' });
     links.push({ to: '/admin/logs', label: 'Logs' });
   }
   if (isSuperAdmin) {
     links.push({ to: '/groups', label: 'Groups' });
-    // links.push({ to: '/admin', label: 'Admin' });
   }
 
   return (
     <div className="min-h-screen">
-      <header className="border-b border-slate-200 bg-white shadow-sm">
+      <header className="border-b border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-900">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-4 sm:px-6">
           <div className="flex items-center gap-8">
             <div className="flex items-center gap-1">
-            <img src={logo} alt="TBF File Manager" className="w-24 h-20" />
-            <Link to="/dashboard" className="text-lg font-bold text-brand-700">
-              Two Brothers Freight File Manager
-            </Link>
+              <img src={logo} alt="TBF File Manager" className="w-24 h-20 rounded" />
+              <Link to="/dashboard" className="text-lg font-bold text-brand-700 dark:text-brand-300">
+                Two Brothers Freight File Manager
+              </Link>
             </div>
             <nav className="flex gap-1">
               {links.map((link) => {
@@ -57,18 +59,19 @@ export default function Layout() {
               })}
             </nav>
           </div>
-          <div className="flex flex-1  items-center justify-end gap-4">            
-            <GlobalSearch />   
+          <div className="flex flex-1 items-center justify-end gap-4">
+            <GlobalSearch />
+            <ThemeToggle />
             <div className="text-right text-nowrap flex flex-col text-sm">
-              <p className="font-medium text-slate-900">{user?.name}</p>
-              <p className="text-slate-500">
+              <p className="font-medium text-slate-900 dark:text-slate-100">{user?.name}</p>
+              <p className="text-slate-500 dark:text-slate-400">
                 {user?.role}
                 {user?.group?.name && ` · ${user.group.name}`}
               </p>
             </div>
             <button
               onClick={logout}
-              className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50"
+              className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-700"
             >
               Logout
             </button>
@@ -82,6 +85,8 @@ export default function Layout() {
       >
         <Outlet />
       </main>
+
+      <UploadManager />
     </div>
   );
 }

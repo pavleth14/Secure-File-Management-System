@@ -5,22 +5,27 @@ import {
   REFRESH_TOKEN_EXPIRY_MS,
 } from '../config/constants.js';
 
-export function signAccessToken(user) {
+export function generateSessionId() {
+  return uuidv4();
+}
+
+export function signAccessToken(user, sid) {
   return jwt.sign(
     {
       userId: user._id.toString(),
       email: user.email,
       role: user.role,
       groupId: user.groupId?.toString() || null,
+      sid: sid || null,
     },
     process.env.JWT_ACCESS_SECRET,
     { expiresIn: ACCESS_TOKEN_EXPIRY }
   );
 }
 
-export function signRefreshToken(user) {
+export function signRefreshToken(user, sid) {
   return jwt.sign(
-    { userId: user._id.toString(), jti: uuidv4() },
+    { userId: user._id.toString(), sid: sid || null, jti: uuidv4() },
     process.env.JWT_REFRESH_SECRET,
     { expiresIn: '7d' }
   );

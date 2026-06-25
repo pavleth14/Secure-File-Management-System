@@ -186,12 +186,12 @@ export default function GroupsPage() {
     }
   };
 
-  if (loading) return <div className="text-slate-500">Loading...</div>;
+  if (loading) return <div className="text-slate-500 dark:text-slate-400">Loading...</div>;
 
   return (
     <div>
       <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
-        <h1 className="text-2xl font-bold text-slate-900">Groups & ACL Permissions</h1>
+        <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">Groups & ACL Permissions</h1>
         <button
           type="button"
           onClick={() => {
@@ -205,10 +205,10 @@ export default function GroupsPage() {
       </div>
 
       {error && (
-        <div className="mb-4 rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>
+        <div className="mb-4 rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700 dark:bg-red-900/30 dark:text-red-300">{error}</div>
       )}
       {success && (
-        <div className="mb-4 rounded-lg bg-green-50 px-4 py-3 text-sm text-green-700">
+        <div className="mb-4 rounded-lg bg-green-50 px-4 py-3 text-sm text-green-700 dark:bg-green-900/30 dark:text-green-300">
           {success}
         </div>
       )}
@@ -216,9 +216,9 @@ export default function GroupsPage() {
       {showCreate && (
         <form
           onSubmit={handleCreateGroup}
-          className="mb-6 rounded-xl border border-slate-200 bg-white p-6 shadow-sm"
+          className="mb-6 rounded-xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-700 dark:bg-slate-800"
         >
-          <h2 className="mb-3 font-semibold text-slate-900">Create new group</h2>
+          <h2 className="mb-3 font-semibold text-slate-900 dark:text-slate-100">Create new group</h2>
           <div className="flex flex-wrap gap-3">
             <input
               type="text"
@@ -226,7 +226,7 @@ export default function GroupsPage() {
               onChange={(e) => setNewGroupName(e.target.value)}
               placeholder="Group name (e.g. logistics)"
               required
-              className="min-w-[200px] flex-1 rounded-lg border border-slate-300 px-3 py-2 text-sm"
+              className="min-w-[200px] flex-1 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 placeholder-slate-400 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 dark:placeholder-slate-500"
             />
             <button
               type="submit"
@@ -236,7 +236,7 @@ export default function GroupsPage() {
               {saving ? 'Creating...' : 'Create group'}
             </button>
           </div>
-          <p className="mt-2 text-xs text-slate-500">
+          <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">
             New groups start with READ on the first folder. Edit permissions after creation.
           </p>
         </form>
@@ -250,10 +250,10 @@ export default function GroupsPage() {
           return (
             <div
               key={groupId}
-              className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm"
+              className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-700 dark:bg-slate-800"
             >
               <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
-                <h2 className="text-lg font-semibold capitalize">{group.name}</h2>
+                <h2 className="text-lg font-semibold capitalize text-slate-900 dark:text-slate-100">{group.name}</h2>
                 <div className="flex gap-3">
                   {!isEditing && (
                     <button
@@ -277,14 +277,14 @@ export default function GroupsPage() {
               {isEditing ? (
                 <div className="space-y-4">
                   {editing.permissions.length === 0 ? (
-                    <p className="text-sm text-slate-500">
+                    <p className="text-sm text-slate-500 dark:text-slate-400">
                       No permissions yet. Add a folder permission below.
                     </p>
                   ) : (
                     editing.permissions.map((perm, idx) => (
                       <div
                         key={`${groupId}-perm-${idx}`}
-                        className="rounded-lg border border-slate-200 p-4"
+                        className="rounded-lg border border-slate-200 p-4 dark:border-slate-700"
                       >
                         <div className="mb-3 flex flex-wrap items-center gap-3">
                           <select
@@ -292,7 +292,7 @@ export default function GroupsPage() {
                             onChange={(e) =>
                               updatePermission(idx, 'folderId', e.target.value)
                             }
-                            className="rounded border border-slate-300 px-3 py-2 text-sm"
+                            className="rounded border border-slate-300 px-3 py-2 text-sm dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
                           >
                             {folders.map((f) => (
                               <option key={toId(f._id)} value={toId(f._id)}>
@@ -312,7 +312,7 @@ export default function GroupsPage() {
                           {ALL_ACTIONS.map((action) => (
                             <label
                               key={action}
-                              className="flex cursor-pointer items-center gap-2 text-sm"
+                              className="flex cursor-pointer items-center gap-2 text-sm text-slate-700 dark:text-slate-200"
                             >
                               <input
                                 type="checkbox"
@@ -346,7 +346,7 @@ export default function GroupsPage() {
                     <button
                       type="button"
                       onClick={() => setEditing(null)}
-                      className="rounded-lg border border-slate-300 px-4 py-2 text-sm hover:bg-slate-50"
+                      className="rounded-lg border border-slate-300 px-4 py-2 text-sm hover:bg-slate-50 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-700"
                     >
                       Cancel
                     </button>
@@ -355,12 +355,12 @@ export default function GroupsPage() {
               ) : (
                 <div className="space-y-2">
                   {group.permissions.length === 0 ? (
-                    <p className="text-sm text-slate-500">No permissions configured</p>
+                    <p className="text-sm text-slate-500 dark:text-slate-400">No permissions configured</p>
                   ) : (
                     group.permissions.map((perm, idx) => (
                       <div
                         key={`${groupId}-view-${idx}`}
-                        className="flex flex-wrap items-center gap-2 text-sm text-slate-600"
+                        className="flex flex-wrap items-center gap-2 text-sm text-slate-600 dark:text-slate-300"
                       >
                         <span className="font-medium">
                           {perm.folderId?.name || 'Folder'}

@@ -3,5 +3,33 @@
 @tailwind utilities;
 
 body {
-  @apply bg-slate-50 text-slate-900 antialiased;
+  @apply bg-slate-50 text-slate-900 antialiased transition-colors duration-200;
+}
+
+.dark body {
+  @apply bg-slate-950 text-slate-100;
+}
+
+/* Smooth theme transitions for surfaces and borders without animating layout. */
+.theme-transition,
+.theme-transition * {
+  transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+}
+
+/* Better scrollbar contrast in dark mode */
+.dark ::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+.dark ::-webkit-scrollbar-thumb {
+  background-color: #475569;
+  border-radius: 9999px;
+}
+.dark ::-webkit-scrollbar-track {
+  background-color: #1e293b;
+}
+
+/* Native form controls follow the theme (date pickers, selects, checkboxes). */
+.dark {
+  color-scheme: dark;
 }

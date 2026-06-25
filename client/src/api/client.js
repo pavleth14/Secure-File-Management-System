@@ -10,8 +10,15 @@ let refreshPromise = null;
 api.interceptors.response.use(
   (response) => response,
   async (error) => {
-    if (error.response?.data?.code === 'INACTIVITY_TIMEOUT') {
+    const code = error.response?.data?.code;
+
+    if (code === 'INACTIVITY_TIMEOUT') {
       window.dispatchEvent(new CustomEvent('auth:inactivity-timeout'));
+    }
+
+    // The account was signed in on another device — force this session out.
+    if (code === 'SESSION_REVOKED') {
+      window.dispatchEvent(new CustomEvent('auth:session-revoked'));
     }
 
     const original = error.config;
@@ -19,7 +26,8 @@ api.interceptors.response.use(
     if (
       error.response?.status === 401 &&
       !original._retry &&
-      error.response?.data?.code !== 'INACTIVITY_TIMEOUT' &&
+      code !== 'INACTIVITY_TIMEOUT' &&
+      code !== 'SESSION_REVOKED' &&
       !original.url?.includes('/auth/login') &&
       !original.url?.includes('/auth/register') &&
       !original.url?.includes('/auth/refresh') &&

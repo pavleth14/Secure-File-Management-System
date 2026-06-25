@@ -25,6 +25,14 @@ export const ROOT_FOLDER_NAMES = [
   'folder5',
 ];
 
+// Roles permitted to access the registration endpoint. SUPER_ADMIN is always
+// allowed; ADMIN is configurable via ALLOW_ADMIN_REGISTER (defaults to enabled).
+// Normal users can never register accounts.
+export const REGISTRATION_ALLOWED_ROLES = [
+  ROLES.SUPER_ADMIN,
+  ...(process.env.ALLOW_ADMIN_REGISTER === 'false' ? [] : [ROLES.ADMIN]),
+];
+
 export const ACCESS_TOKEN_EXPIRY = '15m';
 export const ACCESS_TOKEN_EXPIRY_MS = 15 * 60 * 1000;
 export const REFRESH_TOKEN_EXPIRY_MS = 7 * 24 * 60 * 60 * 1000;

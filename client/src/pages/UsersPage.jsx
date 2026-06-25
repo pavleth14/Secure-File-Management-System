@@ -96,7 +96,7 @@ export default function UsersPage() {
     }
   };
 
-  if (loading) return <div className="text-slate-500">Loading...</div>;
+  if (loading) return <div className="text-slate-500 dark:text-slate-400">Loading...</div>;
 
   return (
     <div>
@@ -108,10 +108,10 @@ export default function UsersPage() {
           <form
             onSubmit={handlePasswordSubmit}
             onClick={(e) => e.stopPropagation()}
-            className="w-full max-w-md rounded-xl bg-white p-6 shadow-xl"
+            className="w-full max-w-md rounded-xl bg-white p-6 shadow-xl dark:bg-slate-800"
           >
-            <h2 className="mb-1 text-lg font-semibold text-slate-900">Change password</h2>
-            <p className="mb-4 text-sm text-slate-500">{passwordUser.name} ({passwordUser.email})</p>
+            <h2 className="mb-1 text-lg font-semibold text-slate-900 dark:text-slate-100">Change password</h2>
+            <p className="mb-4 text-sm text-slate-500 dark:text-slate-400">{passwordUser.name} ({passwordUser.email})</p>
             <input
               type="password"
               value={newPassword}
@@ -119,7 +119,7 @@ export default function UsersPage() {
               placeholder="New password (min 8 characters)"
               required
               minLength={8}
-              className="mb-4 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+              className="mb-4 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 placeholder-slate-400 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 dark:placeholder-slate-500"
               autoFocus
             />
             <div className="flex gap-2">
@@ -135,7 +135,7 @@ export default function UsersPage() {
                   setPasswordUser(null);
                   setNewPassword('');
                 }}
-                className="rounded-lg border border-slate-300 px-4 py-2 text-sm hover:bg-slate-50"
+                className="rounded-lg border border-slate-300 px-4 py-2 text-sm hover:bg-slate-50 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-700"
               >
                 Cancel
               </button>
@@ -145,7 +145,7 @@ export default function UsersPage() {
       )}
 
       <div className="mb-6 flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-slate-900">Users</h1>
+        <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">Users</h1>
         <button
           type="button"
           onClick={() => setShowForm(!showForm)}
@@ -156,10 +156,10 @@ export default function UsersPage() {
       </div>
 
       {error && (
-        <div className="mb-4 rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>
+        <div className="mb-4 rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700 dark:bg-red-900/30 dark:text-red-300">{error}</div>
       )}
       {success && (
-        <div className="mb-4 rounded-lg bg-green-50 px-4 py-3 text-sm text-green-700">
+        <div className="mb-4 rounded-lg bg-green-50 px-4 py-3 text-sm text-green-700 dark:bg-green-900/30 dark:text-green-300">
           {success}
         </div>
       )}
@@ -167,7 +167,7 @@ export default function UsersPage() {
       {showForm && (
         <form
           onSubmit={handleCreate}
-          className="mb-6 rounded-xl border border-slate-200 bg-white p-6 shadow-sm"
+          className="mb-6 rounded-xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-700 dark:bg-slate-800"
         >
           <div className="grid gap-4 sm:grid-cols-2">
             <input
@@ -175,7 +175,7 @@ export default function UsersPage() {
               value={form.name}
               onChange={(e) => setForm({ ...form, name: e.target.value })}
               required
-              className="rounded-lg border px-3 py-2"
+              className="rounded-lg border px-3 py-2 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 dark:placeholder-slate-500"
             />
             <input
               type="email"
@@ -183,7 +183,7 @@ export default function UsersPage() {
               value={form.email}
               onChange={(e) => setForm({ ...form, email: e.target.value })}
               required
-              className="rounded-lg border px-3 py-2"
+              className="rounded-lg border px-3 py-2 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 dark:placeholder-slate-500"
             />
             <input
               type="password"
@@ -191,12 +191,12 @@ export default function UsersPage() {
               value={form.password}
               onChange={(e) => setForm({ ...form, password: e.target.value })}
               required
-              className="rounded-lg border px-3 py-2"
+              className="rounded-lg border px-3 py-2 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 dark:placeholder-slate-500"
             />
             <select
               value={form.role}
               onChange={(e) => setForm({ ...form, role: e.target.value })}
-              className="rounded-lg border px-3 py-2"
+              className="rounded-lg border px-3 py-2 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
             >
               <option value="USER">USER</option>
               {isSuperAdmin && <option value="ADMIN">ADMIN</option>}
@@ -204,7 +204,7 @@ export default function UsersPage() {
             <select
               value={form.groupId}
               onChange={(e) => setForm({ ...form, groupId: e.target.value })}
-              className="rounded-lg border px-3 py-2 sm:col-span-2"
+              className="rounded-lg border px-3 py-2 sm:col-span-2 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
             >
               <option value="">No group</option>
               {groups.map((g) => (
@@ -223,28 +223,28 @@ export default function UsersPage() {
         </form>
       )}
 
-      <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-        <table className="min-w-full divide-y divide-slate-200">
-          <thead className="bg-slate-50">
+      <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
+        <table className="min-w-full divide-y divide-slate-200 dark:divide-slate-700">
+          <thead className="bg-slate-50 dark:bg-slate-700/50">
             <tr>
-              <th className="px-4 py-3 text-left text-xs font-medium uppercase text-slate-500">
+              <th className="px-4 py-3 text-left text-xs font-medium uppercase text-slate-500 dark:text-slate-400">
                 Name
               </th>
-              <th className="px-4 py-3 text-left text-xs font-medium uppercase text-slate-500">
+              <th className="px-4 py-3 text-left text-xs font-medium uppercase text-slate-500 dark:text-slate-400">
                 Email
               </th>
-              <th className="px-4 py-3 text-left text-xs font-medium uppercase text-slate-500">
+              <th className="px-4 py-3 text-left text-xs font-medium uppercase text-slate-500 dark:text-slate-400">
                 Role
               </th>
-              <th className="px-4 py-3 text-left text-xs font-medium uppercase text-slate-500">
+              <th className="px-4 py-3 text-left text-xs font-medium uppercase text-slate-500 dark:text-slate-400">
                 Group
               </th>
-              <th className="px-4 py-3 text-right text-xs font-medium uppercase text-slate-500">
+              <th className="px-4 py-3 text-right text-xs font-medium uppercase text-slate-500 dark:text-slate-400">
                 Actions
               </th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-200">
+          <tbody className="divide-y divide-slate-200 text-slate-900 dark:divide-slate-700 dark:text-slate-100">
             {users.map((user) => (
               <tr key={user.id}>
                 <td className="px-4 py-3 text-sm font-medium">{user.name}</td>
@@ -254,7 +254,7 @@ export default function UsersPage() {
                   <select
                     value={user.groupId || ''}
                     onChange={(e) => handleGroupChange(user.id, e.target.value)}
-                    className="rounded border px-2 py-1 text-sm"
+                    className="rounded border px-2 py-1 text-sm dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
                   >
                     <option value="">None</option>
                     {groups.map((g) => (
@@ -273,7 +273,7 @@ export default function UsersPage() {
                         setNewPassword('');
                         setSuccess('');
                       }}
-                      className="mr-3 text-sm text-brand-600 hover:underline"
+                      className="mr-3 text-sm text-brand-600 hover:underline dark:text-brand-400"
                     >
                       Password
                     </button>
@@ -281,7 +281,7 @@ export default function UsersPage() {
                   <button
                     type="button"
                     onClick={() => handleDelete(user.id)}
-                    className="text-sm text-red-600 hover:underline"
+                    className="text-sm text-red-600 hover:underline dark:text-red-400"
                   >
                     Delete
                   </button>

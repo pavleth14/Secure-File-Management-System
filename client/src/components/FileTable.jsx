@@ -11,12 +11,12 @@ const SORTABLE_COLUMNS = [
 function SortableHeader({ columnKey, label, sortBy, sortDir, onSort }) {
   const active = sortBy === columnKey;
   return (
-    <th className="px-4 py-3 text-left text-xs font-medium uppercase text-slate-500">
+    <th className="px-4 py-3 text-left text-xs font-medium uppercase text-slate-500 dark:text-slate-400">
       <button
         type="button"
         onClick={() => onSort(columnKey)}
-        className={`inline-flex items-center gap-1 hover:text-slate-900 ${
-          active ? 'text-brand-700' : ''
+        className={`inline-flex items-center gap-1 hover:text-slate-900 dark:hover:text-slate-100 ${
+          active ? 'text-brand-700 dark:text-brand-400' : ''
         }`}
       >
         {label}
@@ -47,9 +47,9 @@ export default function FileTable({
   };
 
   return (
-    <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-      <table className="min-w-full divide-y divide-slate-200">
-        <thead className="bg-slate-50">
+    <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
+      <table className="min-w-full divide-y divide-slate-200 dark:divide-slate-700">
+        <thead className="bg-slate-50 dark:bg-slate-700/50">
           <tr>
             {SORTABLE_COLUMNS.map((col) => (
               <SortableHeader
@@ -61,15 +61,15 @@ export default function FileTable({
                 onSort={handleSort}
               />
             ))}
-            <th className="px-4 py-3 text-right text-xs font-medium uppercase text-slate-500">
+            <th className="px-4 py-3 text-right text-xs font-medium uppercase text-slate-500 dark:text-slate-400">
               Actions
             </th>
           </tr>
         </thead>
-        <tbody className="divide-y divide-slate-200">
+        <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
           {files.length === 0 ? (
             <tr>
-              <td colSpan={5} className="px-4 py-8 text-center text-slate-500">
+              <td colSpan={5} className="px-4 py-8 text-center text-slate-500 dark:text-slate-400">
                 {emptyMessage}
               </td>
             </tr>
@@ -77,13 +77,13 @@ export default function FileTable({
             files.map((file) => {
               const previewable = isPreviewableFile(file);
               return (
-                <tr key={file._id} className="hover:bg-slate-50">
+                <tr key={file._id} className="text-slate-900 hover:bg-slate-50 dark:text-slate-100 dark:hover:bg-slate-700/50">
                   <td className="px-4 py-3 text-sm font-medium">
                     {previewable ? (
                       <button
                         type="button"
                         onClick={() => onPreview(file)}
-                        className="text-left text-brand-600 hover:underline"
+                        className="text-left text-brand-600 hover:underline dark:text-brand-400"
                       >
                         {file.originalName}
                       </button>
@@ -91,13 +91,13 @@ export default function FileTable({
                       file.originalName
                     )}
                   </td>
-                  <td className="px-4 py-3 text-sm text-slate-500">
+                  <td className="px-4 py-3 text-sm text-slate-500 dark:text-slate-400">
                     {formatSize(file.size)}
                   </td>
-                  <td className="px-4 py-3 text-sm text-slate-500">
+                  <td className="px-4 py-3 text-sm text-slate-500 dark:text-slate-400">
                     {formatDate(file.createdAt)}
                   </td>
-                  <td className="px-4 py-3 text-sm text-slate-500">
+                  <td className="px-4 py-3 text-sm text-slate-500 dark:text-slate-400">
                     {file.uploadedBy?.name || '—'}
                   </td>
                   <td className="px-4 py-3 text-right whitespace-nowrap">
@@ -105,7 +105,7 @@ export default function FileTable({
                       <button
                         type="button"
                         onClick={() => onDownload(file._id, file.originalName)}
-                        className="mr-2 text-sm text-brand-600 hover:underline"
+                        className="mr-2 text-sm text-brand-600 hover:underline dark:text-brand-400"
                       >
                         Download
                       </button>
@@ -114,7 +114,7 @@ export default function FileTable({
                       <button
                         type="button"
                         onClick={() => onDelete(file._id)}
-                        className="text-sm text-red-600 hover:underline"
+                        className="text-sm text-red-600 hover:underline dark:text-red-400"
                       >
                         Delete
                       </button>

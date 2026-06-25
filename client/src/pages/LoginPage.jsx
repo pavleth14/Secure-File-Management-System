@@ -1,6 +1,6 @@
 FILE:LoginPage
 import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import Main_1 from '../assets/Main_1.mp4';
 
@@ -10,7 +10,7 @@ export default function LoginPage() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const { login } = useAuth();
+  const { login, sessionMessage } = useAuth();
   const navigate = useNavigate();
 
   const handleSubmit = async (e) => {
@@ -54,6 +54,12 @@ export default function LoginPage() {
             Secure File Management System
           </p>
         </div>
+
+        {sessionMessage && !error && (
+          <div className="mb-4 rounded-lg bg-amber-50 px-4 py-3 text-sm text-amber-800">
+            {sessionMessage}
+          </div>
+        )}
 
         {error && (
           <div className="mb-4 rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">
@@ -99,14 +105,8 @@ export default function LoginPage() {
           </button>
         </form>
 
-        <p className="mt-6 text-center text-sm text-slate-500">
-          No account?{' '}
-          <Link
-            to="/register"
-            className="font-medium text-brand-600 hover:underline"
-          >
-            Register
-          </Link>
+        <p className="mt-6 text-center text-xs text-slate-400">
+          Accounts are provisioned by your administrator.
         </p>
       </div>
     </div>

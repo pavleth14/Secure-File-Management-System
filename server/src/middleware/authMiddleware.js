@@ -46,6 +46,18 @@ export async function authMiddleware(req, res, next) {
       return res.status(401).json({ message: 'Session expired or revoked' });
     }
 
+    // Single active session enforcement: the session id embedded in this access
+    // token must match the currently active session for the user. When the user
+    // logs in elsewhere a new session id is issued, immediately invalidating
+    // every token tied to the previous session id.
+    if (!decoded.sid || !session.sid || decoded.sid !== session.sid) {
+      clearAuthCookies(res);
+      return res.status(401).json({
+        message: 'Session ended because your account was used on another device',
+        code: 'SESSION_REVOKED',
+      });
+    }
+
     await touchSession(session);
 
     req.user = user;

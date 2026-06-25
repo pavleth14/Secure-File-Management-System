@@ -21,12 +21,12 @@ export default function AdminPage() {
       .finally(() => setLoading(false));
   }, []);
 
-  if (loading) return <div className="text-slate-500">Loading...</div>;
+  if (loading) return <div className="text-slate-500 dark:text-slate-400">Loading...</div>;
 
   return (
     <div>
-      <h1 className="mb-2 text-2xl font-bold text-slate-900">System Administration</h1>
-      <p className="mb-8 text-slate-600">Super admin overview and system management.</p>
+      <h1 className="mb-2 text-2xl font-bold text-slate-900 dark:text-slate-100">System Administration</h1>
+      <p className="mb-8 text-slate-600 dark:text-slate-300">Super admin overview and system management.</p>
 
       <div className="grid gap-4 sm:grid-cols-3">
         <StatCard label="Users" value={stats.users} />
@@ -34,9 +34,9 @@ export default function AdminPage() {
         <StatCard label="Root Folders" value={stats.folders} />
       </div>
 
-      <div className="mt-8 rounded-xl border border-slate-200 bg-white p-6">
-        <h2 className="mb-4 font-semibold">System configuration</h2>
-        <ul className="space-y-2 text-sm text-slate-600">
+      <div className="mt-8 rounded-xl border border-slate-200 bg-white p-6 dark:border-slate-700 dark:bg-slate-800">
+        <h2 className="mb-4 font-semibold text-slate-900 dark:text-slate-100">System configuration</h2>
+        <ul className="space-y-2 text-sm text-slate-600 dark:text-slate-300">
           <li>• 4 groups: eld, dispatch, safety, maintenance</li>
           <li>• 5 root folders: folder1 – folder5</li>
           <li>• ACL enforced server-side on every file operation</li>
@@ -50,9 +50,9 @@ export default function AdminPage() {
 
 function StatCard({ label, value }) {
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-      <p className="text-sm text-slate-500">{label}</p>
-      <p className="text-3xl font-bold text-brand-700">{value}</p>
+    <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-700 dark:bg-slate-800">
+      <p className="text-sm text-slate-500 dark:text-slate-400">{label}</p>
+      <p className="text-3xl font-bold text-brand-700 dark:text-brand-400">{value}</p>
     </div>
   );
 }

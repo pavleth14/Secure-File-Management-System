@@ -9,6 +9,7 @@ const refreshTokenSchema = new mongoose.Schema(
       index: true,
     },
     token: { type: String, required: true, unique: true },
+    sid: { type: String, required: true, index: true },
     expiresAt: { type: Date, required: true },
     lastActivityAt: { type: Date, default: Date.now },
   },

@@ -202,8 +202,8 @@ export default function LogsPage() {
     <div>
       <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Audit Logs</h1>
-          <p className="mt-1 text-sm text-slate-500">
+          <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">Audit Logs</h1>
+          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
             {isSuperAdmin
               ? 'Security and compliance audit trail for all system actions'
               : 'Audit trail of actions performed by regular user accounts'}
@@ -214,7 +214,7 @@ export default function LogsPage() {
             type="button"
             onClick={() => handleExport('csv')}
             disabled={exporting}
-            className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+            className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-700"
           >
             Export CSV
           </button>
@@ -230,34 +230,34 @@ export default function LogsPage() {
       </div>
 
       {error && (
-        <div className="mb-4 rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>
+        <div className="mb-4 rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700 dark:bg-red-900/30 dark:text-red-300">{error}</div>
       )}
 
       {!isSuperAdmin && (
-        <div className="mb-4 rounded-lg bg-blue-50 px-4 py-3 text-sm text-blue-800">
+        <div className="mb-4 rounded-lg bg-blue-50 px-4 py-3 text-sm text-blue-800 dark:bg-blue-900/30 dark:text-blue-300">
           You can view actions performed by regular users only. Admin and super admin activity is
           not visible in this view.
         </div>
       )}
 
-      <div className="mb-6 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+      <div className="mb-6 rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-800">
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <div>
-            <label className="mb-1 block text-xs font-medium text-slate-500">Search</label>
+            <label className="mb-1 block text-xs font-medium text-slate-500 dark:text-slate-400">Search</label>
             <input
               type="text"
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
               placeholder="Username, file, action, details..."
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+              className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 placeholder-slate-400 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 dark:placeholder-slate-500"
             />
           </div>
           <div>
-            <label className="mb-1 block text-xs font-medium text-slate-500">Category</label>
+            <label className="mb-1 block text-xs font-medium text-slate-500 dark:text-slate-400">Category</label>
             <select
               value={filters.category}
               onChange={(e) => updateFilter('category', e.target.value)}
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+              className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 placeholder-slate-400 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 dark:placeholder-slate-500"
             >
               {CATEGORIES.map((c) => (
                 <option key={c.value} value={c.value}>
@@ -267,11 +267,11 @@ export default function LogsPage() {
             </select>
           </div>
           <div>
-            <label className="mb-1 block text-xs font-medium text-slate-500">Role</label>
+            <label className="mb-1 block text-xs font-medium text-slate-500 dark:text-slate-400">Role</label>
             <select
               value={filters.role}
               onChange={(e) => updateFilter('role', e.target.value)}
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+              className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 placeholder-slate-400 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 dark:placeholder-slate-500"
             >
               {roleFilters.map((r) => (
                 <option key={r.value} value={r.value}>
@@ -281,11 +281,11 @@ export default function LogsPage() {
             </select>
           </div>
           <div>
-            <label className="mb-1 block text-xs font-medium text-slate-500">Date</label>
+            <label className="mb-1 block text-xs font-medium text-slate-500 dark:text-slate-400">Date</label>
             <select
               value={filters.datePreset}
               onChange={(e) => updateFilter('datePreset', e.target.value)}
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+              className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 placeholder-slate-400 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 dark:placeholder-slate-500"
             >
               {DATE_PRESETS.map((d) => (
                 <option key={d.value} value={d.value}>
@@ -299,52 +299,52 @@ export default function LogsPage() {
         {filters.datePreset === 'custom' && (
           <div className="mt-4 grid gap-4 sm:grid-cols-2">
             <div>
-              <label className="mb-1 block text-xs font-medium text-slate-500">Start Date</label>
+              <label className="mb-1 block text-xs font-medium text-slate-500 dark:text-slate-400">Start Date</label>
               <input
                 type="date"
                 value={filters.customStart}
                 onChange={(e) => updateFilter('customStart', e.target.value)}
-                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 placeholder-slate-400 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 dark:placeholder-slate-500"
               />
             </div>
             <div>
-              <label className="mb-1 block text-xs font-medium text-slate-500">End Date</label>
+              <label className="mb-1 block text-xs font-medium text-slate-500 dark:text-slate-400">End Date</label>
               <input
                 type="date"
                 value={filters.customEnd}
                 onChange={(e) => updateFilter('customEnd', e.target.value)}
-                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 placeholder-slate-400 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 dark:placeholder-slate-500"
               />
             </div>
           </div>
         )}
       </div>
 
-      <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+      <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
         <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-slate-200">
-            <thead className="bg-slate-50">
+          <table className="min-w-full divide-y divide-slate-200 dark:divide-slate-700">
+            <thead className="bg-slate-50 dark:bg-slate-700/50">
               <tr>
                 <SortHeader label="Time" field="timestamp" onSort={toggleSort} indicator={sortIndicator('timestamp')} />
                 <SortHeader label="User" field="username" onSort={toggleSort} indicator={sortIndicator('username')} />
-                <th className="px-4 py-3 text-left text-xs font-medium uppercase text-slate-500">Role</th>
+                <th className="px-4 py-3 text-left text-xs font-medium uppercase text-slate-500 dark:text-slate-400">Role</th>
                 <SortHeader label="Category" field="category" onSort={toggleSort} indicator={sortIndicator('category')} />
                 <SortHeader label="Action" field="action" onSort={toggleSort} indicator={sortIndicator('action')} />
-                <th className="px-4 py-3 text-left text-xs font-medium uppercase text-slate-500">Target Type</th>
-                <th className="px-4 py-3 text-left text-xs font-medium uppercase text-slate-500">Target Name</th>
-                <th className="px-4 py-3 text-left text-xs font-medium uppercase text-slate-500">Details</th>
+                <th className="px-4 py-3 text-left text-xs font-medium uppercase text-slate-500 dark:text-slate-400">Target Type</th>
+                <th className="px-4 py-3 text-left text-xs font-medium uppercase text-slate-500 dark:text-slate-400">Target Name</th>
+                <th className="px-4 py-3 text-left text-xs font-medium uppercase text-slate-500 dark:text-slate-400">Details</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-200">
+            <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
               {loading ? (
                 <tr>
-                  <td colSpan={8} className="px-4 py-8 text-center text-sm text-slate-500">
+                  <td colSpan={8} className="px-4 py-8 text-center text-sm text-slate-500 dark:text-slate-400">
                     Loading logs...
                   </td>
                 </tr>
               ) : logs.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="px-4 py-8 text-center text-sm text-slate-500">
+                  <td colSpan={8} className="px-4 py-8 text-center text-sm text-slate-500 dark:text-slate-400">
                     No logs found matching your filters.
                   </td>
                 </tr>
@@ -353,26 +353,26 @@ export default function LogsPage() {
                   <tr
                     key={log.id}
                     onClick={() => openDetails(log)}
-                    className="cursor-pointer hover:bg-slate-50"
+                    className="cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-700/50"
                   >
-                    <td className="whitespace-nowrap px-4 py-3 text-sm text-slate-600">
+                    <td className="whitespace-nowrap px-4 py-3 text-sm text-slate-600 dark:text-slate-300">
                       {formatDate(log.timestamp)}
                     </td>
-                    <td className="px-4 py-3 text-sm font-medium text-slate-900">{log.username}</td>
-                    <td className="px-4 py-3 text-sm text-slate-600">
+                    <td className="px-4 py-3 text-sm font-medium text-slate-900 dark:text-slate-100">{log.username}</td>
+                    <td className="px-4 py-3 text-sm text-slate-600 dark:text-slate-300">
                       {ROLE_LABELS[log.userRole] || log.userRole || '—'}
                     </td>
                     <td className="px-4 py-3">
                       <CategoryBadge category={log.category} />
                     </td>
-                    <td className="px-4 py-3 text-sm text-slate-600">{log.action}</td>
-                    <td className="px-4 py-3 text-sm capitalize text-slate-600">
+                    <td className="px-4 py-3 text-sm text-slate-600 dark:text-slate-300">{log.action}</td>
+                    <td className="px-4 py-3 text-sm capitalize text-slate-600 dark:text-slate-300">
                       {log.targetType || '—'}
                     </td>
-                    <td className="max-w-[160px] truncate px-4 py-3 text-sm text-slate-600">
+                    <td className="max-w-[160px] truncate px-4 py-3 text-sm text-slate-600 dark:text-slate-300">
                       {log.targetName || '—'}
                     </td>
-                    <td className="max-w-[240px] truncate px-4 py-3 text-sm text-slate-500">
+                    <td className="max-w-[240px] truncate px-4 py-3 text-sm text-slate-500 dark:text-slate-400">
                       {log.details || '—'}
                     </td>
                   </tr>
@@ -382,15 +382,15 @@ export default function LogsPage() {
           </table>
         </div>
 
-        <div className="flex flex-col items-center justify-between gap-4 border-t border-slate-200 px-4 py-3 sm:flex-row">
-          <p className="text-sm text-slate-500">
+        <div className="flex flex-col items-center justify-between gap-4 border-t border-slate-200 px-4 py-3 dark:border-slate-700 sm:flex-row">
+          <p className="text-sm text-slate-500 dark:text-slate-400">
             {total} record{total !== 1 ? 's' : ''} · Page {filters.page} of {totalPages}
           </p>
           <div className="flex items-center gap-3">
             <select
               value={filters.limit}
               onChange={(e) => updateFilter('limit', parseInt(e.target.value, 10))}
-              className="rounded-lg border border-slate-300 px-2 py-1 text-sm"
+              className="rounded-lg border border-slate-300 px-2 py-1 text-sm dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
             >
               {PAGE_SIZES.map((size) => (
                 <option key={size} value={size}>
@@ -402,7 +402,7 @@ export default function LogsPage() {
               type="button"
               disabled={filters.page <= 1}
               onClick={() => setFilters((prev) => ({ ...prev, page: prev.page - 1 }))}
-              className="rounded-lg border border-slate-300 px-3 py-1 text-sm disabled:opacity-40"
+              className="rounded-lg border border-slate-300 px-3 py-1 text-sm disabled:opacity-40 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-700"
             >
               Previous
             </button>
@@ -410,7 +410,7 @@ export default function LogsPage() {
               type="button"
               disabled={filters.page >= totalPages}
               onClick={() => setFilters((prev) => ({ ...prev, page: prev.page + 1 }))}
-              className="rounded-lg border border-slate-300 px-3 py-1 text-sm disabled:opacity-40"
+              className="rounded-lg border border-slate-300 px-3 py-1 text-sm disabled:opacity-40 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-700"
             >
               Next
             </button>
@@ -428,7 +428,7 @@ export default function LogsPage() {
 function SortHeader({ label, field, onSort, indicator }) {
   return (
     <th
-      className="cursor-pointer px-4 py-3 text-left text-xs font-medium uppercase text-slate-500 hover:text-slate-800"
+      className="cursor-pointer px-4 py-3 text-left text-xs font-medium uppercase text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200"
       onClick={() => onSort(field)}
     >
       {label}
@@ -441,15 +441,15 @@ function LogDetailsDrawer({ log, onClose }) {
   return (
     <div className="fixed inset-0 z-50 flex justify-end bg-black/50" onClick={onClose}>
       <div
-        className="h-full w-full max-w-lg overflow-y-auto bg-white shadow-xl"
+        className="h-full w-full max-w-lg overflow-y-auto bg-white shadow-xl dark:bg-slate-800"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="sticky top-0 flex items-center justify-between border-b border-slate-200 bg-white px-6 py-4">
-          <h2 className="text-lg font-semibold text-slate-900">Log Details</h2>
+        <div className="sticky top-0 flex items-center justify-between border-b border-slate-200 bg-white px-6 py-4 dark:border-slate-700 dark:bg-slate-800">
+          <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Log Details</h2>
           <button
             type="button"
             onClick={onClose}
-            className="rounded-lg p-1 text-slate-500 hover:bg-slate-100"
+            className="rounded-lg p-1 text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-700"
           >
             ✕
           </button>
@@ -487,8 +487,8 @@ function LogDetailsDrawer({ log, onClose }) {
 function DetailRow({ label, value, mono }) {
   return (
     <div>
-      <dt className="text-xs font-medium uppercase text-slate-500">{label}</dt>
-      <dd className={`mt-1 text-sm text-slate-900 ${mono ? 'font-mono text-xs break-all' : ''}`}>
+      <dt className="text-xs font-medium uppercase text-slate-500 dark:text-slate-400">{label}</dt>
+      <dd className={`mt-1 text-sm text-slate-900 dark:text-slate-100 ${mono ? 'font-mono text-xs break-all' : ''}`}>
         {value}
       </dd>
     </div>

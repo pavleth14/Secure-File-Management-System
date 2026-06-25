@@ -50,14 +50,6 @@ export default function App() {
           </PublicRoute>
         }
       />
-      <Route
-        path="/register"
-        element={
-          <PublicRoute>
-            <RegisterPage />
-          </PublicRoute>
-        }
-      />
 
       <Route
         element={
@@ -67,6 +59,14 @@ export default function App() {
         }
       >
         <Route path="/dashboard" element={<DashboardPage />} />
+        <Route
+          path="/register"
+          element={
+            <RoleGuard roles={['SUPER_ADMIN', 'ADMIN']}>
+              <RegisterPage />
+            </RoleGuard>
+          }
+        />
         <Route path="/folders" element={<FoldersPage />} />
         <Route path="/folders/:id/files" element={<FolderFilesPage />} />
         <Route

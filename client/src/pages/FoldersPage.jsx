@@ -70,13 +70,13 @@ export default function FoldersPage() {
   };
 
   if (loading) {
-    return <div className="text-slate-500">Loading folders...</div>;
+    return <div className="text-slate-500 dark:text-slate-400">Loading folders...</div>;
   }
 
   return (
     <div>
       <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
-        <h1 className="text-2xl font-bold text-slate-900">Folders</h1>
+        <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">Folders</h1>
         {isSuperAdmin && (
           <button
             type="button"
@@ -89,16 +89,16 @@ export default function FoldersPage() {
       </div>
 
       {error && (
-        <div className="mb-4 rounded-lg bg-red-50 px-4 py-3 text-red-700">{error}</div>
+        <div className="mb-4 rounded-lg bg-red-50 px-4 py-3 text-red-700 dark:bg-red-900/30 dark:text-red-300">{error}</div>
       )}
       {success && (
-        <div className="mb-4 rounded-lg bg-green-50 px-4 py-3 text-green-700">{success}</div>
+        <div className="mb-4 rounded-lg bg-green-50 px-4 py-3 text-green-700 dark:bg-green-900/30 dark:text-green-300">{success}</div>
       )}
 
       {isSuperAdmin && showCreate && (
         <form
           onSubmit={handleCreateRoot}
-          className="mb-6 flex gap-2 rounded-xl border border-slate-200 bg-white p-4 shadow-sm"
+          className="mb-6 flex gap-2 rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-800"
         >
           <input
             type="text"
@@ -106,7 +106,7 @@ export default function FoldersPage() {
             onChange={(e) => setNewName(e.target.value)}
             placeholder="folder6"
             required
-            className="flex-1 rounded-lg border border-slate-300 px-3 py-2 text-sm"
+            className="flex-1 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 placeholder-slate-400 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 dark:placeholder-slate-500"
           />
           <button
             type="submit"
@@ -118,7 +118,7 @@ export default function FoldersPage() {
       )}
 
       {folders.length === 0 ? (
-        <p className="text-slate-500">No folders available. Contact an administrator.</p>
+        <p className="text-slate-500 dark:text-slate-400">No folders available. Contact an administrator.</p>
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {folders.map((folder) => {
@@ -128,7 +128,7 @@ export default function FoldersPage() {
             return (
               <div
                 key={folderId}
-                className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm"
+                className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-700 dark:bg-slate-800"
               >
                 <div className="mb-3 flex items-start justify-between gap-2">
                   {isEditing ? (
@@ -142,16 +142,16 @@ export default function FoldersPage() {
                       <input
                         value={editName}
                         onChange={(e) => setEditName(e.target.value)}
-                        className="flex-1 rounded border px-2 py-1 text-sm"
+                        className="flex-1 rounded border px-2 py-1 text-sm dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
                         autoFocus
                       />
-                      <button type="submit" className="text-sm text-brand-600">
+                      <button type="submit" className="text-sm text-brand-600 dark:text-brand-400">
                         Save
                       </button>
                       <button
                         type="button"
                         onClick={() => setEditingId(null)}
-                        className="text-sm text-slate-500"
+                        className="text-sm text-slate-500 dark:text-slate-400"
                       >
                         Cancel
                       </button>
@@ -161,10 +161,10 @@ export default function FoldersPage() {
                       to={`/folders/${folderId}/files`}
                       className="flex flex-1 items-center gap-3 hover:opacity-80"
                     >
-                      <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-brand-100 text-2xl">
+                      <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-brand-100 text-2xl dark:bg-brand-900/40">
                         📁
                       </div>
-                      <h2 className="text-lg font-semibold text-slate-900">{folder.name}</h2>
+                      <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">{folder.name}</h2>
                     </Link>
                   )}
                 </div>
@@ -178,7 +178,7 @@ export default function FoldersPage() {
                 <div className="flex flex-wrap gap-2">
                   <Link
                     to={`/folders/${folderId}/files`}
-                    className="text-sm text-brand-600 hover:underline"
+                    className="text-sm text-brand-600 hover:underline dark:text-brand-400"
                   >
                     Open →
                   </Link>
@@ -190,14 +190,14 @@ export default function FoldersPage() {
                           setEditingId(folderId);
                           setEditName(folder.name);
                         }}
-                        className="text-sm text-slate-600 hover:underline"
+                        className="text-sm text-slate-600 hover:underline dark:text-slate-300"
                       >
                         Rename
                       </button>
                       <button
                         type="button"
                         onClick={() => handleDeleteRoot(folderId, folder.name)}
-                        className="text-sm text-red-600 hover:underline"
+                        className="text-sm text-red-600 hover:underline dark:text-red-400"
                       >
                         Delete
                       </button>

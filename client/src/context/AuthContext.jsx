@@ -13,6 +13,8 @@ export const ROLES = {
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  // Set when the session is forcibly ended (e.g. logged in on another device).
+  const [sessionMessage, setSessionMessage] = useState('');
   const logoutRef = useRef(null);
 
   const fetchMe = useCallback(async () => {
@@ -52,14 +54,16 @@ export function AuthProvider({ children }) {
   }, [fetchMe]);
 
   const login = async (email, password) => {
+    setSessionMessage('');
     const { data } = await api.post('/auth/login', { email, password });
     setUser(data.user);
     return data.user;
   };
 
-  const register = async (name, email, password) => {
-    const { data } = await api.post('/auth/register', { name, email, password });
-    setUser(data.user);
+  // Authenticated admins/super-admins create accounts; this does NOT change the
+  // current session (the new account is not auto-logged-in).
+  const register = async (payload) => {
+    const { data } = await api.post('/auth/register', payload);
     return data.user;
   };
 
@@ -76,11 +80,21 @@ export function AuthProvider({ children }) {
   useEffect(() => {
     const handleInactivityTimeout = () => {
       setUser(null);
+      setSessionMessage('Your session expired due to inactivity. Please sign in again.');
+    };
+
+    const handleSessionRevoked = () => {
+      setUser(null);
+      setSessionMessage(
+        'You were signed out because your account was used on another device.'
+      );
     };
 
     window.addEventListener('auth:inactivity-timeout', handleInactivityTimeout);
+    window.addEventListener('auth:session-revoked', handleSessionRevoked);
     return () => {
       window.removeEventListener('auth:inactivity-timeout', handleInactivityTimeout);
+      window.removeEventListener('auth:session-revoked', handleSessionRevoked);
     };
   }, []);
 
@@ -123,6 +137,8 @@ export function AuthProvider({ children }) {
       value={{
         user,
         loading,
+        sessionMessage,
+        clearSessionMessage: () => setSessionMessage(''),
         login,
         register,
         logout,

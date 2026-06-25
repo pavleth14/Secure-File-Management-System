@@ -3,13 +3,15 @@ import bcrypt from 'bcrypt';
 import rateLimit from 'express-rate-limit';
 import { User } from '../models/User.js';
 import { RefreshToken } from '../models/RefreshToken.js';
-import { ROLES } from '../config/constants.js';
+import { Group } from '../models/Group.js';
+import { ROLES, REGISTRATION_ALLOWED_ROLES } from '../config/constants.js';
 import {
   signAccessToken,
   signRefreshToken,
   getRefreshExpiryDate,
   verifyRefreshToken,
   decodeAccessToken,
+  generateSessionId,
 } from '../utils/tokens.js';
 import {
   getAccessTokenCookieOptions,
@@ -47,12 +49,14 @@ function clearAuthCookies(res) {
 }
 
 async function createSession(user, res) {
-  const accessToken = signAccessToken(user);
-  const refreshToken = signRefreshToken(user);
+  const sid = generateSessionId();
+  const accessToken = signAccessToken(user, sid);
+  const refreshToken = signRefreshToken(user, sid);
 
   await RefreshToken.create({
     userId: user._id,
     token: refreshToken,
+    sid,
     expiresAt: getRefreshExpiryDate(),
     lastActivityAt: new Date(),
   });
@@ -75,9 +79,17 @@ async function getUserIdFromAccessCookie(req) {
   }
 }
 
-router.post('/register', authLimiter, async (req, res, next) => {
+// Registration is NOT public. Only authenticated, authorized roles may create
+// accounts (enforced server-side regardless of any frontend route guard).
+router.post('/register', authLimiter, authMiddleware, async (req, res, next) => {
   try {
-    const { name, email, password } = req.body;
+    if (!REGISTRATION_ALLOWED_ROLES.includes(req.user.role)) {
+      return res
+        .status(403)
+        .json({ message: 'You are not authorized to register new accounts' });
+    }
+
+    const { name, email, password, role, groupId } = req.body;
 
     if (!name || !email || !password) {
       return res.status(400).json({ message: 'Name, email and password required' });
@@ -87,9 +99,24 @@ router.post('/register', authLimiter, async (req, res, next) => {
       return res.status(400).json({ message: 'Password must be at least 8 characters' });
     }
 
+    const assignedRole = role || ROLES.USER;
+    if (assignedRole === ROLES.SUPER_ADMIN) {
+      return res.status(403).json({ message: 'Cannot create super admin via API' });
+    }
+    if (assignedRole === ROLES.ADMIN && req.user.role !== ROLES.SUPER_ADMIN) {
+      return res.status(403).json({ message: 'Only super admin can create admins' });
+    }
+
     const exists = await User.findOne({ email: email.toLowerCase() });
     if (exists) {
       return res.status(409).json({ message: 'Email already registered' });
+    }
+
+    if (groupId) {
+      const group = await Group.findById(groupId);
+      if (!group) {
+        return res.status(400).json({ message: 'Invalid group' });
+      }
     }
 
     const passwordHash = await bcrypt.hash(password, 12);
@@ -97,14 +124,30 @@ router.post('/register', authLimiter, async (req, res, next) => {
       name,
       email: email.toLowerCase(),
       passwordHash,
-      role: ROLES.USER,
-      groupId: null,
+      role: assignedRole,
+      groupId: groupId || null,
     });
 
-    await createSession(user, res);
+    // Note: we intentionally do NOT create a session here — the registering
+    // admin stays logged in; the new account does not get auto-authenticated.
+    await auditLog({
+      user: req.user,
+      action: AUDIT_ACTIONS.USER_CREATE,
+      category: AUDIT_CATEGORIES.USERS,
+      targetType: TARGET_TYPES.USER,
+      targetId: user._id,
+      targetName: user.name,
+      details: `${buildActorLabel(req.user)} registered account ${user.name}`,
+      newValues: { name: user.name, email: user.email, role: user.role },
+      req,
+    });
+
+    const populated = await User.findById(user._id)
+      .select('-passwordHash')
+      .populate('groupId', 'name');
 
     res.status(201).json({
-      user: sanitizeUser(user),
+      user: sanitizeUser(populated),
     });
   } catch (err) {
     next(err);
@@ -182,7 +225,10 @@ async function resolveRefreshSession(req) {
         token: refreshToken,
       });
 
-      if (stored && stored.expiresAt >= new Date()) {
+      // The presented refresh token must match a stored session AND carry the
+      // active session id. This prevents a stale token from one device from
+      // reviving or hijacking a session that now belongs to another device.
+      if (stored && stored.expiresAt >= new Date() && stored.sid === decoded.sid) {
         return { userId: decoded.userId, stored, refreshToken };
       }
     } catch {
@@ -190,11 +236,25 @@ async function resolveRefreshSession(req) {
     }
   }
 
-  const userId = await getUserIdFromAccessCookie(req);
-  if (!userId) return null;
+  const token = req.cookies.accessToken;
+  if (!token) return null;
 
+  let decodedAccess;
+  try {
+    decodedAccess = decodeAccessToken(token);
+  } catch {
+    return null;
+  }
+
+  const userId = decodedAccess.userId;
   const stored = await RefreshToken.findOne({ userId });
   if (!stored || stored.expiresAt < new Date()) {
+    return { userId, stored: null, refreshToken: null };
+  }
+
+  // Only allow the access-cookie fallback when its session id still matches the
+  // active session. A revoked session (logged in elsewhere) must not refresh.
+  if (!decodedAccess.sid || stored.sid !== decodedAccess.sid) {
     return { userId, stored: null, refreshToken: null };
   }
 
@@ -239,13 +299,17 @@ router.post('/refresh', authLimiter, async (req, res, next) => {
       return res.status(401).json({ message: 'User not found' });
     }
 
-    const accessToken = signAccessToken(user);
-    const newRefreshToken = signRefreshToken(user);
+    // Preserve the existing session id across token rotation so the active
+    // session identity stays stable until the user logs out or logs in elsewhere.
+    const sid = session.stored.sid || generateSessionId();
+    const accessToken = signAccessToken(user, sid);
+    const newRefreshToken = signRefreshToken(user, sid);
 
     await RefreshToken.deleteOne({ _id: session.stored._id });
     await RefreshToken.create({
       userId: user._id,
       token: newRefreshToken,
+      sid,
       expiresAt: getRefreshExpiryDate(),
       lastActivityAt: new Date(),
     });
