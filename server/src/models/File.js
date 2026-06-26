@@ -4,7 +4,7 @@ const fileSchema = new mongoose.Schema(
   {
     filename: { type: String, required: true },
     originalName: { type: String, required: true },
-    path: { type: String, required: true },
+    relativePath: { type: String, required: true },
     folderId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Folder',

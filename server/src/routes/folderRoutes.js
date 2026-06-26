@@ -1,6 +1,4 @@
 import { Router } from 'express';
-import fs from 'fs';
-import path from 'path';
 import { Folder } from '../models/Folder.js';
 import { FileModel } from '../models/File.js';
 import { ROLES, PERMISSIONS } from '../config/constants.js';
@@ -12,7 +10,15 @@ import {
   getRootFolder,
   checkGroupPermission,
 } from '../services/aclService.js';
-import { UPLOADS_BASE, resolveUploadDir } from '../config/multer.js';
+import {
+  sanitizeName,
+  buildRelativePath,
+  createFolderOnDisk,
+  renameOnDisk,
+  removeFromDisk,
+  buildFolderRelativePath,
+  updateRelativePathsAfterFolderRename,
+} from '../services/storageService.js';
 import { getDescendantsFlat } from '../utils/folderTree.js';
 import { auditLog, buildActorLabel } from '../services/auditLogService.js';
 import { AUDIT_ACTIONS, AUDIT_CATEGORIES, TARGET_TYPES } from '../config/auditConstants.js';
@@ -88,10 +94,7 @@ router.get('/:id/tree', async (req, res, next) => {
     const enrichedSubfolders = await Promise.all(
       subfolders.map(async (folder) => {
         const fileCount = await FileModel.countDocuments({
-          $or: [
-            { folderId: folder._id },
-            { subfolderId: folder._id },
-          ],
+          $or: [{ folderId: folder._id }, { subfolderId: folder._id }],
         });
 
         return {
@@ -155,7 +158,7 @@ router.post(
         return res.status(400).json({ message: 'Folder name required' });
       }
 
-      const folderName = name.trim();
+      const folderName = sanitizeName(name.trim());
 
       if (parentFolderId) {
         const parent = await Folder.findById(parentFolderId);
@@ -163,15 +166,18 @@ router.post(
           return res.status(404).json({ message: 'Parent folder not found' });
         }
 
-        const root = await getRootFolder(parentFolderId);
+        const parentRelativePath =
+          parent.relativePath || (await buildFolderRelativePath(parent._id));
+        const relativePath = buildRelativePath(parentRelativePath, folderName);
+
         const subfolder = await Folder.create({
           name: folderName,
+          relativePath,
           parentFolderId,
           isRoot: false,
         });
 
-        const dir = await resolveUploadDir(root._id, subfolder._id);
-        fs.mkdirSync(dir, { recursive: true });
+        await createFolderOnDisk(relativePath);
 
         await auditLog({
           user: req.user,
@@ -196,13 +202,15 @@ router.post(
         return res.status(409).json({ message: 'Root folder name already exists' });
       }
 
+      const relativePath = buildRelativePath(folderName);
       const folder = await Folder.create({
         name: folderName,
+        relativePath,
         isRoot: true,
         parentFolderId: null,
       });
 
-      fs.mkdirSync(path.join(UPLOADS_BASE, folderName), { recursive: true });
+      await createFolderOnDisk(relativePath);
 
       await auditLog({
         user: req.user,
@@ -234,8 +242,10 @@ router.put('/:id', async (req, res, next) => {
       return res.status(400).json({ message: 'Folder name required' });
     }
 
-    const newName = name.trim();
+    const newName = sanitizeName(name.trim());
     const oldName = folder.name;
+    const oldRelativePath =
+      folder.relativePath || (await buildFolderRelativePath(folder._id));
 
     if (folder.isRoot) {
       if (req.user.role !== ROLES.SUPER_ADMIN) {
@@ -251,13 +261,18 @@ router.put('/:id', async (req, res, next) => {
         return res.status(409).json({ message: 'Root folder name already exists' });
       }
 
-      const oldPath = path.join(UPLOADS_BASE, folder.name);
-      const newPath = path.join(UPLOADS_BASE, newName);
-      if (folder.name !== newName && fs.existsSync(oldPath)) {
-        fs.renameSync(oldPath, newPath);
+      const newRelativePath = buildRelativePath(newName);
+      if (oldRelativePath !== newRelativePath) {
+        await renameOnDisk(oldRelativePath, newRelativePath);
+        folder.name = newName;
+        folder.relativePath = newRelativePath;
+        await folder.save();
+        await updateRelativePathsAfterFolderRename(
+          folder._id,
+          oldRelativePath,
+          newRelativePath
+        );
       }
-      folder.name = newName;
-      await folder.save();
 
       await auditLog({
         user: req.user,
@@ -287,8 +302,24 @@ router.put('/:id', async (req, res, next) => {
       return res.status(403).json({ message: 'Permission denied' });
     }
 
-    folder.name = newName;
-    await folder.save();
+    const parentRelativePath = oldRelativePath.includes('/')
+      ? oldRelativePath.slice(0, oldRelativePath.lastIndexOf('/'))
+      : '';
+    const newRelativePath = parentRelativePath
+      ? buildRelativePath(parentRelativePath, newName)
+      : buildRelativePath(newName);
+
+    if (oldRelativePath !== newRelativePath) {
+      await renameOnDisk(oldRelativePath, newRelativePath);
+      folder.name = newName;
+      folder.relativePath = newRelativePath;
+      await folder.save();
+      await updateRelativePathsAfterFolderRename(
+        folder._id,
+        oldRelativePath,
+        newRelativePath
+      );
+    }
 
     await auditLog({
       user: req.user,
@@ -316,6 +347,9 @@ router.delete('/:id', async (req, res, next) => {
       return res.status(404).json({ message: 'Folder not found' });
     }
 
+    const folderRelativePath =
+      folder.relativePath || (await buildFolderRelativePath(folder._id));
+
     if (folder.isRoot) {
       if (req.user.role !== ROLES.SUPER_ADMIN) {
         return res.status(403).json({ message: 'Only super admin can delete root folders' });
@@ -331,10 +365,7 @@ router.delete('/:id', async (req, res, next) => {
         return res.status(400).json({ message: 'Root folder contains files' });
       }
 
-      const dirPath = path.join(UPLOADS_BASE, folder.name);
-      if (fs.existsSync(dirPath)) {
-        fs.rmSync(dirPath, { recursive: true, force: true });
-      }
+      await removeFromDisk(folderRelativePath, true);
 
       await auditLog({
         user: req.user,
@@ -371,6 +402,8 @@ router.delete('/:id', async (req, res, next) => {
     if (childCount > 0 || fileCount > 0) {
       return res.status(400).json({ message: 'Folder is not empty' });
     }
+
+    await removeFromDisk(folderRelativePath, true);
 
     await auditLog({
       user: req.user,

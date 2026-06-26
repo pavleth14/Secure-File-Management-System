@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import fs from 'fs';
+import { createReadStream } from 'fs';
 import { FileModel } from '../models/File.js';
 import { Folder } from '../models/Folder.js';
 import { PERMISSIONS } from '../config/constants.js';
@@ -10,6 +10,13 @@ import { checkGroupPermission, getRootFolder } from '../services/aclService.js';
 import { listFolderFiles } from '../services/searchService.js';
 import { auditLog, buildActorLabel } from '../services/auditLogService.js';
 import { AUDIT_ACTIONS, AUDIT_CATEGORIES, TARGET_TYPES } from '../config/auditConstants.js';
+import {
+  buildFileRelativePath,
+  buildFolderRelativePath,
+  resolveFullPath,
+  unlinkFile,
+  pathExists,
+} from '../services/storageService.js';
 
 const router = Router();
 const upload = createUploadMiddleware();
@@ -43,14 +50,23 @@ router.post('/upload', async (req, res, next) => {
     );
 
     if (!check.allowed) {
-      fs.unlink(req.file.path, () => {});
+      await unlinkFile(
+        buildFileRelativePath(
+          await buildFolderRelativePath(subfolderId || root._id),
+          req.file.filename
+        )
+      );
       return res.status(403).json({ message: 'Upload permission denied' });
     }
+
+    const targetFolderId = subfolderId || root._id;
+    const folderRelativePath = await buildFolderRelativePath(targetFolderId);
+    const relativePath = buildFileRelativePath(folderRelativePath, req.file.filename);
 
     const fileRecord = await FileModel.create({
       filename: req.file.filename,
       originalName: req.file.originalname,
-      path: req.file.path,
+      relativePath,
       folderId: root._id,
       subfolderId: subfolderId || null,
       uploadedBy: req.user._id,
@@ -76,7 +92,19 @@ router.post('/upload', async (req, res, next) => {
 
     res.status(201).json({ file: populated });
   } catch (err) {
-    if (req.file?.path) fs.unlink(req.file.path, () => {});
+    if (req.file?.filename && req.body?.folderId) {
+      try {
+        const root = await getRootFolder(req.body.folderId || req.query.folderId);
+        const subfolderId = req.body.subfolderId || req.query.subfolderId || null;
+        const targetFolderId = subfolderId || root?._id;
+        if (targetFolderId) {
+          const folderRelativePath = await buildFolderRelativePath(targetFolderId);
+          await unlinkFile(buildFileRelativePath(folderRelativePath, req.file.filename));
+        }
+      } catch {
+        // Best-effort cleanup after a failed upload.
+      }
+    }
     next(err);
   }
 });
@@ -84,9 +112,12 @@ router.post('/upload', async (req, res, next) => {
 router.get('/preview/:id', aclFromFile(PERMISSIONS.READ), async (req, res, next) => {
   try {
     const file = req.fileRecord;
-    if (!fs.existsSync(file.path)) {
+    const fullPath = resolveFullPath(file.relativePath);
+
+    if (!(await pathExists(file.relativePath))) {
       return res.status(404).json({ message: 'File not found on disk' });
     }
+
     await auditLog({
       user: req.user,
       action: AUDIT_ACTIONS.FILE_READ,
@@ -100,7 +131,7 @@ router.get('/preview/:id', aclFromFile(PERMISSIONS.READ), async (req, res, next)
 
     res.setHeader('Content-Type', file.mimeType || 'application/octet-stream');
     res.setHeader('Content-Disposition', `inline; filename="${encodeURIComponent(file.originalName)}"`);
-    fs.createReadStream(file.path).pipe(res);
+    createReadStream(fullPath).pipe(res);
   } catch (err) {
     next(err);
   }
@@ -109,7 +140,8 @@ router.get('/preview/:id', aclFromFile(PERMISSIONS.READ), async (req, res, next)
 router.get('/download/:id', aclFromFile(PERMISSIONS.DOWNLOAD), async (req, res, next) => {
   try {
     const file = req.fileRecord;
-    if (!fs.existsSync(file.path)) {
+
+    if (!(await pathExists(file.relativePath))) {
       return res.status(404).json({ message: 'File not found on disk' });
     }
 
@@ -124,7 +156,7 @@ router.get('/download/:id', aclFromFile(PERMISSIONS.DOWNLOAD), async (req, res, 
       req,
     });
 
-    res.download(file.path, file.originalName);
+    res.download(resolveFullPath(file.relativePath), file.originalName);
   } catch (err) {
     next(err);
   }
@@ -162,9 +194,7 @@ router.delete('/:id', aclFromFile(PERMISSIONS.DELETE), async (req, res, next) =>
   try {
     const file = req.fileRecord;
 
-    if (fs.existsSync(file.path)) {
-      fs.unlinkSync(file.path);
-    }
+    await unlinkFile(file.relativePath);
 
     await auditLog({
       user: req.user,

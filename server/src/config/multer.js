@@ -1,29 +1,11 @@
 import multer from 'multer';
 import path from 'path';
-import fs from 'fs';
-import { fileURLToPath } from 'url';
-import { Folder } from '../models/Folder.js';
-import { getRootFolder } from '../services/aclService.js';
+import { resolveUploadDir } from '../services/storageService.js';
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-export const UPLOADS_BASE = path.join(__dirname, '../../uploads');
+export { STORAGE_ROOT } from '../config/storage.js';
 
-export async function resolveUploadDir(folderId, subfolderId) {
-  const rootFolder = await getRootFolder(folderId);
-  if (!rootFolder) {
-    throw Object.assign(new Error('Folder not found'), { status: 404 });
-  }
-
-  let dir = path.join(UPLOADS_BASE, rootFolder.name);
-  if (subfolderId) {
-    const sub = await Folder.findById(subfolderId);
-    if (sub) {
-      dir = path.join(dir, sub.name);
-    }
-  }
-
-  fs.mkdirSync(dir, { recursive: true });
-  return dir;
+export async function resolveUploadDirectory(folderId, subfolderId) {
+  return resolveUploadDir(folderId, subfolderId);
 }
 
 export function createUploadMiddleware() {
@@ -35,8 +17,8 @@ export function createUploadMiddleware() {
         if (!folderId) {
           throw Object.assign(new Error('folderId is required'), { status: 400 });
         }
-        const dir = await resolveUploadDir(folderId, subfolderId);
-        cb(null, dir);
+        const { fullPath } = await resolveUploadDir(folderId, subfolderId);
+        cb(null, fullPath);
       } catch (err) {
         cb(err);
       }

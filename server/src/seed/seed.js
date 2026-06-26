@@ -1,7 +1,4 @@
 import bcrypt from 'bcrypt';
-import fs from 'fs';
-import path from 'path';
-import { fileURLToPath } from 'url';
 import { User } from '../models/User.js';
 import { Group } from '../models/Group.js';
 import { Folder } from '../models/Folder.js';
@@ -11,9 +8,12 @@ import {
   ROOT_FOLDER_NAMES,
   PERMISSIONS,
 } from '../config/constants.js';
-import { UPLOADS_BASE } from '../config/multer.js';
-
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
+import {
+  ensureStorageRoot,
+  createFolderOnDisk,
+  buildRelativePath,
+  buildFolderRelativePath,
+} from '../services/storageService.js';
 
 const DEFAULT_GROUP_PERMISSIONS = {
   eld: { folder: 'folder1', actions: [PERMISSIONS.READ, PERMISSIONS.UPLOAD] },
@@ -29,17 +29,39 @@ const DEFAULT_GROUP_PERMISSIONS = {
 };
 
 export async function seedDatabase() {
-  fs.mkdirSync(UPLOADS_BASE, { recursive: true });
+  await ensureStorageRoot();
 
   const rootFolders = {};
   for (const name of ROOT_FOLDER_NAMES) {
     let folder = await Folder.findOne({ name, isRoot: true });
+    const relativePath = buildRelativePath(name);
+
     if (!folder) {
-      folder = await Folder.create({ name, isRoot: true, parentFolderId: null });
-      const dir = path.join(UPLOADS_BASE, name);
-      fs.mkdirSync(dir, { recursive: true });
+      folder = await Folder.create({
+        name,
+        relativePath,
+        isRoot: true,
+        parentFolderId: null,
+      });
+      await createFolderOnDisk(relativePath);
+    } else if (!folder.relativePath) {
+      folder.relativePath = relativePath;
+      await folder.save();
+      await createFolderOnDisk(relativePath);
     }
+
     rootFolders[name] = folder;
+  }
+
+  const foldersMissingPath = await Folder.find({
+    $or: [{ relativePath: { $exists: false } }, { relativePath: null }, { relativePath: '' }],
+  });
+
+  for (const folder of foldersMissingPath) {
+    const relativePath = await buildFolderRelativePath(folder._id);
+    folder.relativePath = relativePath;
+    await folder.save();
+    await createFolderOnDisk(relativePath);
   }
 
   for (const groupName of GROUP_NAMES) {
@@ -85,12 +107,6 @@ export async function seedDatabase() {
     });
     console.log('Super admin created');
   } else {
-    // Keep the super admin account synchronized with the configured environment
-    // variables. Re-running the seed (it runs on every server start) re-applies
-    // the SUPER_ADMIN role and re-syncs the password whenever SUPER_ADMIN_PASSWORD
-    // changes, so the password can be rotated through env config alone — without
-    // editing code or running manual DB updates. The bcrypt.compare check keeps
-    // this idempotent: the hash is only rewritten when the password differs.
     let changed = false;
 
     if (existing.role !== ROLES.SUPER_ADMIN) {
