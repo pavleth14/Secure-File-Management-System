@@ -1,5 +1,6 @@
 import { useRef, useState, useCallback } from 'react';
 import { UploadCloudIcon } from './icons';
+import { UPLOAD_ACCEPT, partitionUploadFiles } from '../utils/uploadTypes';
 
 /**
  * Drag & drop upload zone with a click-to-browse fallback. Wraps arbitrary
@@ -8,13 +9,29 @@ import { UploadCloudIcon } from './icons';
  *
  * @param {object} props
  * @param {(files: File[]) => void} props.onFiles - called with dropped/picked files
+ * @param {(messages: string[]) => void} [props.onValidationError]
  * @param {boolean} [props.disabled]
  * @param {React.ReactNode} props.children
  */
-export default function UploadDropzone({ onFiles, disabled, children }) {
+export default function UploadDropzone({ onFiles, onValidationError, disabled, children }) {
   const inputRef = useRef(null);
   const dragDepth = useRef(0);
   const [dragging, setDragging] = useState(false);
+
+  const processFiles = useCallback(
+    (fileList) => {
+      const { accepted, rejected } = partitionUploadFiles(fileList);
+      if (rejected.length) {
+        onValidationError?.(
+          rejected.map(({ file, message }) => `${file.name}: ${message}`)
+        );
+      }
+      if (accepted.length) {
+        onFiles(accepted);
+      }
+    },
+    [onFiles, onValidationError]
+  );
 
   const handleDrop = useCallback(
     (e) => {
@@ -23,9 +40,9 @@ export default function UploadDropzone({ onFiles, disabled, children }) {
       setDragging(false);
       if (disabled) return;
       const files = e.dataTransfer?.files;
-      if (files && files.length) onFiles(Array.from(files));
+      if (files && files.length) processFiles(Array.from(files));
     },
-    [onFiles, disabled]
+    [processFiles, disabled]
   );
 
   const handleDragOver = useCallback(
@@ -60,7 +77,7 @@ export default function UploadDropzone({ onFiles, disabled, children }) {
 
   const handlePicked = (e) => {
     const files = e.target.files;
-    if (files && files.length) onFiles(Array.from(files));
+    if (files && files.length) processFiles(Array.from(files));
     e.target.value = '';
   };
 
@@ -76,6 +93,7 @@ export default function UploadDropzone({ onFiles, disabled, children }) {
         ref={inputRef}
         type="file"
         multiple
+        accept={UPLOAD_ACCEPT}
         className="hidden"
         onChange={handlePicked}
         disabled={disabled}

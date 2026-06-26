@@ -226,7 +226,11 @@ export default function FolderFilesPage() {
             />
           </div>
 
-          <UploadDropzone onFiles={handleFiles} disabled={!canUpload}>
+          <UploadDropzone
+            onFiles={handleFiles}
+            onValidationError={(messages) => setError(messages.join(' '))}
+            disabled={!canUpload}
+          >
             {({ openPicker }) => (
               <div className="flex-1 overflow-auto p-4 sm:p-6">
                 {canUpload && (

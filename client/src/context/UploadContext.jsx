@@ -7,6 +7,7 @@ import {
   useEffect,
 } from 'react';
 import api from '../api/client';
+import { validateUploadFile } from '../utils/uploadTypes';
 
 const UploadContext = createContext(null);
 
@@ -199,7 +200,19 @@ export function UploadProvider({ children }) {
       if (!list.length || !target?.folderId) return;
 
       const items = list.map((file) => {
+        const typeCheck = validateUploadFile(file);
         const tooLarge = file.size > MAX_FILE_SIZE;
+        let error = '';
+        let status = STATUS.QUEUED;
+
+        if (!typeCheck.ok) {
+          error = typeCheck.message;
+          status = STATUS.ERROR;
+        } else if (tooLarge) {
+          error = `File exceeds the ${Math.round(MAX_FILE_SIZE / (1024 * 1024))}MB limit`;
+          status = STATUS.ERROR;
+        }
+
         return {
           id: nextId(),
           file,
@@ -208,14 +221,12 @@ export function UploadProvider({ children }) {
           folderId: target.folderId,
           subfolderId: target.subfolderId || null,
           folderName: target.folderName || '',
-          status: tooLarge ? STATUS.ERROR : STATUS.QUEUED,
+          status,
           progress: 0,
           loaded: 0,
           speed: 0,
           eta: null,
-          error: tooLarge
-            ? `File exceeds the ${Math.round(MAX_FILE_SIZE / (1024 * 1024))}MB limit`
-            : '',
+          error,
         };
       });
 

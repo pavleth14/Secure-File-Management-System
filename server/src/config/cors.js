@@ -11,6 +11,29 @@ function isPrivateLanOrigin(origin) {
   );
 }
 
+function getRegistrableDomain(hostname) {
+  const parts = hostname.split('.').filter(Boolean);
+  if (parts.length >= 2) {
+    return parts.slice(-2).join('.');
+  }
+  return hostname;
+}
+
+function isSameSiteFamily(origin, allowedOrigins) {
+  try {
+    const originHost = new URL(origin).hostname;
+    const originDomain = getRegistrableDomain(originHost);
+
+    return allowedOrigins.some((allowed) => {
+      const allowedHost = new URL(allowed).hostname;
+      const allowedDomain = getRegistrableDomain(allowedHost);
+      return originDomain === allowedDomain;
+    });
+  } catch {
+    return false;
+  }
+}
+
 export function corsOriginChecker(origin, callback) {
   if (!origin) {
     callback(null, true);
@@ -24,10 +47,21 @@ export function corsOriginChecker(origin, callback) {
     return;
   }
 
+  // Cross-origin cookie deployments (frontend + API on sibling subdomains) must
+  // allow preflight on multipart uploads from any subdomain of FRONTEND_URL domains.
+  if (
+    process.env.COOKIE_CROSS_ORIGIN === 'true' &&
+    isSameSiteFamily(origin, allowedOrigins)
+  ) {
+    callback(null, true);
+    return;
+  }
+
   if (process.env.NODE_ENV !== 'production' && isPrivateLanOrigin(origin)) {
     callback(null, true);
     return;
   }
 
+  console.warn(`CORS rejected origin: ${origin}`);
   callback(null, false);
 }

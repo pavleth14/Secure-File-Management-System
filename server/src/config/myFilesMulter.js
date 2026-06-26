@@ -1,6 +1,7 @@
 import multer from 'multer';
 import path from 'path';
 import { sanitizeName } from './storage.js';
+import { createUploadFileFilter } from './uploadTypes.js';
 import { resolveMyFilesUploadDir } from '../services/storageService.js';
 
 export function createMyFilesUploadMiddleware() {
@@ -27,6 +28,7 @@ export function createMyFilesUploadMiddleware() {
 
   return multer({
     storage,
+    fileFilter: createUploadFileFilter(),
     limits: { fileSize: 50 * 1024 * 1024 },
   });
 }

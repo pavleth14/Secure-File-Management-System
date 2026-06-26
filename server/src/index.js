@@ -29,7 +29,11 @@ for (const key of requiredEnv) {
   }
 }
 
-app.use(helmet());
+app.use(
+  helmet({
+    crossOriginResourcePolicy: { policy: 'cross-origin' },
+  })
+);
 app.use(
   cors({
     origin: corsOriginChecker,

@@ -6,6 +6,7 @@ import UploadDropzone from '../components/UploadDropzone';
 import { UploadCloudIcon } from '../components/icons';
 import { useFavorites } from '../hooks/useFavorites';
 import { MAX_FILE_SIZE } from '../context/UploadContext';
+import { validateUploadFile } from '../utils/uploadTypes';
 
 export default function MyFilesPage() {
   const { isFavorite, toggleFavorite } = useFavorites();
@@ -38,6 +39,12 @@ export default function MyFilesPage() {
     setError('');
 
     for (const file of list) {
+      const typeCheck = validateUploadFile(file);
+      if (!typeCheck.ok) {
+        setError(`${file.name}: ${typeCheck.message}`);
+        continue;
+      }
+
       if (file.size > MAX_FILE_SIZE) {
         setError(`"${file.name}" exceeds the 50MB upload limit`);
         continue;
@@ -104,7 +111,11 @@ export default function MyFilesPage() {
         </p>
       </div>
 
-      <UploadDropzone onFiles={uploadFiles} disabled={uploading}>
+      <UploadDropzone
+        onFiles={uploadFiles}
+        onValidationError={(messages) => setError(messages.join(' '))}
+        disabled={uploading}
+      >
         {({ openPicker }) => (
           <div className="flex-1 overflow-auto p-4 sm:p-6">
             {error && (

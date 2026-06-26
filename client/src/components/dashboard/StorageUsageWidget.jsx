@@ -1,4 +1,4 @@
-import { formatSize } from '../utils/format';
+import { formatSize } from '../../utils/format';
 
 export default function StorageUsageWidget({ storage }) {
   if (!storage) return null;
