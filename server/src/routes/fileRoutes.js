@@ -61,11 +61,12 @@ router.post('/upload', async (req, res, next) => {
 
     const targetFolderId = subfolderId || root._id;
     const folderRelativePath = await buildFolderRelativePath(targetFolderId);
-    const relativePath = buildFileRelativePath(folderRelativePath, req.file.filename);
+    const storedName = req.file.filename;
+    const relativePath = buildFileRelativePath(folderRelativePath, storedName);
 
     const fileRecord = await FileModel.create({
-      filename: req.file.filename,
-      originalName: req.file.originalname,
+      filename: storedName,
+      originalName: storedName,
       relativePath,
       folderId: root._id,
       subfolderId: subfolderId || null,

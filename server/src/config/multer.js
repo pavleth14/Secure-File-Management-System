@@ -1,6 +1,7 @@
 import multer from 'multer';
 import path from 'path';
 import { resolveUploadDir } from '../services/storageService.js';
+import { sanitizeName } from './storage.js';
 
 export { STORAGE_ROOT } from '../config/storage.js';
 
@@ -24,9 +25,14 @@ export function createUploadMiddleware() {
       }
     },
     filename: (_req, file, cb) => {
-      const unique = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
-      const ext = path.extname(file.originalname);
-      cb(null, `${unique}${ext}`);
+      try {
+        const storedName = sanitizeName(
+          path.basename(file.originalname.replace(/\\/g, '/'))
+        );
+        cb(null, storedName);
+      } catch (err) {
+        cb(err);
+      }
     },
   });
 
