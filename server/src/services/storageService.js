@@ -137,3 +137,14 @@ export async function updateRelativePathsAfterFolderRename(
 function escapeRegex(value) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
+
+export function buildMyFilesRelativePath(userId, filename) {
+  return buildRelativePath('myfiles', userId.toString(), filename);
+}
+
+export async function resolveMyFilesUploadDir(userId) {
+  const relativePath = buildRelativePath('myfiles', userId.toString());
+  const fullPath = resolveFullPath(relativePath);
+  await fs.mkdir(fullPath, { recursive: true });
+  return { relativePath, fullPath };
+}

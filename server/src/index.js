@@ -14,6 +14,9 @@ import folderRoutes from './routes/folderRoutes.js';
 import fileRoutes from './routes/fileRoutes.js';
 import searchRoutes from './routes/searchRoutes.js';
 import logRoutes from './routes/logRoutes.js';
+import myFilesRoutes from './routes/myFilesRoutes.js';
+import favoritesRoutes from './routes/favoritesRoutes.js';
+import dashboardRoutes from './routes/dashboardRoutes.js';
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -47,6 +50,9 @@ app.use('/api/folders', folderRoutes);
 app.use('/api/files', fileRoutes);
 app.use('/api/search', searchRoutes);
 app.use('/api/logs', logRoutes);
+app.use('/api/my-files', myFilesRoutes);
+app.use('/api/favorites', favoritesRoutes);
+app.use('/api/dashboard', dashboardRoutes);
 
 app.use(errorHandler);
 

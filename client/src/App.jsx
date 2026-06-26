@@ -7,6 +7,7 @@ import RegisterPage from './pages/RegisterPage';
 import DashboardPage from './pages/DashboardPage';
 import FoldersPage from './pages/FoldersPage';
 import FolderFilesPage from './pages/FolderFilesPage';
+import MyFilesPage from './pages/MyFilesPage';
 import AdminPage from './pages/AdminPage';
 import UsersPage from './pages/UsersPage';
 import GroupsPage from './pages/GroupsPage';
@@ -69,6 +70,7 @@ export default function App() {
         />
         <Route path="/folders" element={<FoldersPage />} />
         <Route path="/folders/:id/files" element={<FolderFilesPage />} />
+        <Route path="/my-files" element={<MyFilesPage />} />
         <Route
           path="/admin"
           element={

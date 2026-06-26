@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import api from '../api/client';
 
-export default function FilePreviewModal({ file, onClose }) {
+export default function FilePreviewModal({ file, onClose, previewPath }) {
   const [url, setUrl] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -17,7 +17,7 @@ export default function FilePreviewModal({ file, onClose }) {
     setError('');
 
     api
-      .get(`/files/preview/${file._id}`, { responseType: 'blob' })
+      .get(previewPath || `/files/preview/${file._id}`, { responseType: 'blob' })
       .then((res) => {
         objectUrl = window.URL.createObjectURL(res.data);
         setUrl(objectUrl);
@@ -28,7 +28,7 @@ export default function FilePreviewModal({ file, onClose }) {
     return () => {
       if (objectUrl) window.URL.revokeObjectURL(objectUrl);
     };
-  }, [file]);
+  }, [file, previewPath]);
 
   if (!file) return null;
 

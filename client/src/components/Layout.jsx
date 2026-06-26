@@ -19,6 +19,7 @@ export default function Layout() {
   const links = [
     { to: '/dashboard', label: 'Dashboard' },
     { to: '/folders', label: 'Folders' },
+    { to: '/my-files', label: 'My Files' },
   ];
 
   if (isAdmin) {
@@ -104,7 +105,7 @@ export default function Layout() {
 
       <main
         className={`mx-auto w-full px-4 sm:px-6 ${
-          location.pathname.includes('/files')
+          location.pathname.includes('/files') || location.pathname.startsWith('/my-files')
             ? 'max-w-full py-0'
             : 'max-w-7xl py-8'
         }`}

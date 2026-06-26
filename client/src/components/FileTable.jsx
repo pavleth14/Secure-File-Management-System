@@ -1,5 +1,6 @@
 import { formatSize, formatDate } from '../utils/format';
 import { isPreviewableFile } from '../utils/filePreview';
+import { StarIcon } from './icons';
 
 const SORTABLE_COLUMNS = [
   { key: 'name', label: 'Name' },
@@ -37,6 +38,9 @@ export default function FileTable({
   onDelete,
   onPreview,
   emptyMessage = 'No files in this location',
+  fileType = 'group',
+  isFavorite,
+  onToggleFavorite,
 }) {
   const handleSort = (key) => {
     if (sortBy === key) {
@@ -51,6 +55,11 @@ export default function FileTable({
       <table className="min-w-full divide-y divide-slate-200 dark:divide-slate-700">
         <thead className="bg-slate-50 dark:bg-slate-700/50">
           <tr>
+            {onToggleFavorite && (
+              <th className="w-10 px-2 py-3 text-center text-xs font-medium uppercase text-slate-500 dark:text-slate-400">
+                ★
+              </th>
+            )}
             {SORTABLE_COLUMNS.map((col) => (
               <SortableHeader
                 key={col.key}
@@ -69,15 +78,35 @@ export default function FileTable({
         <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
           {files.length === 0 ? (
             <tr>
-              <td colSpan={5} className="px-4 py-8 text-center text-slate-500 dark:text-slate-400">
+              <td
+                colSpan={onToggleFavorite ? 6 : 5}
+                className="px-4 py-8 text-center text-slate-500 dark:text-slate-400"
+              >
                 {emptyMessage}
               </td>
             </tr>
           ) : (
             files.map((file) => {
               const previewable = isPreviewableFile(file);
+              const favorited = isFavorite?.(fileType, file._id);
               return (
                 <tr key={file._id} className="text-slate-900 hover:bg-slate-50 dark:text-slate-100 dark:hover:bg-slate-700/50">
+                  {onToggleFavorite && (
+                    <td className="px-2 py-3 text-center">
+                      <button
+                        type="button"
+                        onClick={() => onToggleFavorite(fileType, file._id)}
+                        className={`rounded p-1 transition-colors ${
+                          favorited
+                            ? 'text-amber-500 hover:text-amber-600'
+                            : 'text-slate-300 hover:text-amber-400 dark:text-slate-600'
+                        }`}
+                        aria-label={favorited ? 'Remove from favorites' : 'Add to favorites'}
+                      >
+                        <StarIcon filled={favorited} className="text-base" />
+                      </button>
+                    </td>
+                  )}
                   <td className="px-4 py-3 text-sm font-medium">
                     {previewable ? (
                       <button

@@ -9,6 +9,7 @@ import FilePreviewModal from '../components/FilePreviewModal';
 import UploadDropzone from '../components/UploadDropzone';
 import { UploadCloudIcon } from '../components/icons';
 import { toId } from '../utils/format';
+import { useFavorites } from '../hooks/useFavorites';
 
 const PERMS = {
   READ: 'READ',
@@ -22,6 +23,7 @@ export default function FolderFilesPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const { isAdmin, isSuperAdmin } = useAuth();
   const { enqueueFiles } = useUpload();
+  const { isFavorite, toggleFavorite } = useFavorites();
 
   const [rootFolder, setRootFolder] = useState(null);
   const [sidebarSubfolders, setSidebarSubfolders] = useState([]);
@@ -308,6 +310,9 @@ export default function FolderFilesPage() {
                     onDownload={handleDownload}
                     onDelete={handleDelete}
                     onPreview={setPreviewFile}
+                    fileType="group"
+                    isFavorite={isFavorite}
+                    onToggleFavorite={toggleFavorite}
                     emptyMessage={
                       folderSearch.trim()
                         ? 'No files match your search'
