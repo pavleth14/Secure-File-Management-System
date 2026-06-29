@@ -6,6 +6,7 @@ import cookieParser from 'cookie-parser';
 import { connectDB } from './config/db.js';
 import { seedDatabase } from './seed/seed.js';
 import { corsOriginChecker } from './config/cors.js';
+import { selectiveBodyParser } from './middleware/bodyParser.js';
 import { errorHandler } from './middleware/errorHandler.js';
 import authRoutes from './routes/authRoutes.js';
 import userRoutes from './routes/userRoutes.js';
@@ -40,7 +41,7 @@ app.use(
     credentials: true,
   })
 );
-app.use(express.json());
+app.use(selectiveBodyParser);
 app.use(cookieParser());
 
 app.get('/api/health', (_req, res) => {
@@ -63,9 +64,12 @@ app.use(errorHandler);
 async function start() {
   await connectDB();
   await seedDatabase();
-  app.listen(PORT, '0.0.0.0', () => {
+  const server = app.listen(PORT, '0.0.0.0', () => {
     console.log(`Server running on http://0.0.0.0:${PORT}`);
   });
+  server.requestTimeout = 10 * 60 * 1000;
+  server.headersTimeout = 10 * 60 * 1000 + 1000;
+  server.timeout = 0;
 }
 
 start().catch((err) => {

@@ -1,42 +1,4 @@
-export const ALLOWED_EXTENSIONS = new Set([
-  'pdf',
-  'jpg',
-  'jpeg',
-  'png',
-  'gif',
-  'webp',
-  'bmp',
-  'svg',
-  'avif',
-  'ico',
-  'mp4',
-  'mov',
-  'avi',
-  'mkv',
-  'webm',
-  'mpg',
-  'mpeg',
-  'wmv',
-  'm4v',
-]);
-
-export const BLOCKED_EXTENSIONS = new Set([
-  'zip',
-  'rar',
-  '7z',
-  'tar',
-  'gz',
-  'bat',
-  'cmd',
-  'exe',
-  'msi',
-  'com',
-  'sh',
-]);
-
-export const UPLOAD_ACCEPT = Array.from(ALLOWED_EXTENSIONS)
-  .map((ext) => `.${ext}`)
-  .join(',');
+export const BLOCKED_EXTENSIONS = new Set(['zip', 'bat']);
 
 export function getFileExtension(filename) {
   const base = String(filename || '').replace(/\\/g, '/').split('/').pop() || '';
@@ -54,10 +16,6 @@ export function validateUploadFile(file) {
   }
 
   if (BLOCKED_EXTENSIONS.has(ext)) {
-    return { ok: false, message: `File type ".${ext}" is not allowed` };
-  }
-
-  if (!ALLOWED_EXTENSIONS.has(ext)) {
     return { ok: false, message: `File type ".${ext}" is not allowed` };
   }
 

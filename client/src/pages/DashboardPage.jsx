@@ -5,11 +5,16 @@ import { useAuth } from '../context/AuthContext';
 import StorageUsageWidget from '../components/dashboard/StorageUsageWidget';
 import RecentFilesCard from '../components/dashboard/RecentFilesCard';
 import FavoritesCard from '../components/dashboard/FavoritesCard';
+import DashboardPanelModal from '../components/dashboard/DashboardPanelModal';
+
+const PREVIEW_LIMIT = 3;
 
 export default function DashboardPage() {
   const { user, isSuperAdmin, isAdmin } = useAuth();
   const [dashboardData, setDashboardData] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [showFavoritesModal, setShowFavoritesModal] = useState(false);
+  const [showRecentModal, setShowRecentModal] = useState(false);
 
   const cards = [
     {
@@ -98,18 +103,38 @@ export default function DashboardPage() {
       </div>
 
       {!loading && dashboardData && (
-        <>
-          <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-            <StorageUsageWidget storage={dashboardData.storage} />
-            <FavoritesCard favorites={dashboardData.favorites} />
-          </div>
-
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+          <StorageUsageWidget storage={dashboardData.storage} />
+          <FavoritesCard
+            favorites={dashboardData.favorites}
+            previewLimit={PREVIEW_LIMIT}
+            onViewAll={() => setShowFavoritesModal(true)}
+          />
           <RecentFilesCard
             recentAdded={dashboardData.recentAdded}
             recentDeleted={dashboardData.recentDeleted}
             recentOpened={dashboardData.recentOpened}
+            previewLimit={PREVIEW_LIMIT}
+            onViewAll={() => setShowRecentModal(true)}
           />
-        </>
+        </div>
+      )}
+
+      {showFavoritesModal && dashboardData && (
+        <DashboardPanelModal title="Favorites" onClose={() => setShowFavoritesModal(false)}>
+          <FavoritesCard favorites={dashboardData.favorites} embedded />
+        </DashboardPanelModal>
+      )}
+
+      {showRecentModal && dashboardData && (
+        <DashboardPanelModal title="Recent Files" onClose={() => setShowRecentModal(false)}>
+          <RecentFilesCard
+            recentAdded={dashboardData.recentAdded}
+            recentDeleted={dashboardData.recentDeleted}
+            recentOpened={dashboardData.recentOpened}
+            embedded
+          />
+        </DashboardPanelModal>
       )}
 
       <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-700 dark:bg-slate-800">

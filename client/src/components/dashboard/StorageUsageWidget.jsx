@@ -53,7 +53,7 @@ export default function StorageUsageWidget({ storage }) {
             {formatSize(limitBytes)}
           </p>
           <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">
-            Includes group files and My Files
+            My Files storage only
           </p>
         </div>
       </div>

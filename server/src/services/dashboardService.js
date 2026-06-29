@@ -2,7 +2,8 @@ import { FileModel } from '../models/File.js';
 import { PersonalFile } from '../models/PersonalFile.js';
 import { AuditLog } from '../models/AuditLog.js';
 import { AUDIT_ACTIONS, TARGET_TYPES } from '../config/auditConstants.js';
-import { USER_STORAGE_DISPLAY_LIMIT, FILE_SOURCE_TYPES } from '../config/constants.js';
+import { FILE_SOURCE_TYPES, MY_FILES_STORAGE_LIMIT } from '../config/constants.js';
+import { getMyFilesStorageUsed } from './myFilesService.js';
 import { listFavorites } from './favoritesService.js';
 
 const RECENT_LIMIT = 10;
@@ -81,29 +82,14 @@ async function getRecentFromAudit(userId, actions) {
 }
 
 async function getStorageUsage(userId) {
-  const [groupResult, personalResult] = await Promise.all([
-    FileModel.aggregate([
-      { $match: { uploadedBy: userId } },
-      { $group: { _id: null, total: { $sum: '$size' } } },
-    ]),
-    PersonalFile.aggregate([
-      { $match: { userId } },
-      { $group: { _id: null, total: { $sum: '$size' } } },
-    ]),
-  ]);
-
-  const groupBytes = groupResult[0]?.total || 0;
-  const personalBytes = personalResult[0]?.total || 0;
-  const usedBytes = groupBytes + personalBytes;
-  const limitBytes = USER_STORAGE_DISPLAY_LIMIT;
+  const usedBytes = await getMyFilesStorageUsed(userId);
+  const limitBytes = MY_FILES_STORAGE_LIMIT;
   const percentage = limitBytes ? Math.min(100, (usedBytes / limitBytes) * 100) : 0;
 
   return {
     usedBytes,
     limitBytes,
     percentage: Math.round(percentage * 10) / 10,
-    groupBytes,
-    personalBytes,
   };
 }
 

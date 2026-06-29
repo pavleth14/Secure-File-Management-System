@@ -9,5 +9,9 @@ export function errorHandler(err, req, res, _next) {
     message = 'File exceeds the 50MB upload limit';
   }
 
+  if (err.status === 413 && !message.includes('50MB')) {
+    message = 'Upload rejected: request body too large for the server or reverse proxy (check client_max_body_size)';
+  }
+
   res.status(status).json({ message });
 }

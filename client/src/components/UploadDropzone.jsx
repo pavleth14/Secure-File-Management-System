@@ -1,6 +1,6 @@
 import { useRef, useState, useCallback } from 'react';
 import { UploadCloudIcon } from './icons';
-import { UPLOAD_ACCEPT, partitionUploadFiles } from '../utils/uploadTypes';
+import { partitionUploadFiles } from '../utils/uploadTypes';
 
 /**
  * Drag & drop upload zone with a click-to-browse fallback. Wraps arbitrary
@@ -93,7 +93,6 @@ export default function UploadDropzone({ onFiles, onValidationError, disabled, c
         ref={inputRef}
         type="file"
         multiple
-        accept={UPLOAD_ACCEPT}
         className="hidden"
         onChange={handlePicked}
         disabled={disabled}
