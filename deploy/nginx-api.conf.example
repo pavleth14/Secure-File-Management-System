@@ -1,20 +1,31 @@
-# Example nginx site config for api.twobrothersfreight.com
-# Default nginx client_max_body_size is 1m — uploads larger than ~1 MB fail with 413.
-# Match the application upload limit (50 MB).
+# ACTIVE PRODUCTION CONFIG REQUIRED
+# The example below is NOT applied automatically. Deploy it on the API server host.
+#
+# Prove current limit on the server:
+#   nginx -T 2>/dev/null | grep client_max_body_size
+#
+# Prove 413 comes from nginx (from any machine):
+#   curl -s -D - -o /dev/null -X POST https://api.twobrothersfreight.com/api/my-files/upload \
+#     -H "Content-Type: application/octet-stream" --data-binary @2097152.bin
+# If response contains "nginx" and HTML 413, client_max_body_size is too low.
 
 server {
     listen 443 ssl;
-    server_name api.example.com;
+    server_name api.twobrothersfreight.com;
 
+    # Default is 1m — uploads fail at 1048577 bytes with HTML 413 before Node/Express.
     client_max_body_size 50M;
 
     location / {
+        client_max_body_size 50M;
+
         proxy_pass http://127.0.0.1:5001;
         proxy_http_version 1.1;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
+
         proxy_request_buffering off;
         proxy_read_timeout 600s;
         proxy_send_timeout 600s;

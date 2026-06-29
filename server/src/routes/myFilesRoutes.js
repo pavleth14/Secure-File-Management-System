@@ -44,6 +44,14 @@ router.get('/', async (req, res, next) => {
 });
 
 router.post('/upload', async (req, res, next) => {
+  if (process.env.UPLOAD_TRACE === 'true') {
+    console.log('[upload-trace] my-files/upload reached', {
+      contentLength: req.headers['content-length'],
+      contentType: req.headers['content-type'],
+      origin: req.headers.origin,
+    });
+  }
+
   try {
     await new Promise((resolve, reject) => {
       upload.single('file')(req, res, (err) => {

@@ -24,6 +24,14 @@ const upload = createUploadMiddleware();
 router.use(authMiddleware);
 
 router.post('/upload', async (req, res, next) => {
+  if (process.env.UPLOAD_TRACE === 'true') {
+    console.log('[upload-trace] files/upload reached', {
+      contentLength: req.headers['content-length'],
+      contentType: req.headers['content-type'],
+      origin: req.headers.origin,
+    });
+  }
+
   try {
     const parseBody = () =>
       new Promise((resolve, reject) => {

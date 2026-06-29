@@ -44,8 +44,26 @@ app.use(
 app.use(selectiveBodyParser);
 app.use(cookieParser());
 
+app.use((_req, res, next) => {
+  res.setHeader('X-App-Layer', 'express');
+  next();
+});
+
 app.get('/api/health', (_req, res) => {
   res.json({ status: 'ok' });
+});
+
+app.get('/api/health/upload-limits', (_req, res) => {
+  res.json({
+    appLayer: 'express',
+    multerMaxFileSizeBytes: 50 * 1024 * 1024,
+    multerMaxFileSizeLabel: '50MB',
+    myFilesQuotaBytes: 50 * 1024 * 1024 * 1024,
+    myFilesQuotaLabel: '50GB',
+    blockedExtensions: ['zip', 'bat'],
+    note:
+      'If the browser shows HTML "413 Request Entity Too Large" with "nginx" in the body, the reverse proxy rejected the upload before Express. Run deploy/verify-upload-limits.ps1 after setting nginx client_max_body_size 50M.',
+  });
 });
 
 app.use('/api/auth', authRoutes);
