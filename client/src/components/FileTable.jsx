@@ -1,4 +1,4 @@
-import { formatSize, formatDate } from '../utils/format';
+import { formatSize, formatDate, toId } from '../utils/format';
 import { isPreviewableFile } from '../utils/filePreview';
 import { StarIcon } from './icons';
 
@@ -29,6 +29,10 @@ function SortableHeader({ columnKey, label, sortBy, sortDir, onSort }) {
 
 export default function FileTable({
   files,
+  folders = [],
+  onOpenFolder,
+  onDeleteFolder,
+  canDeleteFolder = false,
   sortBy,
   sortDir,
   onSortChange,
@@ -39,8 +43,10 @@ export default function FileTable({
   onPreview,
   emptyMessage = 'No files in this location',
   fileType = 'group',
+  folderFavoriteType = 'folder',
   isFavorite,
   onToggleFavorite,
+  embedded = false,
 }) {
   const handleSort = (key) => {
     if (sortBy === key) {
@@ -50,8 +56,15 @@ export default function FileTable({
     }
   };
 
+  const colSpan = (onToggleFavorite ? 1 : 0) + SORTABLE_COLUMNS.length + 1;
+  const isEmpty = folders.length === 0 && files.length === 0;
+
+  const wrapperClass = embedded
+    ? 'min-w-0'
+    : 'overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800';
+
   return (
-    <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
+    <div className={wrapperClass}>
       <table className="min-w-full divide-y divide-slate-200 dark:divide-slate-700">
         <thead className="bg-slate-50 dark:bg-slate-700/50">
           <tr>
@@ -76,10 +89,63 @@ export default function FileTable({
           </tr>
         </thead>
         <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
-          {files.length === 0 ? (
+          {folders.map((folder) => {
+            const folderId = toId(folder._id);
+            const folderFavorited = isFavorite?.(folderFavoriteType, folderId);
+            return (
+              <tr
+                key={`folder-${folderId}`}
+                className="text-slate-900 hover:bg-slate-50 dark:text-slate-100 dark:hover:bg-slate-700/50"
+              >
+                {onToggleFavorite && (
+                  <td className="px-2 py-3 text-center">
+                    <button
+                      type="button"
+                      onClick={() => onToggleFavorite(folderFavoriteType, folderId)}
+                      className={`rounded p-1 transition-colors ${
+                        folderFavorited
+                          ? 'text-amber-500 hover:text-amber-600'
+                          : 'text-slate-300 hover:text-amber-400 dark:text-slate-600'
+                      }`}
+                      aria-label={
+                        folderFavorited ? 'Remove folder from favorites' : 'Add folder to favorites'
+                      }
+                    >
+                      <StarIcon filled={folderFavorited} className="text-base" />
+                    </button>
+                  </td>
+                )}
+                <td className="px-4 py-3 text-sm font-medium">
+                  <button
+                    type="button"
+                    onClick={() => onOpenFolder?.(folderId)}
+                    className="inline-flex items-center gap-2 text-left text-brand-600 hover:underline dark:text-brand-400"
+                  >
+                    <span aria-hidden>📁</span>
+                    {folder.name}
+                  </button>
+                </td>
+                <td className="px-4 py-3 text-sm text-slate-400 dark:text-slate-500">—</td>
+                <td className="px-4 py-3 text-sm text-slate-400 dark:text-slate-500">—</td>
+                <td className="px-4 py-3 text-sm text-slate-400 dark:text-slate-500">—</td>
+                <td className="px-4 py-3 text-right whitespace-nowrap">
+                  {canDeleteFolder && (
+                    <button
+                      type="button"
+                      onClick={() => onDeleteFolder?.(folderId, folder.name)}
+                      className="text-sm text-red-600 hover:underline dark:text-red-400"
+                    >
+                      Delete
+                    </button>
+                  )}
+                </td>
+              </tr>
+            );
+          })}
+          {isEmpty ? (
             <tr>
               <td
-                colSpan={onToggleFavorite ? 6 : 5}
+                colSpan={colSpan}
                 className="px-4 py-8 text-center text-slate-500 dark:text-slate-400"
               >
                 {emptyMessage}

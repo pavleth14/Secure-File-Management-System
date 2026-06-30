@@ -100,12 +100,19 @@ export function UploadProvider({ children }) {
       });
 
       const formData = new FormData();
-      formData.append('folderId', item.folderId);
-      if (item.subfolderId) formData.append('subfolderId', item.subfolderId);
       formData.append('file', item.file);
 
+      const isPersonal = item.uploadTarget === 'personal';
+
+      if (!isPersonal) {
+        formData.append('folderId', item.folderId);
+        if (item.subfolderId) formData.append('subfolderId', item.subfolderId);
+      }
+
+      const uploadUrl = isPersonal ? '/my-files/upload' : '/files/upload';
+
       api
-        .post('/files/upload', formData, {
+        .post(uploadUrl, formData, {
           signal: controller.signal,
           onUploadProgress: (evt) => {
             const total = evt.total || item.size || 0;
@@ -149,7 +156,11 @@ export function UploadProvider({ children }) {
           // Let interested pages refresh their file lists.
           window.dispatchEvent(
             new CustomEvent('files:uploaded', {
-              detail: { folderId: item.folderId, subfolderId: item.subfolderId },
+              detail: {
+                uploadTarget: item.uploadTarget,
+                folderId: item.folderId,
+                subfolderId: item.subfolderId,
+              },
             })
           );
           scheduleAutoDismiss(item.id);
@@ -192,12 +203,17 @@ export function UploadProvider({ children }) {
   /**
    * Add files to the upload queue.
    * @param {FileList|File[]} files
-   * @param {{folderId: string, subfolderId?: string|null, folderName?: string}} target
+   * @param {{folderId?: string, subfolderId?: string|null, folderName?: string, uploadTarget?: 'group'|'personal'}} target
    */
   const enqueueFiles = useCallback(
     (files, target) => {
       const list = Array.from(files || []);
-      if (!list.length || !target?.folderId) return;
+      if (!list.length) return;
+
+      const uploadTarget = target?.uploadTarget || 'group';
+      const isPersonal = uploadTarget === 'personal';
+
+      if (!isPersonal && !target?.folderId) return;
 
       const items = list.map((file) => {
         const typeCheck = validateUploadFile(file);
@@ -218,9 +234,10 @@ export function UploadProvider({ children }) {
           file,
           name: file.name,
           size: file.size,
-          folderId: target.folderId,
+          uploadTarget,
+          folderId: target.folderId || null,
           subfolderId: target.subfolderId || null,
-          folderName: target.folderName || '',
+          folderName: target.folderName || (isPersonal ? 'My Files' : ''),
           status,
           progress: 0,
           loaded: 0,

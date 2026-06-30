@@ -37,24 +37,24 @@ export default function Layout() {
       <header className="border-b border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-900">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-4 sm:px-6">
           {/* Left Section */}
-          <div className="flex items-center gap-8">
+          <div className="flex items-center gap-6">
             <div className="flex items-center gap-6">
               <img
                 src={logo}
                 alt="TBF File Manager"
-                className="h-16 w-24 rounded"
+                className="h-12 w-24 rounded"
               />
 
               <Link
                 to="/dashboard"
-                className="text-xl font-bold text-brand-700 dark:text-brand-300"
+                className="text-xl font-bold text-brand-700 dark:text-blue-300"
               >
                 Two Brothers Freight File Manager
               </Link>
             </div>
 
             {/* Navigation + Search */}
-            <div className="flex min-w-[500px] flex-col gap-3">
+            <div className="flex w-fit flex-col gap-3">
               <nav className="flex flex-wrap gap-1">
                 {links.map((link) => {
                   const isActive =

@@ -83,23 +83,24 @@ export default function DashboardPage() {
         </p>
 
         <div className="flex flex-wrap justify-center gap-4">
-          {cards
-            .filter((c) => c.show)
-            .map((card) => (
-              <Link
-                key={card.to}
-                to={card.to}
-                className="w-60 rounded-xl border border-slate-300 bg-white shadow-sm transition hover:border-brand-700 hover:bg-brand-50 hover:shadow-xl dark:border-slate-700 dark:bg-slate-800 dark:hover:border-brand-500 dark:hover:bg-slate-700/50"
-              >
-                <div className="rounded-xl border-l-4 border-blue-600 bg-blue-50 p-4 dark:bg-slate-900/40">
-                  <h2 className="mb-2 text-lg font-semibold text-slate-900 dark:text-slate-100">
-                    {card.title}
-                  </h2>
-                  <p className="text-sm text-slate-500 dark:text-slate-400">{card.desc}</p>
-                </div>
-              </Link>
-            ))}
-        </div>
+  {cards
+    .filter((c) => c.show)
+    .map((card) => (
+      <Link
+        key={card.to}
+        to={card.to}
+   className="w-60 h-32 bg-blue-100 dark:bg-blue-800 rounded-xl border border-slate-300 p-4 shadow-sm transition hover:bg-blue-200 dark:hover:bg-blue-800 flex flex-col"
+      >
+        <h2 className="mb-2 text-lg font-semibold text-slate-900 dark:text-slate-100">
+          {card.title}
+        </h2>
+
+        <p className="text-sm text-slate-600 dark:text-slate-400 overflow-hidden line-clamp-3">
+          {card.desc}
+        </p>
+      </Link>
+    ))}
+</div>
       </div>
 
       {!loading && dashboardData && (

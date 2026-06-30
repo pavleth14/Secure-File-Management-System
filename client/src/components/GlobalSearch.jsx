@@ -55,7 +55,7 @@ export default function GlobalSearch() {
   };
 
   return (
-    <div ref={wrapperRef} className="relative w-full max-w-md">
+    <div ref={wrapperRef} className="relative w-full ">
       <input
         type="search"
         value={query}

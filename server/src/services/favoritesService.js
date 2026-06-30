@@ -1,8 +1,9 @@
 import { Favorite } from '../models/Favorite.js';
 import { FileModel } from '../models/File.js';
 import { PersonalFile } from '../models/PersonalFile.js';
+import { Folder } from '../models/Folder.js';
 import { FILE_SOURCE_TYPES } from '../config/constants.js';
-import { checkGroupPermission } from './aclService.js';
+import { checkGroupPermission, getRootFolder } from './aclService.js';
 import { PERMISSIONS } from '../config/constants.js';
 import { serializePersonalFile } from './myFilesService.js';
 
@@ -51,12 +52,46 @@ async function assertFileAccess(user, fileType, fileId) {
   };
 }
 
+async function assertFolderAccess(user, folderId) {
+  const folder = await Folder.findById(folderId);
+  if (!folder) {
+    throw Object.assign(new Error('Folder not found'), { status: 404 });
+  }
+
+  const rootFolder = await getRootFolder(folder._id);
+  if (!rootFolder) {
+    throw Object.assign(new Error('Folder not found'), { status: 404 });
+  }
+
+  const check = await checkGroupPermission(
+    user,
+    rootFolder._id,
+    PERMISSIONS.READ,
+    folder.isRoot ? null : folder._id
+  );
+
+  if (!check.allowed) {
+    throw Object.assign(new Error('Access denied'), { status: 403 });
+  }
+
+  return {
+    name: folder.name,
+    isRoot: folder.isRoot,
+    rootFolderId: rootFolder._id,
+    folderId: folder._id,
+  };
+}
+
 export async function toggleFavorite(user, fileType, fileId) {
   if (!Object.values(FILE_SOURCE_TYPES).includes(fileType)) {
     throw Object.assign(new Error('Invalid file type'), { status: 400 });
   }
 
-  await assertFileAccess(user, fileType, fileId);
+  if (fileType === FILE_SOURCE_TYPES.FOLDER) {
+    await assertFolderAccess(user, fileId);
+  } else {
+    await assertFileAccess(user, fileType, fileId);
+  }
 
   const existing = await Favorite.findOne({
     userId: user._id,
@@ -84,11 +119,27 @@ export async function listFavorites(user) {
 
   for (const favorite of favorites) {
     try {
+      if (favorite.fileType === FILE_SOURCE_TYPES.FOLDER) {
+        const folder = await assertFolderAccess(user, favorite.fileId);
+        items.push({
+          favoriteId: favorite._id,
+          fileType: favorite.fileType,
+          fileId: favorite.fileId,
+          kind: 'folder',
+          name: folder.name,
+          favoritedAt: favorite.createdAt,
+          isRoot: folder.isRoot,
+          rootFolderId: folder.rootFolderId,
+        });
+        continue;
+      }
+
       const file = await assertFileAccess(user, favorite.fileType, favorite.fileId);
       items.push({
         favoriteId: favorite._id,
         fileType: favorite.fileType,
         fileId: favorite.fileId,
+        kind: 'file',
         name: file.originalName || file.name,
         size: file.size,
         mimeType: file.mimeType,

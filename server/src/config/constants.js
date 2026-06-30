@@ -45,4 +45,5 @@ export const USER_STORAGE_DISPLAY_LIMIT =
 export const FILE_SOURCE_TYPES = {
   GROUP: 'group',
   PERSONAL: 'personal',
+  FOLDER: 'folder',
 };

@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { toId } from '../utils/format';
+import { StarIcon } from './icons';
 
 export default function FolderSidebar({
   rootFolder,
@@ -11,6 +12,9 @@ export default function FolderSidebar({
   onNewSubfolderNameChange,
   onCreateSubfolder,
   onDeleteSubfolder,
+  isFavorite,
+  onToggleFavorite,
+  folderFavoriteType = 'folder',
 }) {
   const [expanded, setExpanded] = useState({});
 
@@ -41,10 +45,28 @@ export default function FolderSidebar({
 
       const isExpanded = expanded[id];
       const isSelected = selectedSubfolderId === id;
+      const favorited = isFavorite?.(folderFavoriteType, id);
 
       return (
         <div key={id}>
           <div className={`group flex items-center ${isSelected ? 'bg-brand-50 dark:bg-brand-900/30' : 'hover:bg-slate-50 dark:hover:bg-slate-700/50'}`}>
+            {onToggleFavorite && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onToggleFavorite(folderFavoriteType, id);
+                }}
+                className={`ml-1 shrink-0 rounded p-1 transition-colors ${
+                  favorited
+                    ? 'text-amber-500 hover:text-amber-600'
+                    : 'text-slate-300 hover:text-amber-400 dark:text-slate-600'
+                }`}
+                aria-label={favorited ? 'Remove folder from favorites' : 'Add folder to favorites'}
+              >
+                <StarIcon filled={favorited} className="text-sm" />
+              </button>
+            )}
             <button
               type="button"
               onClick={() => {
@@ -110,17 +132,42 @@ export default function FolderSidebar({
       {/* tree */}
       <nav className="flex-1 overflow-y-auto py-2">
         {/* ROOT VIEW */}
-        <button
+        <div
+          className={`flex w-full items-center ${!selectedSubfolderId ? 'bg-brand-50 dark:bg-brand-900/30' : 'hover:bg-slate-50 dark:hover:bg-slate-700/50'}`}
+        >
+          {onToggleFavorite && rootFolder?._id && (
+            <button
+              type="button"
+              onClick={() => onToggleFavorite(folderFavoriteType, toId(rootFolder._id))}
+              className={`ml-1 shrink-0 rounded p-1 transition-colors ${
+                isFavorite?.(folderFavoriteType, toId(rootFolder._id))
+                  ? 'text-amber-500 hover:text-amber-600'
+                  : 'text-slate-300 hover:text-amber-400 dark:text-slate-600'
+              }`}
+              aria-label={
+                isFavorite?.(folderFavoriteType, toId(rootFolder._id))
+                  ? 'Remove folder from favorites'
+                  : 'Add folder to favorites'
+              }
+            >
+              <StarIcon
+                filled={isFavorite?.(folderFavoriteType, toId(rootFolder._id))}
+                className="text-sm"
+              />
+            </button>
+          )}
+          <button
           type="button"
           onClick={() => onSelect(null)}
-          className={`flex w-full items-center gap-2 px-4 py-2 text-left text-sm ${!selectedSubfolderId
-              ? 'bg-brand-50 font-medium text-brand-700 dark:bg-brand-900/30 dark:text-brand-300'
-              : 'text-slate-700 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-slate-700/50'
+          className={`flex flex-1 items-center gap-2 px-3 py-2 text-left text-sm ${!selectedSubfolderId
+              ? 'font-medium text-brand-700 dark:text-brand-300'
+              : 'text-slate-700 dark:text-slate-200'
             }`}
         >
           <span>📂</span>
           <span>(root)</span>
         </button>
+        </div>
 
         {/* START FROM ROOT FOLDER ID */}
         {renderFolders(ROOT_ID, 0)}

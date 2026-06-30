@@ -1,18 +1,20 @@
 import { useCallback, useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import api from '../api/client';
 import FileTable from '../components/FileTable';
+import FileExplorerBreadcrumb from '../components/FileExplorerBreadcrumb';
 import FilePreviewModal from '../components/FilePreviewModal';
 import UploadDropzone from '../components/UploadDropzone';
 import { UploadCloudIcon } from '../components/icons';
 import { useFavorites } from '../hooks/useFavorites';
-import { MAX_FILE_SIZE } from '../context/UploadContext';
-import { validateUploadFile } from '../utils/uploadTypes';
+import { useUpload } from '../context/UploadContext';
 
 export default function MyFilesPage() {
+  const navigate = useNavigate();
   const { isFavorite, toggleFavorite } = useFavorites();
+  const { enqueueFiles } = useUpload();
   const [files, setFiles] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [uploading, setUploading] = useState(false);
   const [error, setError] = useState('');
   const [sortBy, setSortBy] = useState('date');
   const [sortDir, setSortDir] = useState('desc');
@@ -31,38 +33,27 @@ export default function MyFilesPage() {
       .finally(() => setLoading(false));
   }, [loadFiles]);
 
-  const uploadFiles = async (fileList) => {
-    const list = Array.from(fileList || []);
-    if (!list.length) return;
-
-    setUploading(true);
-    setError('');
-
-    for (const file of list) {
-      const typeCheck = validateUploadFile(file);
-      if (!typeCheck.ok) {
-        setError(`${file.name}: ${typeCheck.message}`);
-        continue;
+  useEffect(() => {
+    const handleUploaded = (e) => {
+      if (e.detail?.uploadTarget === 'personal') {
+        loadFiles().catch(() => {});
       }
+    };
 
-      if (file.size > MAX_FILE_SIZE) {
-        setError(`"${file.name}" exceeds the 50MB upload limit`);
-        continue;
-      }
+    window.addEventListener('files:uploaded', handleUploaded);
+    return () => window.removeEventListener('files:uploaded', handleUploaded);
+  }, [loadFiles]);
 
-      const formData = new FormData();
-      formData.append('file', file);
-
-      try {
-        await api.post('/my-files/upload', formData);
-      } catch (err) {
-        setError(err.response?.data?.message || `Failed to upload ${file.name}`);
-      }
-    }
-
-    setUploading(false);
-    await loadFiles();
-  };
+  const handleFiles = useCallback(
+    (fileList) => {
+      if (!fileList?.length) return;
+      enqueueFiles(fileList, {
+        uploadTarget: 'personal',
+        folderName: 'My Files',
+      });
+    },
+    [enqueueFiles]
+  );
 
   const handleDownload = async (fileId, filename) => {
     try {
@@ -104,59 +95,67 @@ export default function MyFilesPage() {
         />
       )}
 
-      <div className="border-b border-slate-200 bg-white px-4 py-4 dark:border-slate-700 dark:bg-slate-900 sm:px-6">
-        <h1 className="text-xl font-bold text-slate-900 dark:text-slate-100">My Files</h1>
-        <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-          Your private storage space. Files here are visible only to you.
-        </p>
-      </div>
-
       <UploadDropzone
-        onFiles={uploadFiles}
+        onFiles={handleFiles}
         onValidationError={(messages) => setError(messages.join(' '))}
-        disabled={uploading}
       >
         {({ openPicker }) => (
-          <div className="flex-1 overflow-auto p-4 sm:p-6">
-            {error && (
-              <div className="mb-4 rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700 dark:bg-red-900/30 dark:text-red-300">
-                {error}
+          <div className="flex min-h-0 flex-1 flex-col overflow-hidden p-4 sm:p-6">
+            <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
+              <div className="shrink-0 border-b border-slate-200 px-4 py-3 dark:border-slate-700 sm:px-5">
+                <FileExplorerBreadcrumb
+                  segments={[{ id: null, label: 'My Files' }]}
+                  onNavigate={() => {}}
+                  onBack={() => navigate(-1)}
+                />
+
+                <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
+                  Your private storage space. Files here are visible only to you.
+                </p>
+
+                <div className="mt-3 flex flex-wrap items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={openPicker}
+                    className="inline-flex items-center gap-2 rounded-lg bg-brand-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-brand-700"
+                  >
+                    <UploadCloudIcon />
+                    Upload
+                  </button>
+                  <span className="text-xs text-slate-400 dark:text-slate-500">
+                    Max 50MB per file · 50GB total
+                  </span>
+                </div>
+
+                {error && (
+                  <div className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700 dark:bg-red-900/30 dark:text-red-300">
+                    {error}
+                  </div>
+                )}
               </div>
-            )}
 
-            <button
-              type="button"
-              onClick={openPicker}
-              disabled={uploading}
-              className="mb-6 flex w-full flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-slate-300 bg-slate-50 px-4 py-8 text-center transition hover:border-brand-500 hover:bg-brand-50 disabled:opacity-60 dark:border-slate-600 dark:bg-slate-800/50 dark:hover:border-brand-500 dark:hover:bg-brand-900/20"
-            >
-              <UploadCloudIcon className="text-3xl text-brand-600 dark:text-brand-400" />
-              <span className="text-sm font-medium text-slate-700 dark:text-slate-200">
-                {uploading ? 'Uploading...' : 'Drag & drop files here, or browse'}
-              </span>
-              <span className="text-xs text-slate-400 dark:text-slate-500">
-                Private to you · max 50MB per file · 50GB total for My Files
-              </span>
-            </button>
-
-            <FileTable
-              files={files}
-              sortBy={sortBy}
-              sortDir={sortDir}
-              onSortChange={(field, dir) => {
-                setSortBy(field);
-                setSortDir(dir);
-              }}
-              canDownload
-              canDelete
-              onDownload={handleDownload}
-              onDelete={handleDelete}
-              onPreview={setPreviewFile}
-              fileType="personal"
-              isFavorite={isFavorite}
-              onToggleFavorite={toggleFavorite}
-              emptyMessage="No files in My Files yet"
-            />
+              <div className="min-h-0 flex-1 overflow-auto">
+                <FileTable
+                  embedded
+                  files={files}
+                  sortBy={sortBy}
+                  sortDir={sortDir}
+                  onSortChange={(field, dir) => {
+                    setSortBy(field);
+                    setSortDir(dir);
+                  }}
+                  canDownload
+                  canDelete
+                  onDownload={handleDownload}
+                  onDelete={handleDelete}
+                  onPreview={setPreviewFile}
+                  fileType="personal"
+                  isFavorite={isFavorite}
+                  onToggleFavorite={toggleFavorite}
+                  emptyMessage="No files in My Files yet"
+                />
+              </div>
+            </div>
           </div>
         )}
       </UploadDropzone>
