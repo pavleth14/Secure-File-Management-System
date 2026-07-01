@@ -28,7 +28,11 @@ import { useFavorites } from '../hooks/useFavorites';
 
 import { useExtensionFilter } from '../hooks/useExtensionFilter';
 
+import { useResizableSidebar } from '../hooks/useResizableSidebar';
+
 import ExtensionFilterSelect from '../components/ExtensionFilterSelect';
+
+import SidebarResizeHandle from '../components/SidebarResizeHandle';
 
 const PERMS = {
 
@@ -55,6 +59,8 @@ export default function FolderFilesPage() {
   const { enqueueFiles } = useUpload();
 
   const { isFavorite, toggleFavorite } = useFavorites();
+
+  const { width: sidebarWidth, isResizing, startResize } = useResizableSidebar();
 
 
 
@@ -459,9 +465,11 @@ export default function FolderFilesPage() {
 
 
 
-      <div className="flex min-h-0 flex-1">
+      <div className="flex min-h-0 flex-1 overflow-hidden">
 
         <FolderSidebar
+
+          width={sidebarWidth}
 
           rootFolder={rootFolder}
 
@@ -486,6 +494,8 @@ export default function FolderFilesPage() {
           onToggleFavorite={toggleFavorite}
 
         />
+
+        <SidebarResizeHandle onMouseDown={startResize} isResizing={isResizing} />
 
 
 

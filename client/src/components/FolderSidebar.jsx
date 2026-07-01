@@ -15,6 +15,7 @@ export default function FolderSidebar({
   isFavorite,
   onToggleFavorite,
   folderFavoriteType = 'folder',
+  width = 256,
 }) {
   const [expanded, setExpanded] = useState({});
 
@@ -83,13 +84,13 @@ export default function FolderSidebar({
                   if (hasChildren) toggleFolder(id);
                 }}
               >
-                {hasChildren ? (isExpanded ? '▼' : '▶') : ''}
+                {hasChildren ? (isExpanded ? '▼' : '▶︎') : ''}
               </span>
 
               {/* icon */}
               <span className="shrink-0">
                 {folder.hasFiles
-                  ? (isExpanded ? '📂📄' : '📁📄')
+                  ? (isExpanded ? '📂' : '📁')
                   : (isExpanded ? '📂' : '📁')}
               </span>
 
@@ -118,7 +119,10 @@ export default function FolderSidebar({
   };
 
   return (
-    <aside className="flex w-64 shrink-0 flex-col border-r border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-900">
+    <aside
+      className="flex h-full min-h-0 shrink-0 flex-col border-r border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-900"
+      style={{ width, minWidth: width, maxWidth: width }}
+    >
       {/* header */}
       <div className="border-b border-slate-200 px-4 py-3 dark:border-slate-700">
         <p className="text-xs font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400">
@@ -184,19 +188,19 @@ export default function FolderSidebar({
               parentFolderId: selectedSubfolderId || ROOT_ID,
             });
           }}
-          className="border-t border-slate-200 p-3 dark:border-slate-700"
+          className="border-t border-slate-200 p-3 flex flex-col dark:border-slate-700 border items-center"
         >
           <input
             type="text"
             value={newSubfolderName}
             onChange={(e) => onNewSubfolderNameChange(e.target.value)}
             placeholder="New subfolder"
-            className="mb-2 w-full rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-sm text-slate-900 placeholder-slate-400 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 dark:placeholder-slate-500"
+            className="mb-2 w-56 rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-sm text-slate-900 placeholder-slate-400 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 dark:placeholder-slate-500"
           />
 
           <button
             type="submit"
-            className="w-full rounded-lg bg-slate-800 px-3 py-1.5 text-sm font-medium text-white hover:bg-slate-900"
+            className="w-56  rounded-lg bg-slate-800 px-3 py-1.5 text-sm font-medium text-white hover:bg-slate-900"
           >
             Add subfolder
           </button>
