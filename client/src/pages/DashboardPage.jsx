@@ -81,23 +81,42 @@ export default function DashboardPage() {
             'Contact an admin to assign your group for file access.'
           )}
         </p>
-
-        <div className="flex flex-wrap justify-center gap-4">
+        <div className="flex flex-wrap justify-center gap-6">
   {cards
     .filter((c) => c.show)
     .map((card) => (
       <Link
         key={card.to}
         to={card.to}
-   className="w-60 h-32 bg-blue-100 dark:bg-blue-800 rounded-xl border border-slate-300 p-4 shadow-sm transition hover:bg-blue-200 dark:hover:bg-blue-800 flex flex-col"
+        className="group relative w-72 h-40 overflow-hidden rounded-3xl border border-slate-200 bg-[#EFF6FF] p-6 shadow-md 
+                   transition-all duration-300 hover:shadow-2xl hover:-translate-y-2 
+                   dark:border-slate-700 dark:bg-slate-900 flex flex-col"
       >
-        <h2 className="mb-2 text-lg font-semibold text-slate-900 dark:text-slate-100">
+        {/* Accent bar */}
+        <div className="absolute top-0 left-0 h-2 w-full bg-gradient-to-r from-blue-500 via-indigo-500 to-violet-500" />
+
+        {/* Ikonica (možeš kasnije zameniti pravim ikonama) */}
+        <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-2xl bg-blue-100 text-2xl transition-colors group-hover:bg-blue-500 group-hover:text-white dark:bg-slate-700 dark:group-hover:bg-blue-600">
+          {card.title === 'File Folders' && '📁'}
+          {card.title === 'My Files' && '📄'}
+          {card.title === 'User Management' && '👥'}
+          {card.title === 'Audit Logs' && '📋'}
+          {card.title === 'Group Permissions' && '🔐'}
+          {card.title === 'System Admin' && '⚙️'}
+        </div>
+
+        <h2 className="mb-2 text-xl font-semibold text-slate-900 dark:text-slate-100 transition-colors group-hover:text-blue-600 dark:group-hover:text-blue-400">
           {card.title}
         </h2>
 
-        <p className="text-sm text-slate-600 dark:text-slate-400 overflow-hidden line-clamp-3">
+        <p className="mt-auto text-slate-600 dark:text-slate-400 text-[15px] leading-snug line-clamp-3">
           {card.desc}
         </p>
+
+        {/* Hover strelica */}
+        <div className="absolute bottom-6 right-6 text-blue-500 opacity-0 transition-all group-hover:opacity-100 group-hover:translate-x-1">
+          →
+        </div>
       </Link>
     ))}
 </div>
@@ -138,32 +157,54 @@ export default function DashboardPage() {
         </DashboardPanelModal>
       )}
 
-      <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-700 dark:bg-slate-800">
-        <h3 className="mb-6 text-xl font-bold text-slate-900 dark:text-slate-100">Your Account</h3>
+<div className="rounded-3xl border border-slate-200 bg-[#EFF6FF] p-6 shadow-sm dark:border-slate-700 dark:bg-slate-800">
+        <div className="mb-6 flex items-center justify-between">
+          <h3 className="text-xl font-semibold text-slate-900 dark:text-slate-100">Your Account</h3>
+          <div className="h-1.5 w-12 rounded-full bg-gradient-to-r from-blue-500 to-violet-500"></div>
+        </div>
 
-        <div className="grid grid-cols-1 gap-4 pt-4 md:grid-cols-3">
-          <div className="rounded-xl border-l-4 border-blue-600 bg-blue-50 p-8 dark:bg-slate-900/40">
-            <div className="text-sm font-medium text-blue-600 dark:text-blue-400">Role</div>
-            <div className="mt-1 text-lg font-semibold text-slate-900 dark:text-slate-100">
-              {user?.role}
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+          {/* Role Card */}
+          <div className="group relative overflow-hidden rounded-2xl border border-slate-100 bg-white p-6 transition-all hover:shadow-lg dark:border-slate-700 dark:bg-slate-900">
+            <div className="mb-5 flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-100 text-3xl dark:bg-slate-700">
+              👤
+            </div>
+            <div className="text-sm font-medium text-slate-500 dark:text-slate-400">Role</div>
+            <div className="mt-1 text-2xl font-semibold text-slate-900 dark:text-slate-100">
+              {user?.role || 'User'}
             </div>
           </div>
 
-          <div className="rounded-xl border-l-4 border-blue-600 bg-blue-50 p-8 dark:bg-slate-900/40">
-            <div className="text-sm font-medium text-blue-600 dark:text-blue-400">Email</div>
-            <div className="mt-1 break-all text-lg font-semibold text-slate-900 dark:text-slate-100">
+          {/* Email Card */}
+          <div className="group relative overflow-hidden rounded-2xl border border-slate-100 bg-white p-6 transition-all hover:shadow-lg dark:border-slate-700 dark:bg-slate-900">
+            <div className="mb-5 flex h-12 w-12 items-center justify-center rounded-2xl bg-indigo-100 text-3xl dark:bg-slate-700">
+              ✉️
+            </div>
+            <div className="text-sm font-medium text-slate-500 dark:text-slate-400">Email</div>
+            <div className="mt-1 break-all text-xl font-semibold text-slate-900 dark:text-slate-100">
               {user?.email}
             </div>
           </div>
 
-          <div className="rounded-xl border-l-4 border-blue-600 bg-blue-50 p-8 dark:bg-slate-900/40">
-            <div className="text-sm font-medium text-blue-600 dark:text-blue-400">Group</div>
-            <div className="mt-1 text-lg font-semibold text-slate-900 dark:text-slate-100">
+          {/* Group Card */}
+          <div className="group relative overflow-hidden rounded-2xl border border-slate-100 bg-white p-6 transition-all hover:shadow-lg dark:border-slate-700 dark:bg-slate-900">
+            <div className="mb-5 flex h-12 w-12 items-center justify-center rounded-2xl bg-violet-100 text-3xl dark:bg-slate-700">
+              {user?.group?.name ? '🏢' : '🔓'}
+            </div>
+            <div className="text-sm font-medium text-slate-500 dark:text-slate-400">Group</div>
+            <div className="mt-1 text-xl font-semibold text-slate-900 dark:text-slate-100">
               {user?.group?.name || 'Not assigned'}
             </div>
+            {!user?.group?.name && (
+              <p className="mt-2 text-xs text-amber-600 dark:text-amber-400">
+                Contact admin for access
+              </p>
+            )}
           </div>
         </div>
       </div>
+         
+      
     </div>
   );
 }

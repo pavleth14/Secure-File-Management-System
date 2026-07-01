@@ -55,22 +55,24 @@ export default function FavoritesCard({
   const totalCount = favorites.length;
   const hasMore = previewLimit && items.length > previewLimit;
 
-  const emptyMessage =
-    activeTab === 'folders'
-      ? 'No favorite folders yet'
-      : 'No favorite files yet';
-
   return (
     <div
       className={
         embedded
           ? ''
-          : 'rounded-2xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-700 dark:bg-slate-800'
+          : 'relative rounded-3xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-700 dark:bg-slate-800 overflow-hidden'
       }
     >
+      {/* Gradient Accent Bar - kao na dashboard karticama */}
       {!embedded && (
-        <div className="mb-4 flex items-center justify-between gap-3">
-          <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Favorites</h3>
+        <div className="absolute top-0 left-0 h-2 w-full bg-gradient-to-r from-blue-500 via-indigo-500 to-violet-500" />
+      )}
+
+      {!embedded && (
+        <div className="mb-5 flex items-center justify-between pt-2">
+          <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
+            Favorites
+          </h3>
           {previewLimit && totalCount > 0 && onViewAll && (
             <button
               type="button"
@@ -83,16 +85,17 @@ export default function FavoritesCard({
         </div>
       )}
 
-      <div className="mb-4 flex flex-wrap gap-2">
+      {/* Modern Tabs */}
+      <div className="mb-5 flex rounded-xl bg-slate-100 p-1 dark:bg-slate-800">
         {TABS.map((tab) => (
           <button
             key={tab.key}
             type="button"
             onClick={() => setActiveTab(tab.key)}
-            className={`rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${
+            className={`flex-1 rounded-lg px-5 py-2.5 text-sm font-medium transition-all ${
               activeTab === tab.key
-                ? 'bg-brand-600 text-white'
-                : 'bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-700 dark:text-slate-300 dark:hover:bg-slate-600'
+                ? 'bg-white shadow-sm text-slate-900 dark:bg-[#2563EB] dark:text-white'
+                : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200'
             }`}
           >
             {tab.label}
@@ -101,38 +104,55 @@ export default function FavoritesCard({
       </div>
 
       {totalCount === 0 ? (
-        <p className="py-4 text-center text-sm text-slate-500 dark:text-slate-400">
-          Star folders or files in group folders or My Files to see them here
-        </p>
+        <div className="py-12 text-center">
+          <div className="mx-auto mb-3 flex h-16 w-16 items-center justify-center rounded-2xl bg-slate-100 text-3xl dark:bg-slate-700">
+            ⭐
+          </div>
+          <p className="text-slate-500 dark:text-slate-400">
+            Star folders or files in group folders or My Files to see them here
+          </p>
+        </div>
       ) : previewItems.length === 0 ? (
-        <p className="py-4 text-center text-sm text-slate-500 dark:text-slate-400">
-          {emptyMessage}
+        <p className="py-8 text-center text-sm text-slate-500 dark:text-slate-400">
+          No favorite {activeTab} yet
         </p>
       ) : (
-        <ul className="divide-y divide-slate-200 dark:divide-slate-700">
+        <ul className="space-y-1">
           {previewItems.map((item) => (
-            <li key={item.favoriteId} className="flex items-center justify-between gap-3 py-3">
-              <div className="min-w-0">
-                <p className="truncate text-sm font-medium text-slate-900 dark:text-slate-100">
-                  {item.name}
-                </p>
-                <p className="text-xs text-slate-500 dark:text-slate-400">
+            <li
+              key={item.favoriteId}
+              className="group flex items-center justify-between gap-4 rounded-2xl px-4 py-3 transition hover:bg-slate-50 dark:hover:bg-slate-700/50"
+            >
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-3">
+                  <span className="text-xl">
+                    {activeTab === 'folders' ? '📁' : '📄'}
+                  </span>
+                  <p className="truncate font-medium text-slate-900 dark:text-slate-100">
+                    {item.name}
+                  </p>
+                </div>
+
+                <p className="ml-9 text-xs text-slate-500 dark:text-slate-400">
                   {activeTab === 'folders'
                     ? 'Group folder'
-                    : `${item.fileType === 'personal' ? 'My Files' : 'Group folder'} · ${formatSize(item.size)}`}
+                    : `${item.fileType === 'personal' ? 'My Files' : 'Group folder'} • ${formatSize(item.size)}`}
                 </p>
               </div>
+
               <div className="shrink-0 text-right">
                 <p className="text-xs text-slate-500 dark:text-slate-400">
                   {formatDate(item.favoritedAt)}
                 </p>
                 <Link
                   to={
-                    activeTab === 'folders' ? favoriteFolderLink(item) : favoriteFileLink(item)
+                    activeTab === 'folders'
+                      ? favoriteFolderLink(item)
+                      : favoriteFileLink(item)
                   }
-                  className="text-xs text-brand-600 hover:underline dark:text-brand-400"
+                  className="mt-1 inline-block text-xs font-medium text-brand-600 hover:underline dark:text-brand-400"
                 >
-                  Open
+                  Open →
                 </Link>
               </div>
             </li>
@@ -144,7 +164,7 @@ export default function FavoritesCard({
         <button
           type="button"
           onClick={onViewAll}
-          className="mt-4 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium text-brand-600 hover:bg-brand-50 dark:border-slate-600 dark:text-brand-400 dark:hover:bg-slate-700/50"
+          className="mt-6 w-full rounded-2xl border border-slate-200 py-3 text-sm font-medium text-brand-600 transition hover:bg-slate-50 dark:border-slate-600 dark:text-brand-400 dark:hover:bg-slate-700/50"
         >
           View all favorites
         </button>
