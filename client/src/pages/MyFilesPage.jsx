@@ -7,6 +7,7 @@ import FilePreviewModal from '../components/FilePreviewModal';
 import UploadDropzone from '../components/UploadDropzone';
 import { UploadCloudIcon } from '../components/icons';
 import { useFavorites } from '../hooks/useFavorites';
+import { useUpload } from '../context/UploadContext';
 import { useExtensionFilter } from '../hooks/useExtensionFilter';
 import ExtensionFilterSelect from '../components/ExtensionFilterSelect';
 
