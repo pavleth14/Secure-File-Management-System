@@ -26,7 +26,9 @@ import { buildSubfolderPath, getParentSubfolderId } from '../utils/folderPath';
 
 import { useFavorites } from '../hooks/useFavorites';
 
+import { useExtensionFilter } from '../hooks/useExtensionFilter';
 
+import ExtensionFilterSelect from '../components/ExtensionFilterSelect';
 
 const PERMS = {
 
@@ -83,6 +85,17 @@ export default function FolderFilesPage() {
 
 
   const selectedSubfolder = searchParams.get('subfolder') || null;
+
+  const extensionFilterResetKey = `${rootId}-${selectedSubfolder || 'root'}`;
+
+  const {
+    extensionFilter,
+    setExtensionFilter,
+    extensionOptions,
+    filteredFiles,
+  } = useExtensionFilter(files, extensionFilterResetKey);
+
+
 
   const canManageSubfolders = isSuperAdmin || isAdmin;
 
@@ -414,7 +427,9 @@ export default function FolderFilesPage() {
 
   const canUpload = can(PERMS.UPLOAD);
 
-  const emptyMessage = folderSearch.trim()
+  const emptyMessage = extensionFilter !== 'all'
+    ? `No ${extensionFilter.toUpperCase()} files in this location`
+    : folderSearch.trim()
 
     ? 'No files match your search'
 
@@ -524,6 +539,20 @@ export default function FolderFilesPage() {
 
 
 
+                      <ExtensionFilterSelect
+
+                        value={extensionFilter}
+
+                        onChange={setExtensionFilter}
+
+                        options={extensionOptions}
+
+                        id="folder-files-extension-filter"
+
+                      />
+
+
+
                       {canUpload && (
 
                         <button
@@ -580,7 +609,7 @@ export default function FolderFilesPage() {
 
                         folders={currentSubfolders}
 
-                        files={files}
+                        files={filteredFiles}
 
                         onOpenFolder={setSelectedSubfolder}
 

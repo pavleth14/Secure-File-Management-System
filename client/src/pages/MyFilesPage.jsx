@@ -7,7 +7,8 @@ import FilePreviewModal from '../components/FilePreviewModal';
 import UploadDropzone from '../components/UploadDropzone';
 import { UploadCloudIcon } from '../components/icons';
 import { useFavorites } from '../hooks/useFavorites';
-import { useUpload } from '../context/UploadContext';
+import { useExtensionFilter } from '../hooks/useExtensionFilter';
+import ExtensionFilterSelect from '../components/ExtensionFilterSelect';
 
 export default function MyFilesPage() {
   const navigate = useNavigate();
@@ -19,6 +20,13 @@ export default function MyFilesPage() {
   const [sortBy, setSortBy] = useState('date');
   const [sortDir, setSortDir] = useState('desc');
   const [previewFile, setPreviewFile] = useState(null);
+
+  const {
+    extensionFilter,
+    setExtensionFilter,
+    extensionOptions,
+    filteredFiles,
+  } = useExtensionFilter(files, 'my-files');
 
   const loadFiles = useCallback(async () => {
     const { data } = await api.get('/my-files', { params: { sortBy, sortDir } });
@@ -85,6 +93,11 @@ export default function MyFilesPage() {
     return <div className="text-slate-500 dark:text-slate-400">Loading...</div>;
   }
 
+  const emptyMessage =
+    extensionFilter !== 'all'
+      ? `No ${extensionFilter.toUpperCase()} files here`
+      : 'No files in My Files yet';
+
   return (
     <div className="-mx-4 my-1 flex min-h-[calc(100vh-8rem)] flex-col sm:-mx-6">
       {previewFile && (
@@ -114,6 +127,13 @@ export default function MyFilesPage() {
                 </p>
 
                 <div className="mt-3 flex flex-wrap items-center gap-3">
+                  <ExtensionFilterSelect
+                    value={extensionFilter}
+                    onChange={setExtensionFilter}
+                    options={extensionOptions}
+                    id="my-files-extension-filter"
+                  />
+
                   <button
                     type="button"
                     onClick={openPicker}
@@ -137,7 +157,7 @@ export default function MyFilesPage() {
               <div className="min-h-0 flex-1 overflow-auto">
                 <FileTable
                   embedded
-                  files={files}
+                  files={filteredFiles}
                   sortBy={sortBy}
                   sortDir={sortDir}
                   onSortChange={(field, dir) => {
@@ -152,7 +172,7 @@ export default function MyFilesPage() {
                   fileType="personal"
                   isFavorite={isFavorite}
                   onToggleFavorite={toggleFavorite}
-                  emptyMessage="No files in My Files yet"
+                  emptyMessage={emptyMessage}
                 />
               </div>
             </div>

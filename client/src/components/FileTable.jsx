@@ -1,9 +1,11 @@
 import { formatSize, formatDate, toId } from '../utils/format';
 import { isPreviewableFile } from '../utils/filePreview';
+import { getFileExtension } from '../utils/uploadTypes';
 import { StarIcon } from './icons';
 
 const SORTABLE_COLUMNS = [
   { key: 'name', label: 'Name' },
+  { key: 'extension', label: 'Extension' },
   { key: 'size', label: 'Size' },
   { key: 'date', label: 'Upload date' },
   { key: 'uploadedBy', label: 'Uploaded by' },
@@ -128,6 +130,7 @@ export default function FileTable({
                 <td className="px-4 py-3 text-sm text-slate-400 dark:text-slate-500">—</td>
                 <td className="px-4 py-3 text-sm text-slate-400 dark:text-slate-500">—</td>
                 <td className="px-4 py-3 text-sm text-slate-400 dark:text-slate-500">—</td>
+                <td className="px-4 py-3 text-sm text-slate-400 dark:text-slate-500">—</td>
                 <td className="px-4 py-3 text-right whitespace-nowrap">
                   {canDeleteFolder && (
                     <button
@@ -185,6 +188,9 @@ export default function FileTable({
                     ) : (
                       file.originalName
                     )}
+                  </td>
+                  <td className="px-4 py-3 text-sm uppercase text-slate-500 dark:text-slate-400">
+                    {getFileExtension(file.originalName || file.name) || '—'}
                   </td>
                   <td className="px-4 py-3 text-sm text-slate-500 dark:text-slate-400">
                     {formatSize(file.size)}

@@ -6,47 +6,9 @@ import {
   getRootFolder,
 } from './aclService.js';
 import { PERMISSIONS } from '../config/constants.js';
+import { buildMongoSort, needsInMemorySort, sortFiles } from '../utils/fileSort.js';
 
-function buildSort(sortBy = 'date', sortDir = 'desc') {
-  const dir = sortDir === 'asc' ? 1 : -1;
-  const map = {
-    name: 'originalName',
-    size: 'size',
-    date: 'createdAt',
-  };
-  const field = map[sortBy] || 'createdAt';
-  return { [field]: dir };
-}
-
-export function sortFiles(files, sortBy, sortDir) {
-  const dir = sortDir === 'asc' ? 1 : -1;
-  const sorted = [...files];
-
-  sorted.sort((a, b) => {
-    let cmp = 0;
-    switch (sortBy) {
-      case 'name':
-        cmp = (a.originalName || '').localeCompare(b.originalName || '');
-        break;
-      case 'size':
-        cmp = (a.size || 0) - (b.size || 0);
-        break;
-      case 'uploadedBy': {
-        const an = a.uploadedBy?.name || '';
-        const bn = b.uploadedBy?.name || '';
-        cmp = an.localeCompare(bn);
-        break;
-      }
-      case 'date':
-      default:
-        cmp = new Date(a.createdAt) - new Date(b.createdAt);
-        break;
-    }
-    return cmp * dir;
-  });
-
-  return sorted;
-}
+export { sortFiles } from '../utils/fileSort.js';
 
 export async function listFolderFiles(user, rootFolderId, options = {}) {
   const { subfolderId, search, sortBy, sortDir } = options;
@@ -81,10 +43,10 @@ export async function listFolderFiles(user, rootFolderId, options = {}) {
 
   let files = await FileModel.find(query)
     .populate('uploadedBy', 'name email')
-    .sort(buildSort(sortBy, sortDir));
+    .sort(buildMongoSort(sortBy, sortDir));
 
-  if (sortBy === 'uploadedBy') {
-    files = sortFiles(files, 'uploadedBy', sortDir);
+  if (needsInMemorySort(sortBy)) {
+    files = sortFiles(files, sortBy, sortDir);
   }
 
   return { files, folder, root };

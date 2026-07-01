@@ -14,6 +14,7 @@ import {
   findOwnedPersonalFile,
   serializePersonalFile,
 } from '../services/myFilesService.js';
+import { buildPersonalMongoSort, needsInMemorySort, sortFiles } from '../utils/fileSort.js';
 import { auditLog, buildActorLabel } from '../services/auditLogService.js';
 import { AUDIT_ACTIONS, AUDIT_CATEGORIES, TARGET_TYPES } from '../config/auditConstants.js';
 
@@ -25,19 +26,20 @@ router.use(authMiddleware);
 router.get('/', async (req, res, next) => {
   try {
     const { sortBy = 'date', sortDir = 'desc' } = req.query;
-    const dir = sortDir === 'asc' ? 1 : -1;
-    const sortMap = {
-      name: 'name',
-      size: 'size',
-      date: 'createdAt',
-    };
-    const sortField = sortMap[sortBy] || 'createdAt';
 
-    const files = await PersonalFile.find({ userId: req.user._id }).sort({
-      [sortField]: dir,
-    });
+    let query = PersonalFile.find({ userId: req.user._id });
+    if (!needsInMemorySort(sortBy)) {
+      query = query.sort(buildPersonalMongoSort(sortBy, sortDir));
+    }
 
-    res.json({ files: files.map(serializePersonalFile) });
+    const files = await query;
+    let serialized = files.map(serializePersonalFile);
+
+    if (needsInMemorySort(sortBy)) {
+      serialized = sortFiles(serialized, sortBy, sortDir);
+    }
+
+    res.json({ files: serialized });
   } catch (err) {
     next(err);
   }
