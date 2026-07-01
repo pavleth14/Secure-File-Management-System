@@ -499,7 +499,7 @@ export default function FolderFilesPage() {
 
 
 
-        <div className="flex min-w-0 flex-1 flex-col overflow-hidden bg-slate-50 dark:bg-slate-950">
+        <div className="flex mx-auto mr-80 w-full max-w-7xl flex-1 flex-col space-y-8  overflow-hidden bg-slate-50 dark:bg-slate-950">
 
           <UploadDropzone
 
@@ -541,9 +541,9 @@ export default function FolderFilesPage() {
 
                         onChange={(e) => setFolderSearch(e.target.value)}
 
-                        placeholder="Search files in this folder…"
+                        placeholder="🔎︎   Search files in this folder…"
 
-                        className="min-w-[12rem] flex-1 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-900 placeholder-slate-400 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 dark:placeholder-slate-500"
+                        className="min-w-[12rem] w-[300px] flex-1 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-900 placeholder-slate-400 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 dark:placeholder-slate-500"
 
                       />
 

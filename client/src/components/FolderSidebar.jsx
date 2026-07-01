@@ -16,6 +16,9 @@ export default function FolderSidebar({
   onToggleFavorite,
   folderFavoriteType = 'folder',
   width = 256,
+  virtualRoot = false,
+  sidebarTitle = 'Folders',
+  showFolderFavorites = true,
 }) {
   const [expanded, setExpanded] = useState({});
 
@@ -31,6 +34,9 @@ export default function FolderSidebar({
   const getChildren = (parentId) => {
     return subfolders.filter((f) => {
       const pid = f.parentFolderId ? toId(f.parentFolderId) : null;
+      if (virtualRoot && parentId === ROOT_ID) {
+        return pid === null;
+      }
       return pid === parentId;
     });
   };
@@ -51,7 +57,7 @@ export default function FolderSidebar({
       return (
         <div key={id}>
           <div className={`group flex items-center ${isSelected ? 'bg-brand-50 dark:bg-brand-900/30' : 'hover:bg-slate-50 dark:hover:bg-slate-700/50'}`}>
-            {onToggleFavorite && (
+            {showFolderFavorites && onToggleFavorite && (
               <button
                 type="button"
                 onClick={(e) => {
@@ -126,7 +132,7 @@ export default function FolderSidebar({
       {/* header */}
       <div className="border-b border-slate-200 px-4 py-3 dark:border-slate-700">
         <p className="text-xs font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400">
-          Folders
+          {sidebarTitle}
         </p>
         <p className="mt-1 truncate font-semibold text-slate-900 dark:text-slate-100">
           {rootFolder?.name || '—'}
@@ -139,7 +145,7 @@ export default function FolderSidebar({
         <div
           className={`flex w-full items-center ${!selectedSubfolderId ? 'bg-brand-50 dark:bg-brand-900/30' : 'hover:bg-slate-50 dark:hover:bg-slate-700/50'}`}
         >
-          {onToggleFavorite && rootFolder?._id && (
+          {showFolderFavorites && onToggleFavorite && rootFolder?._id && (
             <button
               type="button"
               onClick={() => onToggleFavorite(folderFavoriteType, toId(rootFolder._id))}
@@ -185,7 +191,9 @@ export default function FolderSidebar({
 
             onCreateSubfolder({
               name: newSubfolderName,
-              parentFolderId: selectedSubfolderId || ROOT_ID,
+              parentFolderId: virtualRoot
+                ? (selectedSubfolderId || null)
+                : (selectedSubfolderId || ROOT_ID),
             });
           }}
           className="border-t border-slate-200 p-3 flex flex-col dark:border-slate-700 border items-center"

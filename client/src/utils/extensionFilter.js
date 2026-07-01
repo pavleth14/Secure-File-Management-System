@@ -27,3 +27,18 @@ export function filterFilesByExtension(files, selectedExtension) {
     (file) => getFileExtension(getFileDisplayName(file)) === target
   );
 }
+
+/** Client-side search by file name and extension (case-insensitive). */
+export function filterFilesBySearch(files, query) {
+  const trimmed = (query || '').trim().toLowerCase();
+  if (!trimmed) return files || [];
+
+  return (files || []).filter((file) => {
+    const name = getFileDisplayName(file).toLowerCase();
+    const ext = getFileExtension(getFileDisplayName(file));
+    if (name.includes(trimmed)) return true;
+    if (ext && ext.includes(trimmed)) return true;
+    if (ext && trimmed.startsWith('.') && `.${ext}`.includes(trimmed)) return true;
+    return false;
+  });
+}

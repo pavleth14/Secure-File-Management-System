@@ -100,14 +100,18 @@ export function UploadProvider({ children }) {
       });
 
       const formData = new FormData();
-      formData.append('file', item.file);
-
       const isPersonal = item.uploadTarget === 'personal';
 
-      if (!isPersonal) {
+      if (isPersonal) {
+        if (item.personalFolderId) {
+          formData.append('personalFolderId', item.personalFolderId);
+        }
+      } else {
         formData.append('folderId', item.folderId);
         if (item.subfolderId) formData.append('subfolderId', item.subfolderId);
       }
+
+      formData.append('file', item.file);
 
       const uploadUrl = isPersonal ? '/my-files/upload' : '/files/upload';
 
@@ -160,6 +164,7 @@ export function UploadProvider({ children }) {
                 uploadTarget: item.uploadTarget,
                 folderId: item.folderId,
                 subfolderId: item.subfolderId,
+                personalFolderId: item.personalFolderId,
               },
             })
           );
@@ -203,7 +208,7 @@ export function UploadProvider({ children }) {
   /**
    * Add files to the upload queue.
    * @param {FileList|File[]} files
-   * @param {{folderId?: string, subfolderId?: string|null, folderName?: string, uploadTarget?: 'group'|'personal'}} target
+   * @param {{folderId?: string, subfolderId?: string|null, personalFolderId?: string|null, folderName?: string, uploadTarget?: 'group'|'personal'}} target
    */
   const enqueueFiles = useCallback(
     (files, target) => {
@@ -237,6 +242,7 @@ export function UploadProvider({ children }) {
           uploadTarget,
           folderId: target.folderId || null,
           subfolderId: target.subfolderId || null,
+          personalFolderId: target.personalFolderId || null,
           folderName: target.folderName || (isPersonal ? 'My Files' : ''),
           status,
           progress: 0,

@@ -138,12 +138,25 @@ function escapeRegex(value) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
-export function buildMyFilesRelativePath(userId, filename) {
+export function buildMyFilesRelativePath(userId, filename, folderRelativePath = null) {
+  if (folderRelativePath) {
+    return buildRelativePath(folderRelativePath, filename);
+  }
   return buildRelativePath('myfiles', userId.toString(), filename);
 }
 
-export async function resolveMyFilesUploadDir(userId) {
-  const relativePath = buildRelativePath('myfiles', userId.toString());
+export async function resolveMyFilesUploadDir(userId, personalFolderId = null) {
+  const { PersonalFolder } = await import('../models/PersonalFolder.js');
+  let relativePath = buildRelativePath('myfiles', userId.toString());
+
+  if (personalFolderId) {
+    const folder = await PersonalFolder.findOne({ _id: personalFolderId, userId });
+    if (!folder) {
+      throw Object.assign(new Error('Folder not found'), { status: 404 });
+    }
+    relativePath = folder.relativePath;
+  }
+
   const fullPath = resolveFullPath(relativePath);
   await fs.mkdir(fullPath, { recursive: true });
   return { relativePath, fullPath };

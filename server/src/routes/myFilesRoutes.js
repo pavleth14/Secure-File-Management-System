@@ -14,6 +14,12 @@ import {
   findOwnedPersonalFile,
   serializePersonalFile,
 } from '../services/myFilesService.js';
+import {
+  createPersonalFolder,
+  deletePersonalFolder,
+  getPersonalFoldersTree,
+  listPersonalFolderChildren,
+} from '../services/personalFolderService.js';
 import { buildPersonalMongoSort, needsInMemorySort, sortFiles } from '../utils/fileSort.js';
 import { auditLog, buildActorLabel } from '../services/auditLogService.js';
 import { AUDIT_ACTIONS, AUDIT_CATEGORIES, TARGET_TYPES } from '../config/auditConstants.js';
@@ -23,11 +29,43 @@ const upload = createMyFilesUploadMiddleware();
 
 router.use(authMiddleware);
 
+router.get('/tree', async (req, res, next) => {
+  try {
+    const tree = await getPersonalFoldersTree(req.user._id);
+    res.json(tree);
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post('/folders', async (req, res, next) => {
+  try {
+    const { name, parentFolderId = null } = req.body;
+    const folder = await createPersonalFolder(req.user._id, name, parentFolderId || null);
+    res.status(201).json({ folder });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.delete('/folders/:folderId', async (req, res, next) => {
+  try {
+    await deletePersonalFolder(req.user._id, req.params.folderId);
+    res.json({ message: 'Folder deleted' });
+  } catch (err) {
+    next(err);
+  }
+});
+
 router.get('/', async (req, res, next) => {
   try {
-    const { sortBy = 'date', sortDir = 'desc' } = req.query;
+    const { sortBy = 'date', sortDir = 'desc', personalFolderId } = req.query;
 
-    let query = PersonalFile.find({ userId: req.user._id });
+    const folderFilter = personalFolderId
+      ? { personalFolderId }
+      : { personalFolderId: null };
+
+    let query = PersonalFile.find({ userId: req.user._id, ...folderFilter });
     if (!needsInMemorySort(sortBy)) {
       query = query.sort(buildPersonalMongoSort(sortBy, sortDir));
     }
@@ -39,7 +77,12 @@ router.get('/', async (req, res, next) => {
       serialized = sortFiles(serialized, sortBy, sortDir);
     }
 
-    res.json({ files: serialized });
+    const subfolders = await listPersonalFolderChildren(
+      req.user._id,
+      personalFolderId || null
+    );
+
+    res.json({ files: serialized, subfolders });
   } catch (err) {
     next(err);
   }
@@ -68,13 +111,16 @@ router.post('/upload', async (req, res, next) => {
 
     await assertMyFilesStorageLimit(req.user._id, req.file.size);
 
+    const personalFolderId = req.body.personalFolderId || null;
     const storedName = req.file.filename;
-    const relativePath = buildMyFilesRelativePath(req.user._id, storedName);
+    const relativePath =
+      req.file.relativePath || buildMyFilesRelativePath(req.user._id, storedName);
 
     const fileRecord = await PersonalFile.create({
       name: storedName,
       relativePath,
       userId: req.user._id,
+      personalFolderId: personalFolderId || null,
       mimeType: req.file.mimetype,
       size: req.file.size,
     });
@@ -94,7 +140,10 @@ router.post('/upload', async (req, res, next) => {
   } catch (err) {
     if (req.file?.filename) {
       try {
-        await unlinkFile(buildMyFilesRelativePath(req.user._id, req.file.filename));
+        const cleanupPath =
+          req.file.relativePath ||
+          buildMyFilesRelativePath(req.user._id, req.file.filename);
+        await unlinkFile(cleanupPath);
       } catch {
         // Best-effort cleanup after a failed upload.
       }

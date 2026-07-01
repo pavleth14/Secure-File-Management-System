@@ -10,6 +10,12 @@ const personalFileSchema = new mongoose.Schema(
       required: true,
       index: true,
     },
+    personalFolderId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'PersonalFolder',
+      default: null,
+      index: true,
+    },
     mimeType: { type: String, default: 'application/octet-stream' },
     size: { type: Number, default: 0 },
   },

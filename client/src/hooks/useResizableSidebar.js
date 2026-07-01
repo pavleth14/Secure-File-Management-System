@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 export const SIDEBAR_DEFAULT_WIDTH = 256;
 export const SIDEBAR_MIN_WIDTH = 256;
 export const SIDEBAR_STORAGE_KEY = 'folderSidebarWidth';
+export const MY_FILES_SIDEBAR_STORAGE_KEY = 'myFilesSidebarWidth';
 
 function getMaxWidth() {
   if (typeof window === 'undefined') return SIDEBAR_DEFAULT_WIDTH;
@@ -13,9 +14,9 @@ export function clampSidebarWidth(width) {
   return Math.min(getMaxWidth(), Math.max(SIDEBAR_MIN_WIDTH, Math.round(width)));
 }
 
-function readStoredWidth() {
+function readStoredWidth(storageKey) {
   try {
-    const stored = localStorage.getItem(SIDEBAR_STORAGE_KEY);
+    const stored = localStorage.getItem(storageKey);
     if (stored) {
       const parsed = parseInt(stored, 10);
       if (!Number.isNaN(parsed)) {
@@ -28,8 +29,8 @@ function readStoredWidth() {
   return SIDEBAR_DEFAULT_WIDTH;
 }
 
-export function useResizableSidebar() {
-  const [width, setWidth] = useState(readStoredWidth);
+export function useResizableSidebar(storageKey = SIDEBAR_STORAGE_KEY) {
+  const [width, setWidth] = useState(() => readStoredWidth(storageKey));
   const [isResizing, setIsResizing] = useState(false);
   const startXRef = useRef(0);
   const startWidthRef = useRef(SIDEBAR_DEFAULT_WIDTH);
@@ -55,7 +56,7 @@ export function useResizableSidebar() {
       setIsResizing(false);
       setWidth((current) => {
         try {
-          localStorage.setItem(SIDEBAR_STORAGE_KEY, String(current));
+          localStorage.setItem(storageKey, String(current));
         } catch {
           // Ignore storage errors.
         }
@@ -75,7 +76,7 @@ export function useResizableSidebar() {
       document.body.style.userSelect = '';
       document.body.style.cursor = '';
     };
-  }, [isResizing]);
+  }, [isResizing, storageKey]);
 
   const startResize = useCallback(
     (event) => {
