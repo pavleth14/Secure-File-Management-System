@@ -23,7 +23,14 @@ import { AUDIT_ACTIONS, AUDIT_CATEGORIES, TARGET_TYPES } from '../config/auditCo
 import {
   validateSessionActivity,
   revokeSession,
+  getSessionForUser,
 } from '../services/sessionService.js';
+import {
+  notifySessionRevoked,
+  registerSessionStream,
+  unregisterSessionStream,
+} from '../services/sessionNotifyService.js';
+import { verifyAccessToken } from '../utils/tokens.js';
 
 const router = Router();
 
@@ -188,6 +195,7 @@ router.post('/login', async (req, res, next) => {
     }
 
     await RefreshToken.deleteMany({ userId: user._id });
+    notifySessionRevoked(user._id);
 
     await createSession(user, res);
 
@@ -233,13 +241,16 @@ async function resolveRefreshSession(req) {
 
   const userId = decodedAccess.userId;
   const stored = await RefreshToken.findOne({ userId });
-  if (!stored || stored.expiresAt < new Date()) {
+  if (!stored) {
+    return { userId, stored: null, revoked: Boolean(decodedAccess.sid) };
+  }
+  if (stored.expiresAt < new Date()) {
     return { userId, stored: null };
   }
 
   // The cookie's session id must match the current active session.
   if (!decodedAccess.sid || stored.sid !== decodedAccess.sid) {
-    return { userId, stored: null };
+    return { userId, stored: null, revoked: true };
   }
 
   // Validate the server-side refresh token itself (signature + expiry).
@@ -258,6 +269,12 @@ router.post('/refresh', authLimiter, async (req, res, next) => {
       clearAuthCookies(res);
       if (session?.stored) {
         await RefreshToken.deleteOne({ _id: session.stored._id });
+      }
+      if (session?.revoked) {
+        return res.status(401).json({
+          message: 'Session ended because your account was used on another device',
+          code: 'SESSION_REVOKED',
+        });
       }
       return res.status(401).json({ message: 'Session expired or revoked' });
     }
@@ -347,6 +364,69 @@ router.get('/me', authMiddleware, async (req, res, next) => {
       .select('-passwordHash')
       .populate('groupId', 'name');
     res.json({ user: sanitizeUser(user) });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.get('/session-events', async (req, res, next) => {
+  try {
+    const token = req.cookies.accessToken;
+    if (!token) {
+      return res.status(401).json({ message: 'Authentication required' });
+    }
+
+    const decoded = verifyAccessToken(token);
+    const user = await User.findById(decoded.userId).select('-passwordHash');
+    if (!user) {
+      return res.status(401).json({ message: 'User not found' });
+    }
+
+    const session = await getSessionForUser(user._id);
+    const activity = await validateSessionActivity(session);
+
+    if (!activity.valid) {
+      clearAuthCookies(res);
+      if (activity.reason === 'inactive') {
+        return res.status(401).json({
+          message: 'Session expired due to inactivity',
+          code: 'INACTIVITY_TIMEOUT',
+        });
+      }
+      return res.status(401).json({ message: 'Session expired or revoked' });
+    }
+
+    if (!decoded.sid || !session?.sid || decoded.sid !== session.sid) {
+      clearAuthCookies(res);
+      return res.status(401).json({
+        message: 'Session ended because your account was used on another device',
+        code: 'SESSION_REVOKED',
+      });
+    }
+
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache, no-transform');
+    res.setHeader('Connection', 'keep-alive');
+    res.setHeader('X-Accel-Buffering', 'no');
+    res.flushHeaders?.();
+
+    const userId = user._id.toString();
+    registerSessionStream(userId, res);
+
+    res.write(': connected\n\n');
+
+    const heartbeat = setInterval(() => {
+      try {
+        res.write(': ping\n\n');
+      } catch {
+        clearInterval(heartbeat);
+      }
+    }, 30000);
+
+    req.on('close', () => {
+      clearInterval(heartbeat);
+      unregisterSessionStream(userId, res);
+    });
   } catch (err) {
     next(err);
   }

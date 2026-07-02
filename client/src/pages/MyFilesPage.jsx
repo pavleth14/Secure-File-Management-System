@@ -251,7 +251,7 @@ export default function MyFilesPage() {
 
         <SidebarResizeHandle onMouseDown={startResize} isResizing={isResizing} />
 
-        <div className="flex mx-auto mr-80 w-full max-w-7xl flex-1 flex-col space-y-8 overflow-hidden bg-slate-50 dark:bg-slate-950">
+        <div className="flex flex-1 flex-col overflow-hidden px-16 lg:pr-80">
           <UploadDropzone
             onFiles={handleFiles}
             onValidationError={(messages) => setError(messages.join(' '))}

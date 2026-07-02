@@ -98,6 +98,30 @@ export function AuthProvider({ children }) {
       return undefined;
     }
 
+    const apiBase = import.meta.env.VITE_API_URL || '/api';
+    const streamUrl = `${apiBase}/auth/session-events`;
+    const source = new EventSource(streamUrl, { withCredentials: true });
+
+    const handleRevoked = () => {
+      source.close();
+      // Reuse the existing revoke path: validate session server-side, clear cookies,
+      // and dispatch auth:session-revoked via the axios interceptor.
+      api.get('/auth/me').catch(() => {});
+    };
+
+    source.addEventListener('session-revoked', handleRevoked);
+
+    return () => {
+      source.removeEventListener('session-revoked', handleRevoked);
+      source.close();
+    };
+  }, [user]);
+
+  useEffect(() => {
+    if (!user) {
+      return undefined;
+    }
+
     let timeoutId;
 
     const resetTimer = () => {
