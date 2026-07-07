@@ -33,6 +33,8 @@ import {
 import { verifyAccessToken } from '../utils/tokens.js';
 import {
   isValidEmail,
+  isValidLoginEmail,
+  getSuperAdminEmailFromEnv,
   EMAIL_INVALID_MESSAGE,
 } from '../utils/emailValidation.js';
 
@@ -176,7 +178,7 @@ router.post('/login', async (req, res, next) => {
       return res.status(400).json({ message: 'Email and password required' });
     }
 
-    if (!isValidEmail(email)) {
+    if (!isValidLoginEmail(email, getSuperAdminEmailFromEnv())) {
       return res.status(400).json({ message: EMAIL_INVALID_MESSAGE });
     }
 

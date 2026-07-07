@@ -3,7 +3,8 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import {
-  isValidEmail,
+  isValidLoginEmail,
+  getSuperAdminEmailFromEnv,
   EMAIL_INVALID_MESSAGE,
 } from '../utils/emailValidation';
 import Main_1 from '../assets/Main_1.mp4';
@@ -26,7 +27,7 @@ export default function LoginPage() {
       return;
     }
 
-    if (!isValidEmail(email)) {
+    if (!isValidLoginEmail(email, getSuperAdminEmailFromEnv())) {
       setError(EMAIL_INVALID_MESSAGE);
       return;
     }
