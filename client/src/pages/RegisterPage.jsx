@@ -9,15 +9,26 @@ export default function RegisterPage() {
   const { register, isSuperAdmin } = useAuth();
   const [form, setForm] = useState(EMPTY_FORM);
   const [error, setError] = useState('');
+  const [emailError, setEmailError] = useState('');
+  const [emailValidated, setEmailValidated] = useState(false);
   const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(false);
 
   const update = (key, value) => setForm((prev) => ({ ...prev, [key]: value }));
 
+  const handleEmailChange = (value) => {
+    update('email', value);
+
+    if (emailValidated || emailError) {
+      setEmailError(isValidEmail(value) ? '' : EMAIL_INVALID_MESSAGE);
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
     setSuccess('');
+    setEmailValidated(true);
 
     if (!form.name || !form.email || !form.password) {
       setError('Name, email and password required');
@@ -25,15 +36,18 @@ export default function RegisterPage() {
     }
 
     if (!isValidEmail(form.email)) {
-      setError(EMAIL_INVALID_MESSAGE);
+      setEmailError(EMAIL_INVALID_MESSAGE);
       return;
     }
 
+    setEmailError('');
     setLoading(true);
     try {
       const created = await register(form);
       setSuccess(`Account for ${created.name} created successfully.`);
       setForm(EMPTY_FORM);
+      setEmailError('');
+      setEmailValidated(false);
     } catch (err) {
       setError(err.response?.data?.message || 'Registration failed');
     } finally {
@@ -86,10 +100,18 @@ export default function RegisterPage() {
               inputMode="email"
               autoComplete="email"
               value={form.email}
-              onChange={(e) => update('email', e.target.value)}
+              onChange={(e) => handleEmailChange(e.target.value)}
               required
-              className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
+              aria-invalid={Boolean(emailError)}
+              className={`w-full rounded-lg border bg-white px-3 py-2 text-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-500/20 dark:bg-slate-900 dark:text-slate-100 ${
+                emailError
+                  ? 'border-red-500 focus:border-red-500 dark:border-red-500'
+                  : 'border-slate-300 focus:border-brand-500 dark:border-slate-600'
+              }`}
             />
+            {emailError && (
+              <p className="mt-1 text-sm text-red-600 dark:text-red-400">{emailError}</p>
+            )}
           </div>
           <div>
             <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">
