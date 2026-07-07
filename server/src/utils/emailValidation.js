@@ -1,6 +1,6 @@
 import validator from 'validator';
 
-export const LOGIN_EMAIL_INVALID_MESSAGE = 'Please enter a valid email address.';
+export const EMAIL_INVALID_MESSAGE = 'Please enter a valid email address.';
 
 function hasOnlyRepeatedDomainLabels(email) {
   const atIndex = email.lastIndexOf('@');
@@ -14,7 +14,7 @@ function hasOnlyRepeatedDomainLabels(email) {
   return labels.every((label) => label.toLowerCase() === first);
 }
 
-export function isValidLoginEmail(email) {
+export function isValidEmail(email) {
   if (email === null || email === undefined || typeof email !== 'string') {
     return false;
   }

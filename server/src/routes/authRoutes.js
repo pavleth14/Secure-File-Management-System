@@ -32,9 +32,9 @@ import {
 } from '../services/sessionNotifyService.js';
 import { verifyAccessToken } from '../utils/tokens.js';
 import {
-  isValidLoginEmail,
-  LOGIN_EMAIL_INVALID_MESSAGE,
-} from '../utils/loginEmailValidation.js';
+  isValidEmail,
+  EMAIL_INVALID_MESSAGE,
+} from '../utils/emailValidation.js';
 
 const router = Router();
 
@@ -105,6 +105,10 @@ router.post('/register', authLimiter, authMiddleware, async (req, res, next) => 
       return res.status(400).json({ message: 'Name, email and password required' });
     }
 
+    if (!isValidEmail(email)) {
+      return res.status(400).json({ message: EMAIL_INVALID_MESSAGE });
+    }
+
     if (password.length < 8) {
       return res.status(400).json({ message: 'Password must be at least 8 characters' });
     }
@@ -172,8 +176,8 @@ router.post('/login', async (req, res, next) => {
       return res.status(400).json({ message: 'Email and password required' });
     }
 
-    if (!isValidLoginEmail(email)) {
-      return res.status(400).json({ message: LOGIN_EMAIL_INVALID_MESSAGE });
+    if (!isValidEmail(email)) {
+      return res.status(400).json({ message: EMAIL_INVALID_MESSAGE });
     }
 
     const user = await User.findOne({ email: email.toLowerCase() });

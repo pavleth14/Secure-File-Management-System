@@ -7,6 +7,7 @@ import { authMiddleware } from '../middleware/authMiddleware.js';
 import { roleMiddleware, canManageTargetUser } from '../middleware/roleMiddleware.js';
 import { auditLog, buildActorLabel } from '../services/auditLogService.js';
 import { AUDIT_ACTIONS, AUDIT_CATEGORIES, TARGET_TYPES } from '../config/auditConstants.js';
+import { isValidEmail, EMAIL_INVALID_MESSAGE } from '../utils/emailValidation.js';
 
 const router = Router();
 
@@ -37,6 +38,10 @@ router.post('/', async (req, res, next) => {
 
     if (!name || !email || !password) {
       return res.status(400).json({ message: 'Name, email and password required' });
+    }
+
+    if (!isValidEmail(email)) {
+      return res.status(400).json({ message: EMAIL_INVALID_MESSAGE });
     }
 
     const assignedRole = role || ROLES.USER;
@@ -118,7 +123,12 @@ router.put('/:id', async (req, res, next) => {
     };
 
     if (name) target.name = name;
-    if (email) target.email = email.toLowerCase();
+    if (email) {
+      if (!isValidEmail(email)) {
+        return res.status(400).json({ message: EMAIL_INVALID_MESSAGE });
+      }
+      target.email = email.toLowerCase();
+    }
 
     if (password) {
       if (password.length < 8) {

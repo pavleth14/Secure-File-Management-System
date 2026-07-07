@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import api from '../api/client';
 import { useAuth } from '../context/AuthContext';
+import { isValidEmail, EMAIL_INVALID_MESSAGE } from '../utils/emailValidation';
 
 export default function UsersPage() {
   const { isSuperAdmin } = useAuth();
@@ -47,6 +48,18 @@ export default function UsersPage() {
 
   const handleCreate = async (e) => {
     e.preventDefault();
+    setError('');
+
+    if (!form.name || !form.email || !form.password) {
+      setError('Name, email and password required');
+      return;
+    }
+
+    if (!isValidEmail(form.email)) {
+      setError(EMAIL_INVALID_MESSAGE);
+      return;
+    }
+
     try {
       await api.post('/users', {
         ...form,
@@ -167,6 +180,7 @@ export default function UsersPage() {
       {showForm && (
         <form
           onSubmit={handleCreate}
+          noValidate
           className="mb-6 rounded-xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-700 dark:bg-slate-800"
         >
           <div className="grid gap-4 sm:grid-cols-2">
@@ -178,7 +192,9 @@ export default function UsersPage() {
               className="rounded-lg border px-3 py-2 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 dark:placeholder-slate-500"
             />
             <input
-              type="email"
+              type="text"
+              inputMode="email"
+              autoComplete="email"
               placeholder="Email"
               value={form.email}
               onChange={(e) => setForm({ ...form, email: e.target.value })}

@@ -3,9 +3,9 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import {
-  isValidLoginEmail,
-  LOGIN_EMAIL_INVALID_MESSAGE,
-} from '../utils/loginEmailValidation';
+  isValidEmail,
+  EMAIL_INVALID_MESSAGE,
+} from '../utils/emailValidation';
 import Main_1 from '../assets/Main_1.mp4';
 
 export default function LoginPage() {
@@ -26,8 +26,8 @@ export default function LoginPage() {
       return;
     }
 
-    if (!isValidLoginEmail(email)) {
-      setError(LOGIN_EMAIL_INVALID_MESSAGE);
+    if (!isValidEmail(email)) {
+      setError(EMAIL_INVALID_MESSAGE);
       return;
     }
 

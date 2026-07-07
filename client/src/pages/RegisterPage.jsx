@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { isValidEmail, EMAIL_INVALID_MESSAGE } from '../utils/emailValidation';
 
 const EMPTY_FORM = { name: '', email: '', password: '', role: 'USER' };
 
@@ -17,6 +18,17 @@ export default function RegisterPage() {
     e.preventDefault();
     setError('');
     setSuccess('');
+
+    if (!form.name || !form.email || !form.password) {
+      setError('Name, email and password required');
+      return;
+    }
+
+    if (!isValidEmail(form.email)) {
+      setError(EMAIL_INVALID_MESSAGE);
+      return;
+    }
+
     setLoading(true);
     try {
       const created = await register(form);
@@ -52,7 +64,7 @@ export default function RegisterPage() {
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-4" noValidate>
           <div>
             <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">
               Name
@@ -70,7 +82,9 @@ export default function RegisterPage() {
               Email
             </label>
             <input
-              type="email"
+              type="text"
+              inputMode="email"
+              autoComplete="email"
               value={form.email}
               onChange={(e) => update('email', e.target.value)}
               required
