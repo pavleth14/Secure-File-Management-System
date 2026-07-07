@@ -543,7 +543,7 @@ export default function FolderFilesPage() {
 
                         placeholder="🔎︎   Search files in this folder…"
 
-                        className="min-w-[12rem] w-[300px] flex-1 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-900 placeholder-slate-400 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 dark:placeholder-slate-500"
+                        className="min-w-[12rem] w-[300px]  rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-900 placeholder-slate-400 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 dark:placeholder-slate-500"
 
                       />
 

@@ -31,6 +31,10 @@ import {
   unregisterSessionStream,
 } from '../services/sessionNotifyService.js';
 import { verifyAccessToken } from '../utils/tokens.js';
+import {
+  isValidLoginEmail,
+  LOGIN_EMAIL_INVALID_MESSAGE,
+} from '../utils/loginEmailValidation.js';
 
 const router = Router();
 
@@ -166,6 +170,10 @@ router.post('/login', async (req, res, next) => {
 
     if (!email || !password) {
       return res.status(400).json({ message: 'Email and password required' });
+    }
+
+    if (!isValidLoginEmail(email)) {
+      return res.status(400).json({ message: LOGIN_EMAIL_INVALID_MESSAGE });
     }
 
     const user = await User.findOne({ email: email.toLowerCase() });

@@ -2,6 +2,10 @@ FILE:LoginPage
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import {
+  isValidLoginEmail,
+  LOGIN_EMAIL_INVALID_MESSAGE,
+} from '../utils/loginEmailValidation';
 import Main_1 from '../assets/Main_1.mp4';
 
 export default function LoginPage() {
@@ -16,6 +20,17 @@ export default function LoginPage() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
+
+    if (!email || !password) {
+      setError('Email and password required');
+      return;
+    }
+
+    if (!isValidLoginEmail(email)) {
+      setError(LOGIN_EMAIL_INVALID_MESSAGE);
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -67,14 +82,16 @@ export default function LoginPage() {
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-4" noValidate>
           <div>
             <label className="mb-1 block text-sm font-medium text-slate-700">
               Email
             </label>
 
             <input
-              type="email"
+              type="text"
+              inputMode="email"
+              autoComplete="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
