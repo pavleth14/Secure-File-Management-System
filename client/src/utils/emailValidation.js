@@ -1,17 +1,16 @@
 import validator from 'validator';
+import { parse } from 'tldts';
 
 export const EMAIL_INVALID_MESSAGE = 'Please enter a valid email address.';
 
-function hasOnlyRepeatedDomainLabels(email) {
+function hasValidPublicTld(email) {
   const atIndex = email.lastIndexOf('@');
   if (atIndex <= 0) return false;
 
-  const domain = email.slice(atIndex + 1);
-  const labels = domain.split('.').filter(Boolean);
-  if (labels.length < 2) return false;
+  const hostname = email.slice(atIndex + 1);
+  const parsed = parse(hostname, { allowPrivateDomains: false });
 
-  const first = labels[0].toLowerCase();
-  return labels.every((label) => label.toLowerCase() === first);
+  return Boolean(parsed.domain && parsed.publicSuffix && parsed.isIcann);
 }
 
 export function isValidEmail(email) {
@@ -23,5 +22,5 @@ export function isValidEmail(email) {
     return false;
   }
 
-  return !hasOnlyRepeatedDomainLabels(email);
+  return hasValidPublicTld(email);
 }
