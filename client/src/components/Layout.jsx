@@ -23,7 +23,7 @@ export default function Layout() {
 
   if (isAdmin) {
     links.push({ to: '/users', label: 'Users' });
-    links.push({ to: '/register', label: 'Register' });
+ 
     links.push({ to: '/admin/logs', label: 'Logs' });
   }
 

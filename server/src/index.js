@@ -22,6 +22,10 @@ import dashboardRoutes from './routes/dashboardRoutes.js';
 const app = express();
 const PORT = process.env.PORT || 5000;
 
+// Behind one reverse proxy in dev (Vite) and production (nginx). express-rate-limit
+// reads the client IP from X-Forwarded-For and throws if trust proxy is disabled.
+app.set('trust proxy', Number(process.env.TRUST_PROXY ?? 1));
+
 const requiredEnv = ['JWT_ACCESS_SECRET', 'JWT_REFRESH_SECRET', 'MONGODB_URI'];
 for (const key of requiredEnv) {
   if (!process.env[key]) {
