@@ -16,11 +16,20 @@ export default function RegisterPage() {
 
   const update = (key, value) => setForm((prev) => ({ ...prev, [key]: value }));
 
+  const clearEmailValidationErrors = () => {
+    setEmailError('');
+    setError((prev) => (prev === EMAIL_INVALID_MESSAGE ? '' : prev));
+  };
+
   const handleEmailChange = (value) => {
     update('email', value);
 
-    if (emailValidated || emailError) {
-      setEmailError(isValidEmail(value) ? '' : EMAIL_INVALID_MESSAGE);
+    if (!emailValidated) return;
+
+    if (isValidEmail(value)) {
+      clearEmailValidationErrors();
+    } else {
+      setEmailError(EMAIL_INVALID_MESSAGE);
     }
   };
 
@@ -40,16 +49,23 @@ export default function RegisterPage() {
       return;
     }
 
-    setEmailError('');
+    clearEmailValidationErrors();
     setLoading(true);
     try {
       const created = await register(form);
       setSuccess(`Account for ${created.name} created successfully.`);
       setForm(EMPTY_FORM);
+      setError('');
       setEmailError('');
       setEmailValidated(false);
     } catch (err) {
-      setError(err.response?.data?.message || 'Registration failed');
+      const message = err.response?.data?.message || 'Registration failed';
+      if (message === EMAIL_INVALID_MESSAGE) {
+        setEmailError(message);
+        setError('');
+      } else {
+        setError(message);
+      }
     } finally {
       setLoading(false);
     }
@@ -104,12 +120,12 @@ export default function RegisterPage() {
               required
               aria-invalid={Boolean(emailError)}
               className={`w-full rounded-lg border bg-white px-3 py-2 text-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-500/20 dark:bg-slate-900 dark:text-slate-100 ${
-                emailError
+                emailError && !success
                   ? 'border-red-500 focus:border-red-500 dark:border-red-500'
                   : 'border-slate-300 focus:border-brand-500 dark:border-slate-600'
               }`}
             />
-            {emailError && (
+            {emailError && !success && (
               <p className="mt-1 text-sm text-red-600 dark:text-red-400">{emailError}</p>
             )}
           </div>
