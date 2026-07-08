@@ -104,7 +104,7 @@ export default function FolderFilesPage() {
   const can = (action) =>
     isSuperAdmin || isAdmin || permissions.includes(action);
 
-  const canCreateSubfolders = isSuperAdmin || isAdmin || can(PERMS.FOLDER_CREATE);
+  const canCreateSubfolders = can(PERMS.FOLDER_CREATE);
   const canDeleteSubfolders = isSuperAdmin || isAdmin;
 
 
@@ -120,13 +120,16 @@ export default function FolderFilesPage() {
     const { data } = await api.get(`/folders/${rootId}/tree`);
     setRootFolder(data.root);
     setSidebarSubfolders(data.subfolders || []);
-  }, [rootId]);
+    if (!selectedSubfolder) {
+      setPermissions(data.root?.permissions || []);
+    }
+  }, [rootId, selectedSubfolder]);
 
   const loadContextPermissions = useCallback(async () => {
-    if (!parentFolderId) return;
+    if (!parentFolderId || parentFolderId === rootId) return;
     const { data } = await api.get(`/folders/${parentFolderId}`);
     setPermissions(data.folder?.permissions || []);
-  }, [parentFolderId]);
+  }, [parentFolderId, rootId]);
 
 
 
@@ -373,7 +376,7 @@ export default function FolderFilesPage() {
       setNewSubfolder('');
 
       await loadTree();
-
+      await loadContextPermissions();
       await loadFiles();
 
     } catch (err) {
