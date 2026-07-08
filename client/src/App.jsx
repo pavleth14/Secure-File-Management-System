@@ -64,7 +64,7 @@ export default function App() {
           path="/register"
           element={
             <RoleGuard roles={['SUPER_ADMIN', 'ADMIN']}>
-              <RegisterPage />
+              {/* <RegisterPage /> */}
             </RoleGuard>
           }
         />

@@ -1,0 +1,460 @@
+TBF Secure File Management System — User Guide
+1. What this application is for
+The TBF Secure File Management System is a company file manager for Two Brothers Freight. It lets employees:
+
+Browse and work with shared company folders based on their team (group) permissions
+Store private files in My Files (personal space, visible only to them)
+Search across files they can access
+Star favorites and see recent activity on the dashboard
+Administrators manage users, groups, permissions, and audit logs. The app is accessed in a web browser; accounts are created by administrators—not through public self-registration.
+
+2. Complete user workflow
+First-time / daily flow
+Sign in with your company email and password on the login page.
+You land on the Dashboard — your home base with shortcuts, storage usage, favorites, and recent files.
+Shared work: go to Folders → open a folder → browse subfolders and files → upload, preview, download, or delete (depending on your permissions).
+Private work: go to My Files → create subfolders if needed → upload and manage your personal files.
+Use the header search anytime to find files by name across accessible folders.
+Star (★) folders or files you use often; find them on the Dashboard under Favorites.
+Logout from the header when finished.
+Session behavior you should know
+Only one active session per account: signing in on another device signs you out elsewhere.
+After 30 minutes of inactivity, you may be signed out automatically.
+If you see a message that your account was used on another device, sign in again.
+3. Application layout (always visible when signed in)
+Top header
+Element	Purpose
+Logo
+Returns to Dashboard
+Navigation links
+Dashboard, Folders, My Files; plus admin links if your role allows
+Search box
+“Search all files…” — searches file names across folders you can access
+Theme toggle
+Switch light / dark mode
+Your name & role
+Shows role (USER, ADMIN, SUPER_ADMIN) and group name if assigned
+Logout
+Signs you out
+Upload panel (bottom-right)
+When you upload files, a floating Upload Manager appears showing progress, speed, cancel, retry, and dismiss. Multiple uploads can run at once (up to three at a time).
+
+4. Pages and features
+Login (/login)
+Purpose: Sign in to the application.
+
+Features:
+
+Email and Password fields
+Sign in button
+Message area for errors or session notices (e.g. signed out on another device, inactivity)
+Validations & rules:
+
+Email and password are required
+Normal users must use a @twobrothersfreight.com email
+The super admin account (configured by IT) may use a different email
+Invalid email format shows: “Please enter a valid email address.”
+Note on page: “Accounts are provisioned by your administrator.” — there is no public sign-up on the login screen
+Dashboard (/dashboard)
+Purpose: Home page after login; overview and quick navigation.
+
+Features:
+
+Quick-link cards (role-dependent):
+
+File Folders — shared company folders
+My Files — personal storage
+User Management — admins only
+Audit Logs — admins only
+Group Permissions — super admin only
+System Admin — super admin only
+Widgets:
+
+Storage Usage — circular chart of My Files space used vs 50 GB limit
+Favorites — tabs for Folders and Files; preview of starred items; View all opens a full-screen modal
+Recent Files — recently added, deleted, and opened files; View all modal
+Your Account section:
+
+Role, email, and group (or “Not assigned” with note to contact admin)
+Folders (/folders)
+Purpose: List of root (top-level) shared folders you can access.
+
+Table columns:
+
+★ — add/remove folder from favorites
+Name — click to open folder
+Permissions — colored badges (READ, UPLOAD, etc.) showing what your group allows on that folder
+Actions — Open; Super Admin only: Rename, Delete
+Super Admin only:
+
++ New root folder — create a new top-level folder (must be empty to delete later)
+Empty state: “No folders available. Contact an administrator.” if you have no group or no folder access.
+
+Folder explorer (/folders/:id/files)
+Purpose: Browse one shared folder: subfolders, files, upload, search, and filters.
+
+Layout:
+
+Left sidebar (resizable by dragging the edge): folder tree with expand/collapse (▶ / ▼), (root), subfolder list, Add subfolder form at bottom
+Main area: breadcrumb, toolbar, combined table of subfolders + files
+Breadcrumb & back:
+
+Shows path: Root folder → subfolder → …
+Back goes up one level (or browser back from root)
+Toolbar:
+
+Control	Purpose
+Search files in this folder
+Filters loaded files by name (live, debounced)
+Extension filter
+Show only files of a selected type (e.g. PDF, DOCX) or All
+Upload
+Choose files (only if you have Upload permission)
+Drag & drop
+Drop files anywhere in the panel to upload (same rules as Upload)
+File/folder table:
+
+Sortable columns: Name, Extension, Size, Upload date, Uploaded by
+★ on folders and files for favorites
+Folders: click name to open; Delete on folder (admins/super admins only, folder must be empty)
+Files: click name to preview (if supported); Download / Delete if permitted
+Sidebar (admins & super admins only):
+
+New subfolder name + Add subfolder
+× on subfolder in tree to delete (must be empty)
+Permissions in practice (regular users):
+
+Upload button hidden without UPLOAD permission
+Download hidden without DOWNLOAD
+Delete on files hidden without DELETE
+Subfolder create/delete/rename in UI is admin/super admin only (not controlled by group EDIT/MOVE checkboxes for normal users)
+My Files (/my-files)
+Purpose: Your private file area; not shared with other users.
+
+Same general layout as Folder explorer:
+
+Resizable sidebar with subfolder tree
+Breadcrumb, search, extension filter, upload
+Combined subfolders + files table
+Differences from shared folders:
+
+No permission badges — you always have full control over your own content
+Everyone can create and delete My Files subfolders (via sidebar)
+Upload limit note: Max 50 MB per file · 50 GB total
+Favorites on files only (not subfolders in sidebar)
+Files do not show “Uploaded by” as another user — they’re yours
+Actions: upload, preview, download, delete, search, filter by extension, sort, navigate subfolders.
+
+Users (/users) — Admin & Super Admin
+Purpose: Create and manage user accounts.
+
+Super Admin sees: all users (USER, ADMIN, SUPER_ADMIN)
+Admin sees: regular USER accounts only
+
+Add user form:
+
+Name, Email, Password
+Role: USER (both); ADMIN (super admin only)
+Group: optional dropdown
+User table:
+
+Name, Email, Role, Group (dropdown to change assignment)
+Password — reset password (modal, min 8 characters)
+Delete — remove user (cannot delete super admin or yourself)
+Rules:
+
+New accounts must use @twobrothersfreight.com email
+Admins can reset passwords for USER accounts only
+Super admin can reset passwords for users and admins
+Groups & ACL Permissions (/groups) — Super Admin only
+Purpose: Define groups (teams) and which folders each group can use, with specific actions.
+
+Per group:
+
+Edit permissions — configure folder access
+Delete — remove group
+Create group:
+
+Group name (e.g. eld, dispatch)
+Starts with READ on the first available root folder
+Permission editor (per folder row):
+
+Choose root folder (and subfolder if applicable)
+Checkboxes: READ, UPLOAD, DOWNLOAD, EDIT, DELETE, MOVE
+Remove permission row
++ Add folder permission
+Save / cancel edit
+Audit Logs (/admin/logs) — Admin & Super Admin
+Purpose: Review security and activity history.
+
+Important: Logs are not loaded automatically. You must apply at least one filter first.
+
+Initial state: Empty table with “Select filters to view logs.”
+
+Filters (any combination triggers a search):
+
+Filter	Options
+Search
+Text across username, file name, action, details, etc.
+Category
+All, Read, Upload, Download, Edit, Delete, Move, Permissions, Users, Groups, Folders, Auth, System
+Role
+Super admin: All / User / Admin / Super Admin. Admin: fixed to regular users only
+Date
+All time, Today, Last 7/30/90 days, Custom range (start/end dates)
+Results table (click a row for details):
+
+Time, User, Role, Category, Action, Target type, Target name, Details snippet
+Sort: Click column headers (Time, User, Category, Action) to sort ascending/descending
+
+Pagination: 25 / 50 / 100 per page, Previous / Next
+
+Export: Export CSV and Export Excel (only when filters are active; exports matching filtered data)
+
+Log details drawer: Full timestamp, user, role, action, category, target, IP address, user agent, details, old/new values if present
+
+Admin limitation: Admins only see actions performed by regular USER accounts, not other admins or super admins.
+
+System Admin (/admin) — Super Admin only
+Purpose: High-level system overview (not linked in main nav; reachable from Dashboard card).
+
+Shows:
+
+Counts: Users, Groups, Root Folders
+Static configuration notes (default groups, folders, ACL model)
+Register account page
+A Register account page exists in the project but is not currently linked in the navigation, and the route is disabled in the app menu. User creation is done through Users (admin) instead.
+
+5. Actions reference
+Action	Where	Who
+Sign in / out
+Login, header
+Everyone
+Browse folders/files
+Folders, Folder explorer
+Everyone with READ
+Upload files
+Folder explorer, My Files
+UPLOAD permission (shared) / everyone (My Files)
+Download files
+File table
+DOWNLOAD permission (shared) / everyone (My Files)
+Delete files
+File table
+DELETE permission (shared) / everyone (My Files)
+Preview files
+Click file name
+Images, PDF, video (if READ / own file)
+Search files
+Header (global), folder/My Files toolbar
+Everyone with access
+Filter by extension
+Folder explorer, My Files
+Everyone
+Sort files
+File table headers
+Everyone
+Favorite (★)
+Folders list, folder explorer, file table
+Everyone
+Create subfolder
+Folder explorer sidebar
+Admin/Super Admin (shared); Everyone (My Files)
+Delete subfolder
+Sidebar / table
+Admin/Super Admin (shared); Everyone (My Files, empty only)
+Rename root folder
+Folders list
+Super Admin
+Create root folder
+Folders list
+Super Admin
+Create/manage users
+Users
+Admin/Super Admin
+Assign group
+Users table
+Admin/Super Admin
+Reset password
+Users
+Admin (users), Super Admin (users + admins)
+Configure group permissions
+Groups
+Super Admin
+View/export audit logs
+Logs
+Admin/Super Admin
+Move files
+—
+Not available in the UI
+Rename files
+—
+Not available in the UI
+Edit file contents
+—
+Not available (no in-app editor)
+6. Concepts explained for users
+Folders (shared)
+Root folders are top-level shared areas (e.g. folder1, folder2).
+Subfolders nest inside them for organization.
+You only see root folders your group has access to.
+Empty subfolders must be deleted before parent folders can be removed (where delete is allowed).
+My Files
+Completely private — other users cannot see your My Files.
+50 GB total storage, 50 MB max per file.
+You can organize with subfolders like shared folders.
+Files
+Every uploaded file must have a file extension (e.g. .pdf, .docx).
+.zip and .bat files are blocked and cannot be uploaded.
+Preview works for common images, PDFs, and videos; other types can only be downloaded.
+Users
+Each person has a name, email, role, and optional group.
+Without a group, regular users cannot access shared folders (Dashboard will suggest contacting admin).
+Groups
+Teams like eld, dispatch, safety, maintenance (examples from default setup).
+Each user belongs to one group (or none).
+The group determines which folders you see and what you can do there.
+Permissions (group ACL)
+Permissions are assigned per group, per folder (and optionally a specific subfolder). They control shared folder behavior—not My Files, and not admin screens.
+
+7. Roles and what each can do
+USER (regular employee)
+Dashboard, Folders (per group ACL), My Files, global search, favorites
+Upload/download/delete/preview only as allowed on each shared folder
+Cannot manage users, groups, logs, or root folders
+Must be assigned to a group to access shared folders
+ADMIN
+Everything a USER can do, plus:
+
+Users — create and manage regular USER accounts; assign groups; reset user passwords; delete users
+Audit Logs — view activity of regular users only
+Full access to all shared folder actions in the UI (upload/download/delete/subfolder management) regardless of group checkboxes
+Cannot access Groups page, System Admin page, create super admins, or manage admin accounts (limited by super admin)
+SUPER_ADMIN
+Everything an ADMIN can do, plus:
+
+Groups — create/delete groups; configure all permission checkboxes
+Users — create ADMIN accounts; manage all users except deleting super admin
+Folders list — create, rename, delete root folders
+Audit Logs — see all roles (filter by User/Admin/Super Admin)
+System Admin overview page
+Unrestricted access to shared folders
+Important: For shared files, your group permissions matter for regular USER accounts. Roles mainly control management screens and admin bypass on shared folders—not My Files.
+
+8. Permission types in plain language
+Permission	What users expect	What actually happens today
+READ
+View folders and files, open previews
+Required to list/browse and preview
+UPLOAD
+Add new files
+Upload button and drag-drop enabled
+DOWNLOAD
+Save files to your computer
+Download button enabled
+DELETE
+Remove files
+Delete on files enabled; empty subfolder delete for admins
+EDIT
+Change or rename things
+Only enforced for renaming non-root subfolders (not exposed in normal user UI). No file editing or renaming
+MOVE
+Move files/folders elsewhere
+Assignable in Groups but has no effect — move is not implemented
+Admins and super admins effectively have all six on shared folders regardless of group settings.
+
+9. Admin features (summary)
+Feature	Super Admin	Admin
+Create/edit/delete groups & ACL
+✓
+—
+Create root folders
+✓
+—
+Rename/delete root folders
+✓
+—
+Create admin users
+✓
+—
+Create user accounts
+✓
+✓
+Assign users to groups
+✓
+✓
+Reset passwords
+Users + Admins
+Users only
+Delete users
+✓ (not super admin)
+Users only
+Audit logs (all roles)
+✓
+Users only
+Export logs
+✓
+✓
+Manage subfolders in shared folders
+✓
+✓
+System Admin stats page
+✓
+—
+10. Validations, restrictions, and important behaviors
+Email & accounts
+Company emails must end with @twobrothersfreight.com (except configured super admin login).
+Invalid or non-company emails are rejected when creating users.
+Files & uploads
+Max 50 MB per file (shared and My Files).
+My Files total quota: 50 GB (shown on Dashboard).
+Files must have an extension.
+.zip and .bat uploads are blocked.
+Upload shows progress; failed uploads can be retried.
+Folders
+Cannot delete folders that still contain files or subfolders.
+Root folder delete/rename: super admin only.
+Security & sessions
+One login at a time per account.
+~30 minutes inactivity may sign you out.
+All shared file actions are permission-checked on the server—even if the button were visible, denied actions would fail.
+Audit logs
+No logs until you select at least one filter.
+Changing any filter automatically refreshes results.
+Search
+Header search: all accessible shared files by name.
+In-folder search: only files already loaded in the current folder view (client-side filter).
+11. Features that exist but are NOT accessible through the UI
+These are worth knowing so expectations match reality:
+
+Feature	Status
+Move files
+No move action in the app
+Rename files
+No rename action in the app
+Edit file contents
+No editor
+MOVE permission
+Can be checked in Groups but does nothing
+EDIT permission (for users)
+No rename/edit UI for regular users on shared files; only affects server-side subfolder rename if called directly
+Register account page
+Built but disabled in navigation/routing
+System Admin page
+Exists but only via Dashboard card, not main menu
+Self-service password change
+Admins reset passwords for others; no “change my password” page for yourself
+Log “Action” filter in UI
+Backend supports action filter; the Logs page filter bar shows Category/Role/Date/Search but not a separate Action dropdown (category covers much of this)
+12. Inconsistencies & confusing UX (improvement opportunities)
+EDIT and MOVE permissions are shown when configuring groups, but users cannot move files, and EDIT does not match “edit files” in everyday use.
+Register page exists but is unreachable; all provisioning is under Users — the login page correctly says admins provision accounts.
+System Admin appears on the Dashboard but not in the top navigation.
+Admin bypass: Admins see full folder management UI even when group ACL says otherwise — fine for admins, but different from regular users.
+Subfolder management on shared folders is role-based (admin), not permission-based (EDIT/DELETE checkboxes) — group permissions don’t control “create subfolder” for normal users.
+Logs “Move” and “Edit” categories may rarely appear because those actions aren’t performed by the app today.
+Permission badges on Folders page include EDIT/MOVE even when those actions aren’t available to users in the file UI.
+My Files subfolders can be managed by all users, while shared folder subfolders only by admins — similar sidebar, different rules (may confuse).
+Single-session logout may not be instant on the old device until the app detects the session change (depends on activity/API calls).
+Dashboard “Storage Usage” applies only to My Files, not shared company folders.
+This guide reflects the application as it works today for end users. For IT/setup topics (environment variables, super admin seed account, production URLs), contact your system administrator.

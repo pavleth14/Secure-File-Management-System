@@ -117,6 +117,7 @@ export async function getUserPermissionsForFolder(user, folderId) {
       PERMISSIONS.EDIT,
       PERMISSIONS.DELETE,
       PERMISSIONS.MOVE,
+      PERMISSIONS.FOLDER_CREATE,
     ];
   }
 

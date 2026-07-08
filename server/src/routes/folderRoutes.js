@@ -3,7 +3,6 @@ import { Folder } from '../models/Folder.js';
 import { FileModel } from '../models/File.js';
 import { ROLES, PERMISSIONS } from '../config/constants.js';
 import { authMiddleware } from '../middleware/authMiddleware.js';
-import { roleMiddleware } from '../middleware/roleMiddleware.js';
 import {
   getAccessibleFolderIds,
   getUserPermissionsForFolder,
@@ -147,10 +146,37 @@ router.get('/:id', async (req, res, next) => {
   }
 });
 
-router.post(
-  '/',
-  roleMiddleware(ROLES.SUPER_ADMIN, ROLES.ADMIN),
-  async (req, res, next) => {
+async function canCreateSubfolderInParent(user, parent) {
+  if (user.role === ROLES.SUPER_ADMIN || user.role === ROLES.ADMIN) {
+    return { allowed: true };
+  }
+
+  const root = await getRootFolder(parent._id);
+  if (!root) {
+    return { allowed: false, message: 'Folder not found' };
+  }
+
+  const contextSubfolderId = parent.isRoot ? null : parent._id;
+
+  const readCheck = await checkGroupPermission(
+    user,
+    root._id,
+    PERMISSIONS.READ,
+    contextSubfolderId
+  );
+  if (!readCheck.allowed) {
+    return { allowed: false, message: 'Access denied' };
+  }
+
+  return checkGroupPermission(
+    user,
+    root._id,
+    PERMISSIONS.FOLDER_CREATE,
+    contextSubfolderId
+  );
+}
+
+router.post('/', async (req, res, next) => {
     try {
       const { name, parentFolderId } = req.body;
 
@@ -164,6 +190,11 @@ router.post(
         const parent = await Folder.findById(parentFolderId);
         if (!parent) {
           return res.status(404).json({ message: 'Parent folder not found' });
+        }
+
+        const createCheck = await canCreateSubfolderInParent(req.user, parent);
+        if (!createCheck.allowed) {
+          return res.status(403).json({ message: createCheck.message || 'Permission denied' });
         }
 
         const parentRelativePath =
@@ -186,7 +217,12 @@ router.post(
           targetType: TARGET_TYPES.FOLDER,
           targetId: subfolder._id,
           targetName: subfolder.name,
-          details: `${buildActorLabel(req.user)} created folder ${subfolder.name}`,
+          details: `${buildActorLabel(req.user)} created subfolder "${subfolder.name}" in "${parent.name}"`,
+          newValues: {
+            name: subfolder.name,
+            parentFolderId: parent._id,
+            parentName: parent.name,
+          },
           req,
         });
 
@@ -227,8 +263,7 @@ router.post(
     } catch (err) {
       next(err);
     }
-  }
-);
+});
 
 router.put('/:id', async (req, res, next) => {
   try {

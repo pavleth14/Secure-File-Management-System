@@ -35,15 +35,11 @@ import ExtensionFilterSelect from '../components/ExtensionFilterSelect';
 import SidebarResizeHandle from '../components/SidebarResizeHandle';
 
 const PERMS = {
-
   READ: 'READ',
-
   UPLOAD: 'UPLOAD',
-
   DOWNLOAD: 'DOWNLOAD',
-
   DELETE: 'DELETE',
-
+  FOLDER_CREATE: 'FOLDER_CREATE',
 };
 
 
@@ -103,43 +99,34 @@ export default function FolderFilesPage() {
 
 
 
-  const canManageSubfolders = isSuperAdmin || isAdmin;
+  const parentFolderId = selectedSubfolder || rootId;
 
+  const can = (action) =>
+    isSuperAdmin || isAdmin || permissions.includes(action);
+
+  const canCreateSubfolders = isSuperAdmin || isAdmin || can(PERMS.FOLDER_CREATE);
+  const canDeleteSubfolders = isSuperAdmin || isAdmin;
 
 
   const setSelectedSubfolder = (subfolderId) => {
-
     if (subfolderId) {
-
       setSearchParams({ subfolder: subfolderId });
-
     } else {
-
       setSearchParams({});
-
     }
-
   };
 
-
-
-  const can = (action) =>
-
-    isSuperAdmin || isAdmin || permissions.includes(action);
-
-
-
   const loadTree = useCallback(async () => {
-
     const { data } = await api.get(`/folders/${rootId}/tree`);
-
     setRootFolder(data.root);
-
     setSidebarSubfolders(data.subfolders || []);
-
-    setPermissions(data.root.permissions || []);
-
   }, [rootId]);
+
+  const loadContextPermissions = useCallback(async () => {
+    if (!parentFolderId) return;
+    const { data } = await api.get(`/folders/${parentFolderId}`);
+    setPermissions(data.folder?.permissions || []);
+  }, [parentFolderId]);
 
 
 
@@ -168,14 +155,14 @@ export default function FolderFilesPage() {
 
 
   useEffect(() => {
-
     loadTree().catch((err) =>
-
       setError(err.response?.data?.message || 'Failed to load folders')
-
     );
-
   }, [loadTree]);
+
+  useEffect(() => {
+    loadContextPermissions().catch(() => {});
+  }, [loadContextPermissions]);
 
 
 
@@ -479,7 +466,8 @@ export default function FolderFilesPage() {
 
           onSelect={setSelectedSubfolder}
 
-          canManageSubfolders={canManageSubfolders}
+          canCreateSubfolders={canCreateSubfolders}
+          canDeleteSubfolders={canDeleteSubfolders}
 
           newSubfolderName={newSubfolder}
 
@@ -625,7 +613,7 @@ export default function FolderFilesPage() {
 
                         onDeleteFolder={handleDeleteSubfolder}
 
-                        canDeleteFolder={canManageSubfolders}
+                        canDeleteFolder={canDeleteSubfolders}
 
                         sortBy={sortBy}
 

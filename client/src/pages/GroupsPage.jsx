@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import api from '../api/client';
 import PermissionBadge from '../components/PermissionBadge';
 
-const ALL_ACTIONS = ['READ', 'UPLOAD', 'DOWNLOAD', 'EDIT', 'DELETE', 'MOVE'];
+const ALL_ACTIONS = ['READ', 'UPLOAD', 'DOWNLOAD', 'EDIT', 'DELETE', 'MOVE', 'FOLDER_CREATE'];
 
 function toId(value) {
   if (!value) return '';

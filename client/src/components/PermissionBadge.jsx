@@ -5,6 +5,7 @@ const COLORS = {
   EDIT: 'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300',
   DELETE: 'bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300',
   MOVE: 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900/40 dark:text-indigo-300',
+  FOLDER_CREATE: 'bg-teal-100 text-teal-800 dark:bg-teal-900/40 dark:text-teal-300',
 };
 
 export default function PermissionBadge({ permission }) {

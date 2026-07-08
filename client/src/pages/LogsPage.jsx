@@ -89,6 +89,19 @@ function buildQueryParams(filters) {
   return params;
 }
 
+function hasActiveFilters(filters) {
+  if (filters.search.trim()) return true;
+  if (filters.category !== 'all') return true;
+  if (filters.role !== 'all') return true;
+
+  if (filters.datePreset === 'all') return false;
+  if (filters.datePreset === 'custom') {
+    return Boolean(filters.customStart || filters.customEnd);
+  }
+
+  return true;
+}
+
 export default function LogsPage() {
   const { isSuperAdmin } = useAuth();
   const roleFilters = isSuperAdmin ? ALL_ROLE_FILTERS : ADMIN_ROLE_FILTERS;
@@ -96,7 +109,7 @@ export default function LogsPage() {
   const [logs, setLogs] = useState([]);
   const [total, setTotal] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [selectedLog, setSelectedLog] = useState(null);
   const [exporting, setExporting] = useState(false);
@@ -116,7 +129,17 @@ export default function LogsPage() {
 
   const [searchInput, setSearchInput] = useState('');
 
+  const filtersActive = hasActiveFilters(filters);
+
   const loadLogs = useCallback(async () => {
+    if (!hasActiveFilters(filters)) {
+      setLogs([]);
+      setTotal(0);
+      setTotalPages(1);
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
     setError('');
     try {
@@ -132,8 +155,16 @@ export default function LogsPage() {
   }, [filters]);
 
   useEffect(() => {
+    if (!hasActiveFilters(filters)) {
+      setLogs([]);
+      setTotal(0);
+      setTotalPages(1);
+      setLoading(false);
+      return;
+    }
+
     loadLogs();
-  }, [loadLogs]);
+  }, [filters, loadLogs]);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -161,6 +192,11 @@ export default function LogsPage() {
   };
 
   const handleExport = async (format) => {
+    if (!hasActiveFilters(filters)) {
+      setError('Select filters before exporting logs.');
+      return;
+    }
+
     setExporting(true);
     try {
       const params = { ...buildQueryParams(filters), format };
@@ -213,7 +249,7 @@ export default function LogsPage() {
           <button
             type="button"
             onClick={() => handleExport('csv')}
-            disabled={exporting}
+            disabled={exporting || !filtersActive}
             className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-700"
           >
             Export CSV
@@ -221,7 +257,7 @@ export default function LogsPage() {
           <button
             type="button"
             onClick={() => handleExport('xlsx')}
-            disabled={exporting}
+            disabled={exporting || !filtersActive}
             className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-50"
           >
             Export Excel
@@ -336,7 +372,13 @@ export default function LogsPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
-              {loading ? (
+              {!filtersActive ? (
+                <tr>
+                  <td colSpan={8} className="px-4 py-8 text-center text-sm text-slate-500 dark:text-slate-400">
+                    Select filters to view logs.
+                  </td>
+                </tr>
+              ) : loading ? (
                 <tr>
                   <td colSpan={8} className="px-4 py-8 text-center text-sm text-slate-500 dark:text-slate-400">
                     Loading logs...
@@ -384,12 +426,15 @@ export default function LogsPage() {
 
         <div className="flex flex-col items-center justify-between gap-4 border-t border-slate-200 px-4 py-3 dark:border-slate-700 sm:flex-row">
           <p className="text-sm text-slate-500 dark:text-slate-400">
-            {total} record{total !== 1 ? 's' : ''} · Page {filters.page} of {totalPages}
+            {filtersActive
+              ? `${total} record${total !== 1 ? 's' : ''} · Page ${filters.page} of ${totalPages}`
+              : 'Select filters to view logs.'}
           </p>
           <div className="flex items-center gap-3">
             <select
               value={filters.limit}
               onChange={(e) => updateFilter('limit', parseInt(e.target.value, 10))}
+              disabled={!filtersActive}
               className="rounded-lg border border-slate-300 px-2 py-1 text-sm dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
             >
               {PAGE_SIZES.map((size) => (
@@ -400,7 +445,7 @@ export default function LogsPage() {
             </select>
             <button
               type="button"
-              disabled={filters.page <= 1}
+              disabled={!filtersActive || filters.page <= 1}
               onClick={() => setFilters((prev) => ({ ...prev, page: prev.page - 1 }))}
               className="rounded-lg border border-slate-300 px-3 py-1 text-sm disabled:opacity-40 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-700"
             >
@@ -408,7 +453,7 @@ export default function LogsPage() {
             </button>
             <button
               type="button"
-              disabled={filters.page >= totalPages}
+              disabled={!filtersActive || filters.page >= totalPages}
               onClick={() => setFilters((prev) => ({ ...prev, page: prev.page + 1 }))}
               className="rounded-lg border border-slate-300 px-3 py-1 text-sm disabled:opacity-40 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-700"
             >

@@ -11,6 +11,7 @@ export const PERMISSIONS = {
   EDIT: 'EDIT',
   DELETE: 'DELETE',
   MOVE: 'MOVE',
+  FOLDER_CREATE: 'FOLDER_CREATE',
 };
 
 export const ALL_PERMISSIONS = Object.values(PERMISSIONS);

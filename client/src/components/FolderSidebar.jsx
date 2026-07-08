@@ -8,6 +8,8 @@ export default function FolderSidebar({
   selectedSubfolderId,
   onSelect,
   canManageSubfolders,
+  canCreateSubfolders = canManageSubfolders,
+  canDeleteSubfolders = canManageSubfolders,
   newSubfolderName,
   onNewSubfolderNameChange,
   onCreateSubfolder,
@@ -104,7 +106,7 @@ export default function FolderSidebar({
               <span className="truncate">{folder.name}</span>
             </button>
 
-            {canManageSubfolders && (
+            {canDeleteSubfolders && (
               <button
                 type="button"
                 onClick={() => onDeleteSubfolder(id, folder.name)}
@@ -184,7 +186,7 @@ export default function FolderSidebar({
       </nav>
 
       {/* create subfolder */}
-      {canManageSubfolders && (
+      {canCreateSubfolders && (
         <form
           onSubmit={(e) => {
             e.preventDefault();
