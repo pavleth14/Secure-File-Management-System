@@ -19,6 +19,10 @@ const permissionSchema = new mongoose.Schema(
         enum: ALL_PERMISSIONS,
       },
     ],
+    showContents: {
+      type: Boolean,
+      default: true,
+    },
   },
   { _id: false }
 );

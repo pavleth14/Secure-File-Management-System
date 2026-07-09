@@ -203,6 +203,7 @@ async function validatePermissions(permissions) {
       folderId: folder._id,
       subfolderId: perm.subfolderId || null,
       allowedActions: actions,
+      showContents: perm.showContents !== false,
     });
   }
   return validated;
@@ -217,6 +218,7 @@ function summarizePermissions(permissions) {
     folderId: p.folderId?.toString?.() || p.folderId,
     subfolderId: p.subfolderId?.toString?.() || p.subfolderId || null,
     allowedActions: [...(p.allowedActions || [])].sort(),
+    showContents: p.showContents !== false,
   }));
 }
 

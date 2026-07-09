@@ -1,4 +1,4 @@
-import { checkGroupPermission } from '../services/aclService.js';
+import { checkGroupPermission, canViewFolderContents } from '../services/aclService.js';
 import { PERMISSIONS } from '../config/constants.js';
 
 export function aclMiddleware(action, options = {}) {
@@ -61,6 +61,15 @@ export function aclFromFile(action) {
 
       if (!result.allowed) {
         return res.status(403).json({ message: result.message });
+      }
+
+      const showContents = await canViewFolderContents(
+        req.user,
+        file.folderId,
+        file.subfolderId
+      );
+      if (!showContents) {
+        return res.status(403).json({ message: 'File access denied at this folder level' });
       }
 
       req.aclContext = result;

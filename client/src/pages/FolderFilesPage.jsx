@@ -70,6 +70,8 @@ export default function FolderFilesPage() {
 
   const [permissions, setPermissions] = useState([]);
 
+  const [showContents, setShowContents] = useState(true);
+
   const [loading, setLoading] = useState(true);
 
   const [error, setError] = useState('');
@@ -122,6 +124,7 @@ export default function FolderFilesPage() {
     setSidebarSubfolders(data.subfolders || []);
     if (!selectedSubfolder) {
       setPermissions(data.root?.permissions || []);
+      setShowContents(data.root?.showContents !== false);
     }
   }, [rootId, selectedSubfolder]);
 
@@ -129,6 +132,7 @@ export default function FolderFilesPage() {
     if (!parentFolderId || parentFolderId === rootId) return;
     const { data } = await api.get(`/folders/${parentFolderId}`);
     setPermissions(data.folder?.permissions || []);
+    setShowContents(data.folder?.showContents !== false);
   }, [parentFolderId, rootId]);
 
 
@@ -150,7 +154,7 @@ export default function FolderFilesPage() {
     const { data } = await api.get(`/files/${rootId}`, { params });
 
     setFiles(data.files);
-
+    setShowContents(data.showContents !== false);
     setCurrentSubfolders(data.subfolders || []);
 
   }, [rootId, selectedSubfolder, folderSearch, sortBy, sortDir]);
@@ -421,9 +425,11 @@ export default function FolderFilesPage() {
 
 
 
-  const canUpload = can(PERMS.UPLOAD);
+  const canUpload = can(PERMS.UPLOAD) && showContents;
 
-  const emptyMessage = extensionFilter !== 'all'
+  const emptyMessage = !showContents
+    ? 'File access is not permitted at this folder level'
+    : extensionFilter !== 'all'
     ? `No ${extensionFilter.toUpperCase()} files in this location`
     : folderSearch.trim()
 

@@ -6,7 +6,7 @@ import { PERMISSIONS } from '../config/constants.js';
 import { authMiddleware } from '../middleware/authMiddleware.js';
 import { aclFromFile } from '../middleware/aclMiddleware.js';
 import { createUploadMiddleware } from '../config/multer.js';
-import { checkGroupPermission, getRootFolder, filterSubfoldersForUser } from '../services/aclService.js';
+import { checkGroupPermission, getRootFolder, filterSubfoldersForUser, canViewFolderContents } from '../services/aclService.js';
 import { listFolderFiles } from '../services/searchService.js';
 import { auditLog, buildActorLabel } from '../services/auditLogService.js';
 import { AUDIT_ACTIONS, AUDIT_CATEGORIES, TARGET_TYPES } from '../config/auditConstants.js';
@@ -65,6 +65,17 @@ router.post('/upload', async (req, res, next) => {
         )
       );
       return res.status(403).json({ message: 'Upload permission denied' });
+    }
+
+    const canView = await canViewFolderContents(req.user, root._id, subfolderId || null);
+    if (!canView) {
+      await unlinkFile(
+        buildFileRelativePath(
+          await buildFolderRelativePath(subfolderId || root._id),
+          req.file.filename
+        )
+      );
+      return res.status(403).json({ message: 'Cannot upload files to this folder level' });
     }
 
     const targetFolderId = subfolderId || root._id;
@@ -197,7 +208,7 @@ router.get('/:folderId', async (req, res, next) => {
       subfolders = await filterSubfoldersForUser(req.user, root._id, subfolders);
     }
 
-    res.json({ files: result.files, subfolders });
+    res.json({ files: result.files, subfolders, showContents: result.showContents });
   } catch (err) {
     next(err);
   }

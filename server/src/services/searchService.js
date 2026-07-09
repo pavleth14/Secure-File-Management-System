@@ -4,6 +4,7 @@ import {
   getAccessibleFolderIds,
   checkGroupPermission,
   getRootFolder,
+  canViewFolderContents,
 } from './aclService.js';
 import { PERMISSIONS } from '../config/constants.js';
 import { buildMongoSort, needsInMemorySort, sortFiles } from '../utils/fileSort.js';
@@ -28,6 +29,8 @@ export async function listFolderFiles(user, rootFolderId, options = {}) {
     return { forbidden: true };
   }
 
+  const showContents = await canViewFolderContents(user, root._id, subfolderId || null);
+
   const query = { folderId: root._id };
   if (subfolderId) {
     query.subfolderId = subfolderId;
@@ -41,15 +44,18 @@ export async function listFolderFiles(user, rootFolderId, options = {}) {
     query.originalName = { $regex: search.trim(), $options: 'i' };
   }
 
-  let files = await FileModel.find(query)
-    .populate('uploadedBy', 'name email')
-    .sort(buildMongoSort(sortBy, sortDir));
+  let files = [];
+  if (showContents) {
+    files = await FileModel.find(query)
+      .populate('uploadedBy', 'name email')
+      .sort(buildMongoSort(sortBy, sortDir));
 
-  if (needsInMemorySort(sortBy)) {
-    files = sortFiles(files, sortBy, sortDir);
+    if (needsInMemorySort(sortBy)) {
+      files = sortFiles(files, sortBy, sortDir);
+    }
   }
 
-  return { files, folder, root };
+  return { files, folder, root, showContents };
 }
 
 export async function globalSearch(user, search, options = {}) {
@@ -77,6 +83,13 @@ export async function globalSearch(user, search, options = {}) {
       file.subfolderId
     );
     if (!check.allowed) continue;
+
+    const canView = await canViewFolderContents(
+      user,
+      file.folderId._id || file.folderId,
+      file.subfolderId
+    );
+    if (!canView) continue;
 
     let subfolderName = null;
     if (file.subfolderId) {

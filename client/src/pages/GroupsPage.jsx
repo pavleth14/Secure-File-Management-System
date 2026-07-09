@@ -15,6 +15,7 @@ function normalizePermission(perm) {
     folderId: toId(perm.folderId),
     subfolderId: perm.subfolderId ? toId(perm.subfolderId) : null,
     allowedActions: [...(perm.allowedActions || [])],
+    showContents: perm.showContents !== false,
   };
 }
 
@@ -26,6 +27,7 @@ function permissionsToRootConfigs(permissions) {
       map.set(perm.folderId, {
         folderId: perm.folderId,
         allowedActions: [],
+        showContents: true,
         subfolderConfigs: [],
       });
     }
@@ -33,10 +35,12 @@ function permissionsToRootConfigs(permissions) {
     const entry = map.get(perm.folderId);
     if (!perm.subfolderId) {
       entry.allowedActions = perm.allowedActions;
+      entry.showContents = perm.showContents;
     } else {
       entry.subfolderConfigs.push({
         subfolderId: perm.subfolderId,
         allowedActions: perm.allowedActions,
+        showContents: perm.showContents,
         enabled: true,
       });
     }
@@ -53,6 +57,7 @@ function rootConfigsToPermissions(rootConfigs) {
       folderId: root.folderId,
       subfolderId: null,
       allowedActions: root.allowedActions || [],
+      showContents: root.showContents !== false,
     });
 
     for (const sub of root.subfolderConfigs || []) {
@@ -61,6 +66,7 @@ function rootConfigsToPermissions(rootConfigs) {
         folderId: root.folderId,
         subfolderId: sub.subfolderId,
         allowedActions: sub.allowedActions || [],
+        showContents: sub.showContents !== false,
       });
     }
   }
@@ -77,6 +83,7 @@ function groupPermissionsForDisplay(permissions) {
       grouped.set(rootId, {
         rootName: perm.folderId?.name || 'Folder',
         rootActions: [],
+        rootShowContents: true,
         subfolders: [],
       });
     }
@@ -86,9 +93,11 @@ function groupPermissionsForDisplay(permissions) {
       entry.subfolders.push({
         name: perm.subfolderId?.name || 'Subfolder',
         actions: perm.allowedActions || [],
+        showContents: perm.showContents !== false,
       });
     } else {
       entry.rootActions = perm.allowedActions || [];
+      entry.rootShowContents = perm.showContents !== false;
     }
   }
 
@@ -107,6 +116,7 @@ function mergeSubfolderConfigs(available, savedConfigs = []) {
           name: sub.name,
           parentFolderId: sub.parentFolderId,
           allowedActions: ['READ'],
+          showContents: true,
           enabled: false,
         };
   });
@@ -168,6 +178,7 @@ function buildVisibleSubfolderList(rootId, allSubfolders, configsById) {
         name: child.name,
         parentFolderId: child.parentFolderId,
         allowedActions: saved?.allowedActions || ['READ'],
+        showContents: saved?.showContents !== false,
         enabled: saved?.enabled || false,
         depth,
       };
@@ -180,6 +191,29 @@ function buildVisibleSubfolderList(rootId, allSubfolders, configsById) {
 
   walk(rootIdStr, 0);
   return result;
+}
+
+function ShowContentsToggle({ enabled, onChange, label }) {
+  return (
+    <label className="flex cursor-pointer items-center gap-2 text-sm text-slate-700 dark:text-slate-200">
+      <button
+        type="button"
+        role="switch"
+        aria-checked={enabled}
+        onClick={() => onChange(!enabled)}
+        className={`relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors ${
+          enabled ? 'bg-brand-600' : 'bg-slate-300 dark:bg-slate-600'
+        }`}
+      >
+        <span
+          className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+            enabled ? 'translate-x-4' : 'translate-x-0.5'
+          }`}
+        />
+      </button>
+      <span>{label}</span>
+    </label>
+  );
 }
 
 function RootFolderPermissionsEditor({
@@ -275,6 +309,14 @@ function RootFolderPermissionsEditor({
     persistSubfolderConfigs(next);
   };
 
+  const toggleSubfolderShowContents = (subfolderId) => {
+    const next = displaySubfolders.map((sub) => {
+      if (sub.subfolderId !== subfolderId) return sub;
+      return { ...sub, showContents: sub.showContents === false };
+    });
+    persistSubfolderConfigs(next);
+  };
+
   const configsById = new Map(displaySubfolders.map((sub) => [sub.subfolderId, sub]));
   const visibleSubfolders = buildVisibleSubfolderList(
     config.folderId,
@@ -344,6 +386,18 @@ function RootFolderPermissionsEditor({
             </label>
           ))}
         </div>
+        <div className="mt-3 border-t border-slate-200 pt-3 dark:border-slate-700">
+          <ShowContentsToggle
+            enabled={config.showContents !== false}
+            onChange={(value) =>
+              updateRoot((current) => ({ ...current, showContents: value }))
+            }
+            label="Show files at root level"
+          />
+          <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+            When off, users can browse subfolders but cannot see files in the root folder.
+          </p>
+        </div>
       </div>
 
       <div className="mt-4 border-t border-slate-200 pt-4 dark:border-slate-700">
@@ -394,21 +448,28 @@ function RootFolderPermissionsEditor({
                   </label>
 
                   {sub.enabled && (
-                    <div className="ml-6 flex flex-wrap gap-3">
-                      {ALL_ACTIONS.map((action) => (
-                        <label
-                          key={`${sub.subfolderId}-${action}`}
-                          className="flex cursor-pointer items-center gap-2 text-sm text-slate-700 dark:text-slate-200"
-                        >
-                          <input
-                            type="checkbox"
-                            checked={sub.allowedActions.includes(action)}
-                            onChange={() => toggleSubfolderAction(sub.subfolderId, action)}
-                            className="h-4 w-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500"
-                          />
-                          {action}
-                        </label>
-                      ))}
+                    <div className="ml-6 space-y-2">
+                      <ShowContentsToggle
+                        enabled={sub.showContents !== false}
+                        onChange={() => toggleSubfolderShowContents(sub.subfolderId)}
+                        label="Show files in this folder"
+                      />
+                      <div className="flex flex-wrap gap-3">
+                        {ALL_ACTIONS.map((action) => (
+                          <label
+                            key={`${sub.subfolderId}-${action}`}
+                            className="flex cursor-pointer items-center gap-2 text-sm text-slate-700 dark:text-slate-200"
+                          >
+                            <input
+                              type="checkbox"
+                              checked={sub.allowedActions.includes(action)}
+                              onChange={() => toggleSubfolderAction(sub.subfolderId, action)}
+                              className="h-4 w-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500"
+                            />
+                            {action}
+                          </label>
+                        ))}
+                      </div>
                     </div>
                   )}
                 </div>
@@ -495,6 +556,7 @@ export default function GroupsPage() {
           {
             folderId: toId(nextFolder._id),
             allowedActions: ['READ'],
+            showContents: true,
             subfolderConfigs: [],
           },
         ],
@@ -728,10 +790,15 @@ export default function GroupsPage() {
                         <p className="mb-2 text-sm font-semibold text-slate-800 dark:text-slate-100">
                           Root folder: {entry.rootName}
                         </p>
-                        <div className="mb-2 flex flex-wrap gap-2">
+                        <div className="mb-2 flex flex-wrap items-center gap-2">
                           {entry.rootActions.map((action) => (
                             <PermissionBadge key={`root-${action}`} permission={action} />
                           ))}
+                          {entry.rootShowContents === false && (
+                            <span className="rounded bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800 dark:bg-amber-900/40 dark:text-amber-200">
+                              Files hidden at root
+                            </span>
+                          )}
                         </div>
                         {entry.subfolders.length > 0 && (
                           <div className="space-y-2 border-t border-slate-200 pt-2 dark:border-slate-700">
@@ -744,6 +811,11 @@ export default function GroupsPage() {
                                 {sub.actions.map((action) => (
                                   <PermissionBadge key={`${sub.name}-${action}`} permission={action} />
                                 ))}
+                                {sub.showContents === false && (
+                                  <span className="rounded bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800 dark:bg-amber-900/40 dark:text-amber-200">
+                                    Files hidden
+                                  </span>
+                                )}
                               </div>
                             ))}
                           </div>

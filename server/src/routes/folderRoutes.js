@@ -9,6 +9,7 @@ import {
   getRootFolder,
   checkGroupPermission,
   filterSubfoldersForUser,
+  canViewFolderContents,
 } from '../services/aclService.js';
 import {
   sanitizeName,
@@ -109,9 +110,10 @@ router.get('/:id/tree', async (req, res, next) => {
       })
     );
     const permissions = await getUserPermissionsForFolder(req.user, rootFolder._id);
+    const showContents = await canViewFolderContents(req.user, rootFolder._id, null);
 
     res.json({
-      root: { ...rootFolder.toObject(), permissions },
+      root: { ...rootFolder.toObject(), permissions, showContents },
       subfolders: enrichedSubfolders,
     });
   } catch (err) {
@@ -141,10 +143,15 @@ router.get('/:id', async (req, res, next) => {
     }
 
     const permissions = await getUserPermissionsForFolder(req.user, folder._id);
+    const showContents = await canViewFolderContents(
+      req.user,
+      root._id,
+      folder.isRoot ? null : folder._id
+    );
     const children = await Folder.find({ parentFolderId: folder._id }).sort({ name: 1 });
 
     res.json({
-      folder: { ...folder.toObject(), permissions },
+      folder: { ...folder.toObject(), permissions, showContents },
       children,
     });
   } catch (err) {

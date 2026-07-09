@@ -56,6 +56,69 @@ export function hasSubfolderRestrictions(permissions, rootFolderId) {
   );
 }
 
+export function findPermissionForContext(permissions, rootFolderId, targetFolderId) {
+  const rootId = rootFolderId.toString();
+  const targetId = targetFolderId.toString();
+
+  const exactSubfolder = permissions.find(
+    (perm) =>
+      perm.folderId.toString() === rootId &&
+      perm.subfolderId?.toString() === targetId
+  );
+  if (exactSubfolder) return exactSubfolder;
+
+  if (targetId === rootId) {
+    return (
+      permissions.find(
+        (perm) => perm.folderId.toString() === rootId && !perm.subfolderId
+      ) || null
+    );
+  }
+
+  if (!hasSubfolderRestrictions(permissions, rootFolderId)) {
+    return (
+      permissions.find(
+        (perm) => perm.folderId.toString() === rootId && !perm.subfolderId
+      ) || null
+    );
+  }
+
+  return null;
+}
+
+export async function canViewFolderContents(user, folderId, subfolderId = null) {
+  if (user.role === ROLES.SUPER_ADMIN || user.role === ROLES.ADMIN) {
+    return true;
+  }
+
+  const rootFolder = await getRootFolder(folderId);
+  if (!rootFolder) return false;
+
+  const targetFolderId = subfolderId || rootFolder._id;
+  const readCheck = await checkGroupPermission(
+    user,
+    rootFolder._id,
+    PERMISSIONS.READ,
+    subfolderId
+  );
+  if (!readCheck.allowed) return false;
+
+  if (!user.groupId) return false;
+
+  const group = await Group.findById(user.groupId);
+  if (!group) return false;
+
+  const perm = findPermissionForContext(
+    group.permissions,
+    rootFolder._id,
+    targetFolderId
+  );
+
+  if (!perm) return true;
+
+  return perm.showContents !== false;
+}
+
 export async function checkGroupPermission(user, folderId, action, subfolderId = null) {
   if (user.role === ROLES.SUPER_ADMIN) {
     return { allowed: true };
