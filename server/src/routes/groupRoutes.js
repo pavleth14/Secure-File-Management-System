@@ -4,6 +4,7 @@ import { Folder } from '../models/Folder.js';
 import { ROLES, ALL_PERMISSIONS } from '../config/constants.js';
 import { authMiddleware } from '../middleware/authMiddleware.js';
 import { roleMiddleware } from '../middleware/roleMiddleware.js';
+import { getRootFolder } from '../services/aclService.js';
 import { auditLog, buildActorLabel } from '../services/auditLogService.js';
 import { AUDIT_ACTIONS, AUDIT_CATEGORIES, TARGET_TYPES } from '../config/auditConstants.js';
 
@@ -13,7 +14,9 @@ router.use(authMiddleware);
 
 router.get('/', roleMiddleware(ROLES.SUPER_ADMIN, ROLES.ADMIN), async (req, res, next) => {
   try {
-    const groups = await Group.find().populate('permissions.folderId', 'name isRoot');
+    const groups = await Group.find()
+      .populate('permissions.folderId', 'name isRoot')
+      .populate('permissions.subfolderId', 'name');
     res.json({ groups });
   } catch (err) {
     next(err);
@@ -127,10 +130,9 @@ router.put('/:id', async (req, res, next) => {
 
       diffPermissions(req, group, oldPermissions, newPermissions);
     }
-    const populated = await Group.findById(group._id).populate(
-      'permissions.folderId',
-      'name isRoot'
-    );
+    const populated = await Group.findById(group._id)
+      .populate('permissions.folderId', 'name isRoot')
+      .populate('permissions.subfolderId', 'name');
 
     res.json({ group: populated });
   } catch (err) {
@@ -164,6 +166,8 @@ router.delete('/:id', roleMiddleware(ROLES.SUPER_ADMIN), async (req, res, next) 
 
 async function validatePermissions(permissions) {
   const validated = [];
+  const seen = new Set();
+
   for (const perm of permissions) {
     const folder = await Folder.findById(perm.folderId);
     if (!folder) {
@@ -177,7 +181,19 @@ async function validatePermissions(permissions) {
           status: 400,
         });
       }
+
+      const subRoot = await getRootFolder(sub._id);
+      if (!subRoot || subRoot._id.toString() !== folder._id.toString()) {
+        throw Object.assign(
+          new Error(`Subfolder ${perm.subfolderId} does not belong to root folder ${perm.folderId}`),
+          { status: 400 }
+        );
+      }
     }
+
+    const key = `${folder._id}_${perm.subfolderId || 'root'}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
 
     const actions = (perm.allowedActions || []).filter((a) =>
       ALL_PERMISSIONS.includes(a)

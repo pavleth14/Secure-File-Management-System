@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import api from '../api/client';
 import PermissionBadge from '../components/PermissionBadge';
 
@@ -16,6 +16,322 @@ function normalizePermission(perm) {
     subfolderId: perm.subfolderId ? toId(perm.subfolderId) : null,
     allowedActions: [...(perm.allowedActions || [])],
   };
+}
+
+function permissionsToRootConfigs(permissions) {
+  const map = new Map();
+
+  for (const perm of permissions.map(normalizePermission)) {
+    if (!map.has(perm.folderId)) {
+      map.set(perm.folderId, {
+        folderId: perm.folderId,
+        allowedActions: [],
+        subfolderConfigs: [],
+      });
+    }
+
+    const entry = map.get(perm.folderId);
+    if (!perm.subfolderId) {
+      entry.allowedActions = perm.allowedActions;
+    } else {
+      entry.subfolderConfigs.push({
+        subfolderId: perm.subfolderId,
+        allowedActions: perm.allowedActions,
+        enabled: true,
+      });
+    }
+  }
+
+  return Array.from(map.values());
+}
+
+function rootConfigsToPermissions(rootConfigs) {
+  const permissions = [];
+
+  for (const root of rootConfigs) {
+    permissions.push({
+      folderId: root.folderId,
+      subfolderId: null,
+      allowedActions: root.allowedActions || [],
+    });
+
+    for (const sub of root.subfolderConfigs || []) {
+      if (!sub.enabled) continue;
+      permissions.push({
+        folderId: root.folderId,
+        subfolderId: sub.subfolderId,
+        allowedActions: sub.allowedActions || [],
+      });
+    }
+  }
+
+  return permissions;
+}
+
+function groupPermissionsForDisplay(permissions) {
+  const grouped = new Map();
+
+  for (const perm of permissions || []) {
+    const rootId = toId(perm.folderId);
+    if (!grouped.has(rootId)) {
+      grouped.set(rootId, {
+        rootName: perm.folderId?.name || 'Folder',
+        rootActions: [],
+        subfolders: [],
+      });
+    }
+
+    const entry = grouped.get(rootId);
+    if (perm.subfolderId) {
+      entry.subfolders.push({
+        name: perm.subfolderId?.name || 'Subfolder',
+        actions: perm.allowedActions || [],
+      });
+    } else {
+      entry.rootActions = perm.allowedActions || [];
+    }
+  }
+
+  return Array.from(grouped.values());
+}
+
+function RootFolderPermissionsEditor({
+  config,
+  index,
+  folders,
+  usedRootIds,
+  onChange,
+  onRemove,
+}) {
+  const [loadingSubfolders, setLoadingSubfolders] = useState(false);
+  const [subfolderSearch, setSubfolderSearch] = useState('');
+  const [subfoldersOpen, setSubfoldersOpen] = useState(true);
+
+  const loadSubfolders = useCallback(async () => {
+    if (!config.folderId) return;
+    setLoadingSubfolders(true);
+    try {
+      const { data } = await api.get(`/folders/${config.folderId}/tree`);
+      const available = (data.subfolders || []).map((sub) => ({
+        subfolderId: toId(sub._id),
+        name: sub.name,
+      }));
+
+      onChange(index, (current) => {
+        const existing = new Map(
+          (current.subfolderConfigs || []).map((sub) => [sub.subfolderId, sub])
+        );
+
+        const mergedAvailable = available.map((sub) => {
+          const saved = existing.get(sub.subfolderId);
+          return saved
+            ? { ...saved, name: sub.name }
+            : {
+                subfolderId: sub.subfolderId,
+                name: sub.name,
+                allowedActions: ['READ'],
+                enabled: false,
+              };
+        });
+
+        for (const saved of existing.values()) {
+          if (!mergedAvailable.some((sub) => sub.subfolderId === saved.subfolderId)) {
+            mergedAvailable.push(saved);
+          }
+        }
+
+        return {
+          ...current,
+          availableSubfolders: available,
+          subfolderConfigs: mergedAvailable,
+        };
+      });
+    } catch {
+      onChange(index, (current) => ({
+        ...current,
+        availableSubfolders: [],
+      }));
+    } finally {
+      setLoadingSubfolders(false);
+    }
+  }, [config.folderId, index, onChange]);
+
+  useEffect(() => {
+    loadSubfolders();
+  }, [loadSubfolders]);
+
+  const updateRoot = (updater) => onChange(index, updater);
+  const toggleRootAction = (action) => {
+    updateRoot((current) => ({
+      ...current,
+      allowedActions: current.allowedActions.includes(action)
+        ? current.allowedActions.filter((a) => a !== action)
+        : [...current.allowedActions, action],
+    }));
+  };
+
+  const toggleSubfolderEnabled = (subfolderId) => {
+    updateRoot((current) => ({
+      ...current,
+      subfolderConfigs: current.subfolderConfigs.map((sub) =>
+        sub.subfolderId === subfolderId ? { ...sub, enabled: !sub.enabled } : sub
+      ),
+    }));
+  };
+
+  const toggleSubfolderAction = (subfolderId, action) => {
+    updateRoot((current) => ({
+      ...current,
+      subfolderConfigs: current.subfolderConfigs.map((sub) => {
+        if (sub.subfolderId !== subfolderId) return sub;
+        const allowedActions = sub.allowedActions.includes(action)
+          ? sub.allowedActions.filter((a) => a !== action)
+          : [...sub.allowedActions, action];
+        return { ...sub, allowedActions };
+      }),
+    }));
+  };
+
+  const filteredSubfolders = (config.subfolderConfigs || []).filter((sub) =>
+    sub.name?.toLowerCase().includes(subfolderSearch.trim().toLowerCase())
+  );
+
+  const rootFolderName =
+    folders.find((folder) => toId(folder._id) === config.folderId)?.name || 'Root folder';
+
+  return (
+    <div className="rounded-lg border border-slate-200 p-4 dark:border-slate-700">
+      <div className="mb-3 flex flex-wrap items-center gap-3">
+        <select
+          value={config.folderId}
+          onChange={(e) =>
+            updateRoot((current) => ({
+              ...current,
+              folderId: e.target.value,
+              subfolderConfigs: [],
+              availableSubfolders: [],
+            }))
+          }
+          className="rounded border border-slate-300 px-3 py-2 text-sm dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
+        >
+          {folders.map((folder) => {
+            const folderId = toId(folder._id);
+            const disabled = usedRootIds.has(folderId) && folderId !== config.folderId;
+            return (
+              <option key={folderId} value={folderId} disabled={disabled}>
+                {folder.name}
+              </option>
+            );
+          })}
+        </select>
+        <button
+          type="button"
+          onClick={onRemove}
+          className="text-sm text-red-600 hover:underline"
+        >
+          Remove root folder
+        </button>
+      </div>
+
+      <div>
+        <p className="mb-2 text-sm font-medium text-slate-800 dark:text-slate-100">
+          Root folder permissions — {rootFolderName}
+        </p>
+        <div className="flex flex-wrap gap-3">
+          {ALL_ACTIONS.map((action) => (
+            <label
+              key={action}
+              className="flex cursor-pointer items-center gap-2 text-sm text-slate-700 dark:text-slate-200"
+            >
+              <input
+                type="checkbox"
+                checked={config.allowedActions.includes(action)}
+                onChange={() => toggleRootAction(action)}
+                className="h-4 w-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500"
+              />
+              {action}
+            </label>
+          ))}
+        </div>
+      </div>
+
+      <div className="mt-4 border-t border-slate-200 pt-4 dark:border-slate-700">
+        <button
+          type="button"
+          onClick={() => setSubfoldersOpen((open) => !open)}
+          className="flex w-full items-center justify-between text-left text-sm font-medium text-slate-800 dark:text-slate-100"
+        >
+          <span>Subfolders</span>
+          <span>{subfoldersOpen ? '▼' : '▶'}</span>
+        </button>
+
+        {subfoldersOpen && (
+          <div className="mt-3 space-y-3">
+            <input
+              type="search"
+              value={subfolderSearch}
+              onChange={(e) => setSubfolderSearch(e.target.value)}
+              placeholder="Search subfolders..."
+              className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 placeholder-slate-400 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 dark:placeholder-slate-500"
+            />
+
+            {loadingSubfolders ? (
+              <p className="text-sm text-slate-500 dark:text-slate-400">Loading subfolders...</p>
+            ) : (config.availableSubfolders || []).length === 0 ? (
+              <p className="text-sm text-slate-500 dark:text-slate-400">
+                No subfolders in this root folder yet.
+              </p>
+            ) : filteredSubfolders.length === 0 ? (
+              <p className="text-sm text-slate-500 dark:text-slate-400">
+                No subfolders match your search.
+              </p>
+            ) : (
+              filteredSubfolders.map((sub) => (
+                <div
+                  key={sub.subfolderId}
+                  className="rounded-lg border border-slate-200 bg-slate-50 p-3 dark:border-slate-700 dark:bg-slate-900/40"
+                >
+                  <label className="mb-2 flex cursor-pointer items-center gap-2 text-sm font-medium text-slate-800 dark:text-slate-100">
+                    <input
+                      type="checkbox"
+                      checked={sub.enabled}
+                      onChange={() => toggleSubfolderEnabled(sub.subfolderId)}
+                      className="h-4 w-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500"
+                    />
+                    {sub.name}
+                  </label>
+
+                  {sub.enabled && (
+                    <div className="ml-6 flex flex-wrap gap-3">
+                      {ALL_ACTIONS.map((action) => (
+                        <label
+                          key={`${sub.subfolderId}-${action}`}
+                          className="flex cursor-pointer items-center gap-2 text-sm text-slate-700 dark:text-slate-200"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={sub.allowedActions.includes(action)}
+                            onChange={() => toggleSubfolderAction(sub.subfolderId, action)}
+                            className="h-4 w-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500"
+                          />
+                          {action}
+                        </label>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ))
+            )}
+
+            <p className="text-xs text-slate-500 dark:text-slate-400">
+              Select subfolders to restrict access. If none are selected, users can access all
+              subfolders using the root folder permissions.
+            </p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
 }
 
 export default function GroupsPage() {
@@ -54,61 +370,52 @@ export default function GroupsPage() {
     setEditing({
       id: toId(group._id),
       name: group.name,
-      permissions: (group.permissions || []).map(normalizePermission),
+      rootConfigs: permissionsToRootConfigs(group.permissions || []),
     });
   };
 
-  const addPermission = () => {
+  const updateRootConfig = (index, updater) => {
+    setEditing((prev) => {
+      if (!prev) return prev;
+      const rootConfigs = prev.rootConfigs.map((config, i) =>
+        i === index ? updater(config) : config
+      );
+      return { ...prev, rootConfigs };
+    });
+  };
+
+  const addRootFolder = () => {
     if (!folders.length) {
       setError('No folders available. Create root folders first.');
       return;
     }
+
     setEditing((prev) => {
       if (!prev) return prev;
+      const used = new Set(prev.rootConfigs.map((config) => config.folderId));
+      const nextFolder = folders.find((folder) => !used.has(toId(folder._id))) || folders[0];
+
       return {
         ...prev,
-        permissions: [
-          ...prev.permissions,
+        rootConfigs: [
+          ...prev.rootConfigs,
           {
-            folderId: toId(folders[0]._id),
-            subfolderId: null,
+            folderId: toId(nextFolder._id),
             allowedActions: ['READ'],
+            subfolderConfigs: [],
+            availableSubfolders: [],
           },
         ],
       };
     });
   };
 
-  const updatePermission = (index, field, value) => {
-    setEditing((prev) => {
-      if (!prev) return prev;
-      const permissions = prev.permissions.map((perm, i) =>
-        i === index ? { ...perm, [field]: value } : perm
-      );
-      return { ...prev, permissions };
-    });
-  };
-
-  const toggleAction = (permIndex, action) => {
-    setEditing((prev) => {
-      if (!prev) return prev;
-      const permissions = prev.permissions.map((perm, i) => {
-        if (i !== permIndex) return perm;
-        const allowedActions = perm.allowedActions.includes(action)
-          ? perm.allowedActions.filter((a) => a !== action)
-          : [...perm.allowedActions, action];
-        return { ...perm, allowedActions };
-      });
-      return { ...prev, permissions };
-    });
-  };
-
-  const removePermission = (index) => {
+  const removeRootFolder = (index) => {
     setEditing((prev) => {
       if (!prev) return prev;
       return {
         ...prev,
-        permissions: prev.permissions.filter((_, i) => i !== index),
+        rootConfigs: prev.rootConfigs.filter((_, i) => i !== index),
       };
     });
   };
@@ -120,11 +427,7 @@ export default function GroupsPage() {
     setSuccess('');
     try {
       const payload = {
-        permissions: editing.permissions.map((p) => ({
-          folderId: p.folderId,
-          subfolderId: p.subfolderId || null,
-          allowedActions: p.allowedActions,
-        })),
+        permissions: rootConfigsToPermissions(editing.rootConfigs),
       };
       await api.put(`/groups/${editing.id}`, payload);
       setEditing(null);
@@ -188,6 +491,8 @@ export default function GroupsPage() {
 
   if (loading) return <div className="text-slate-500 dark:text-slate-400">Loading...</div>;
 
+  const usedRootIds = new Set((editing?.rootConfigs || []).map((config) => config.folderId));
+
   return (
     <div>
       <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
@@ -246,6 +551,7 @@ export default function GroupsPage() {
         {groups.map((group) => {
           const groupId = toId(group._id);
           const isEditing = editing?.id === groupId;
+          const displayGroups = groupPermissionsForDisplay(group.permissions);
 
           return (
             <div
@@ -276,64 +582,32 @@ export default function GroupsPage() {
 
               {isEditing ? (
                 <div className="space-y-4">
-                  {editing.permissions.length === 0 ? (
+                  {editing.rootConfigs.length === 0 ? (
                     <p className="text-sm text-slate-500 dark:text-slate-400">
-                      No permissions yet. Add a folder permission below.
+                      No root folders assigned. Add a root folder below.
                     </p>
                   ) : (
-                    editing.permissions.map((perm, idx) => (
-                      <div
-                        key={`${groupId}-perm-${idx}`}
-                        className="rounded-lg border border-slate-200 p-4 dark:border-slate-700"
-                      >
-                        <div className="mb-3 flex flex-wrap items-center gap-3">
-                          <select
-                            value={perm.folderId}
-                            onChange={(e) =>
-                              updatePermission(idx, 'folderId', e.target.value)
-                            }
-                            className="rounded border border-slate-300 px-3 py-2 text-sm dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
-                          >
-                            {folders.map((f) => (
-                              <option key={toId(f._id)} value={toId(f._id)}>
-                                {f.name}
-                              </option>
-                            ))}
-                          </select>
-                          <button
-                            type="button"
-                            onClick={() => removePermission(idx)}
-                            className="text-sm text-red-600 hover:underline"
-                          >
-                            Remove
-                          </button>
-                        </div>
-                        <div className="flex flex-wrap gap-3">
-                          {ALL_ACTIONS.map((action) => (
-                            <label
-                              key={action}
-                              className="flex cursor-pointer items-center gap-2 text-sm text-slate-700 dark:text-slate-200"
-                            >
-                              <input
-                                type="checkbox"
-                                checked={perm.allowedActions.includes(action)}
-                                onChange={() => toggleAction(idx, action)}
-                                className="h-4 w-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500"
-                              />
-                              {action}
-                            </label>
-                          ))}
-                        </div>
-                      </div>
+                    editing.rootConfigs.map((config, idx) => (
+                      <RootFolderPermissionsEditor
+                        key={`${config.folderId}-${idx}`}
+                        config={config}
+                        index={idx}
+                        folders={folders}
+                        usedRootIds={usedRootIds}
+                        onChange={updateRootConfig}
+                        onRemove={() => removeRootFolder(idx)}
+                      />
                     ))
                   )}
+
                   <button
                     type="button"
-                    onClick={addPermission}
+                    onClick={addRootFolder}
                     className="text-sm text-brand-600 hover:underline"
                   >
-                    + Add folder permission
+                    + Add root folder
                   </button>
+
                   <div className="flex gap-2">
                     <button
                       type="button"
@@ -353,22 +627,35 @@ export default function GroupsPage() {
                   </div>
                 </div>
               ) : (
-                <div className="space-y-2">
-                  {group.permissions.length === 0 ? (
+                <div className="space-y-4">
+                  {displayGroups.length === 0 ? (
                     <p className="text-sm text-slate-500 dark:text-slate-400">No permissions configured</p>
                   ) : (
-                    group.permissions.map((perm, idx) => (
-                      <div
-                        key={`${groupId}-view-${idx}`}
-                        className="flex flex-wrap items-center gap-2 text-sm text-slate-600 dark:text-slate-300"
-                      >
-                        <span className="font-medium">
-                          {perm.folderId?.name || 'Folder'}
-                          {perm.subfolderId && ' (subfolder)'}
-                        </span>
-                        {perm.allowedActions.map((a) => (
-                          <PermissionBadge key={a} permission={a} />
-                        ))}
+                    displayGroups.map((entry, idx) => (
+                      <div key={`${groupId}-view-${idx}`} className="rounded-lg border border-slate-200 p-3 dark:border-slate-700">
+                        <p className="mb-2 text-sm font-semibold text-slate-800 dark:text-slate-100">
+                          Root folder: {entry.rootName}
+                        </p>
+                        <div className="mb-2 flex flex-wrap gap-2">
+                          {entry.rootActions.map((action) => (
+                            <PermissionBadge key={`root-${action}`} permission={action} />
+                          ))}
+                        </div>
+                        {entry.subfolders.length > 0 && (
+                          <div className="space-y-2 border-t border-slate-200 pt-2 dark:border-slate-700">
+                            <p className="text-xs font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                              Subfolders
+                            </p>
+                            {entry.subfolders.map((sub, subIdx) => (
+                              <div key={`${groupId}-sub-${subIdx}`} className="flex flex-wrap items-center gap-2 text-sm">
+                                <span className="font-medium text-slate-700 dark:text-slate-200">{sub.name}</span>
+                                {sub.actions.map((action) => (
+                                  <PermissionBadge key={`${sub.name}-${action}`} permission={action} />
+                                ))}
+                              </div>
+                            ))}
+                          </div>
+                        )}
                       </div>
                     ))
                   )}

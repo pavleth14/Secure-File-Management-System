@@ -8,6 +8,7 @@ import {
   getUserPermissionsForFolder,
   getRootFolder,
   checkGroupPermission,
+  filterSubfoldersForUser,
 } from '../services/aclService.js';
 import {
   sanitizeName,
@@ -89,9 +90,14 @@ router.get('/:id/tree', async (req, res, next) => {
     }
 
     const subfolders = await getDescendantsFlat(rootFolder._id);
+    const visibleSubfolders = await filterSubfoldersForUser(
+      req.user,
+      rootFolder._id,
+      subfolders
+    );
 
     const enrichedSubfolders = await Promise.all(
-      subfolders.map(async (folder) => {
+      visibleSubfolders.map(async (folder) => {
         const fileCount = await FileModel.countDocuments({
           $or: [{ folderId: folder._id }, { subfolderId: folder._id }],
         });

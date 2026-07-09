@@ -24,7 +24,7 @@ export async function getRootFolder(folderId) {
   return current;
 }
 
-function permissionMatches(perm, rootFolderId, targetFolderId) {
+function permissionMatches(perm, rootFolderId, targetFolderId, permissions) {
   const permRoot = perm.folderId.toString();
   const rootId = rootFolderId.toString();
   const targetId = targetFolderId.toString();
@@ -32,6 +32,9 @@ function permissionMatches(perm, rootFolderId, targetFolderId) {
   if (permRoot !== rootId) return false;
 
   if (!perm.subfolderId) {
+    if (hasSubfolderRestrictions(permissions, rootFolderId)) {
+      return targetId === rootId;
+    }
     return true;
   }
 
@@ -41,8 +44,15 @@ function permissionMatches(perm, rootFolderId, targetFolderId) {
 export function hasAction(permissions, rootFolderId, targetFolderId, action) {
   return permissions.some(
     (perm) =>
-      permissionMatches(perm, rootFolderId, targetFolderId) &&
+      permissionMatches(perm, rootFolderId, targetFolderId, permissions) &&
       perm.allowedActions.includes(action)
+  );
+}
+
+export function hasSubfolderRestrictions(permissions, rootFolderId) {
+  const rootId = rootFolderId.toString();
+  return permissions.some(
+    (perm) => perm.folderId.toString() === rootId && perm.subfolderId
   );
 }
 
@@ -51,10 +61,15 @@ export async function checkGroupPermission(user, folderId, action, subfolderId =
     return { allowed: true };
   }
 
-  const targetFolderId = subfolderId || folderId;
   const rootFolder = await getRootFolder(folderId);
   if (!rootFolder) {
     return { allowed: false, message: 'Folder not found' };
+  }
+
+  const targetFolderId = subfolderId || rootFolder._id;
+
+  if (user.role === ROLES.ADMIN) {
+    return { allowed: true, rootFolder };
   }
 
   if (!user.groupId) {
@@ -93,7 +108,7 @@ export async function getAccessibleFolderIds(user) {
 
   const folderIds = new Set();
   for (const perm of group.permissions) {
-    if (perm.allowedActions.includes(PERMISSIONS.READ)) {
+    if (!perm.subfolderId && perm.allowedActions.includes(PERMISSIONS.READ)) {
       folderIds.add(perm.folderId.toString());
     }
   }
@@ -127,18 +142,78 @@ export async function getUserPermissionsForFolder(user, folderId) {
   if (!group) return [];
 
   const targetId = folderId.toString();
+  const rootId = rootFolder._id.toString();
   const actions = new Set();
+  const restricted = hasSubfolderRestrictions(group.permissions, rootFolder._id);
 
   for (const perm of group.permissions) {
-    if (perm.folderId.toString() !== rootFolder._id.toString()) continue;
+    if (perm.folderId.toString() !== rootId) continue;
 
-    const matches =
-      !perm.subfolderId || perm.subfolderId.toString() === targetId;
+    if (!perm.subfolderId) {
+      if (restricted) {
+        if (targetId === rootId) {
+          perm.allowedActions.forEach((action) => actions.add(action));
+        }
+      } else {
+        perm.allowedActions.forEach((action) => actions.add(action));
+      }
+      continue;
+    }
 
-    if (matches) {
-      perm.allowedActions.forEach((a) => actions.add(a));
+    if (perm.subfolderId.toString() === targetId) {
+      perm.allowedActions.forEach((action) => actions.add(action));
     }
   }
 
   return Array.from(actions);
+}
+
+export async function filterSubfoldersForUser(user, rootFolderId, subfolders) {
+  if (user.role === ROLES.SUPER_ADMIN || user.role === ROLES.ADMIN) {
+    return subfolders;
+  }
+
+  if (!user.groupId) return [];
+
+  const group = await Group.findById(user.groupId);
+  if (!group) return [];
+
+  if (!hasSubfolderRestrictions(group.permissions, rootFolderId)) {
+    return subfolders;
+  }
+
+  const readableIds = new Set();
+  for (const subfolder of subfolders) {
+    const check = await checkGroupPermission(
+      user,
+      rootFolderId,
+      PERMISSIONS.READ,
+      subfolder._id
+    );
+    if (check.allowed) {
+      readableIds.add(subfolder._id.toString());
+    }
+  }
+
+  if (readableIds.size === 0) {
+    return [];
+  }
+
+  const rootId = rootFolderId.toString();
+  const byId = new Map(
+    subfolders.map((folder) => [folder._id.toString(), folder])
+  );
+  const visibleIds = new Set(readableIds);
+
+  for (const subfolderId of readableIds) {
+    let current = byId.get(subfolderId);
+    while (current?.parentFolderId) {
+      const parentId = current.parentFolderId.toString();
+      visibleIds.add(parentId);
+      if (parentId === rootId) break;
+      current = byId.get(parentId);
+    }
+  }
+
+  return subfolders.filter((folder) => visibleIds.has(folder._id.toString()));
 }
