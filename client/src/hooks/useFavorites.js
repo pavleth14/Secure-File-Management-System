@@ -19,15 +19,19 @@ export function useFavorites() {
   );
 
   const toggleFavorite = useCallback(async (fileType, fileId) => {
-    const { data } = await api.post('/favorites', { fileType, fileId });
-    const key = `${fileType}:${fileId}`;
-    setFavoriteKeys((prev) => {
-      const next = new Set(prev);
-      if (data.favorited) next.add(key);
-      else next.delete(key);
-      return next;
-    });
-    return data.favorited;
+    try {
+      const { data } = await api.post('/favorites', { fileType, fileId });
+      const key = `${fileType}:${fileId}`;
+      setFavoriteKeys((prev) => {
+        const next = new Set(prev);
+        if (data.favorited) next.add(key);
+        else next.delete(key);
+        return next;
+      });
+      return data.favorited;
+    } catch {
+      return null;
+    }
   }, []);
 
   return { isFavorite, toggleFavorite, reloadFavorites: loadFavorites };

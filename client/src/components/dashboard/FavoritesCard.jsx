@@ -22,6 +22,10 @@ function favoriteFileLink(item) {
 }
 
 function favoriteFolderLink(item) {
+  if (item.fileType === 'personal_folder' || item.isPersonal) {
+    const folderId = toId(item.fileId);
+    return folderId ? `/my-files?folder=${folderId}` : '/my-files';
+  }
   const folderId = toId(item.fileId);
   if (item.isRoot) {
     return `/folders/${folderId}/files`;
@@ -39,7 +43,10 @@ export default function FavoritesCard({
   const [activeTab, setActiveTab] = useState('folders');
 
   const folderFavorites = favorites.filter(
-    (item) => item.kind === 'folder' || item.fileType === 'folder'
+    (item) =>
+      item.kind === 'folder' ||
+      item.fileType === 'folder' ||
+      item.fileType === 'personal_folder'
   );
   const fileFavorites = favorites.filter(
     (item) => item.kind === 'file' || (item.fileType !== 'folder' && item.kind !== 'folder')
@@ -135,7 +142,9 @@ export default function FavoritesCard({
 
                 <p className="ml-9 text-xs text-slate-500 dark:text-slate-400">
                   {activeTab === 'folders'
-                    ? 'Group folder'
+                    ? item.fileType === 'personal_folder' || item.isPersonal
+                      ? 'My Files folder'
+                      : 'Group folder'
                     : `${item.fileType === 'personal' ? 'My Files' : 'Group folder'} • ${formatSize(item.size)}`}
                 </p>
               </div>

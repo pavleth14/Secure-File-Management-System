@@ -6,6 +6,7 @@ import { FILE_SOURCE_TYPES } from '../config/constants.js';
 import { checkGroupPermission, getRootFolder } from './aclService.js';
 import { PERMISSIONS } from '../config/constants.js';
 import { serializePersonalFile } from './myFilesService.js';
+import { findOwnedPersonalFolder } from './personalFolderService.js';
 
 function favoriteKey(fileType, fileId) {
   return `${fileType}:${fileId.toString()}`;
@@ -52,6 +53,15 @@ async function assertFileAccess(user, fileType, fileId) {
   };
 }
 
+async function assertPersonalFolderAccess(user, folderId) {
+  const folder = await findOwnedPersonalFolder(user._id, folderId);
+  return {
+    name: folder.name,
+    folderId: folder._id,
+    parentFolderId: folder.parentFolderId,
+  };
+}
+
 async function assertFolderAccess(user, folderId) {
   const folder = await Folder.findById(folderId);
   if (!folder) {
@@ -89,6 +99,8 @@ export async function toggleFavorite(user, fileType, fileId) {
 
   if (fileType === FILE_SOURCE_TYPES.FOLDER) {
     await assertFolderAccess(user, fileId);
+  } else if (fileType === FILE_SOURCE_TYPES.PERSONAL_FOLDER) {
+    await assertPersonalFolderAccess(user, fileId);
   } else {
     await assertFileAccess(user, fileType, fileId);
   }
@@ -130,6 +142,21 @@ export async function listFavorites(user) {
           favoritedAt: favorite.createdAt,
           isRoot: folder.isRoot,
           rootFolderId: folder.rootFolderId,
+        });
+        continue;
+      }
+
+      if (favorite.fileType === FILE_SOURCE_TYPES.PERSONAL_FOLDER) {
+        const folder = await assertPersonalFolderAccess(user, favorite.fileId);
+        items.push({
+          favoriteId: favorite._id,
+          fileType: favorite.fileType,
+          fileId: favorite.fileId,
+          kind: 'folder',
+          name: folder.name,
+          favoritedAt: favorite.createdAt,
+          isPersonal: true,
+          parentFolderId: folder.parentFolderId,
         });
         continue;
       }

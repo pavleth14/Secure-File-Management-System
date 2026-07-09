@@ -47,4 +47,5 @@ export const FILE_SOURCE_TYPES = {
   GROUP: 'group',
   PERSONAL: 'personal',
   FOLDER: 'folder',
+  PERSONAL_FOLDER: 'personal_folder',
 };

@@ -332,6 +332,7 @@ export default function MyFilesPage() {
                         onDelete={handleDelete}
                         onPreview={setPreviewFile}
                         fileType="personal"
+                        folderFavoriteType="personal_folder"
                         isFavorite={isFavorite}
                         onToggleFavorite={toggleFavorite}
                         emptyMessage={emptyMessage}
