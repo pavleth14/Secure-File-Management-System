@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import api from '../api/client';
 import PermissionBadge from '../components/PermissionBadge';
 
@@ -95,6 +95,30 @@ function groupPermissionsForDisplay(permissions) {
   return Array.from(grouped.values());
 }
 
+function mergeSubfolderConfigs(available, savedConfigs = []) {
+  const existing = new Map(savedConfigs.map((sub) => [sub.subfolderId, sub]));
+
+  const merged = available.map((sub) => {
+    const saved = existing.get(sub.subfolderId);
+    return saved
+      ? { ...saved, name: sub.name }
+      : {
+          subfolderId: sub.subfolderId,
+          name: sub.name,
+          allowedActions: ['READ'],
+          enabled: false,
+        };
+  });
+
+  for (const saved of existing.values()) {
+    if (!merged.some((sub) => sub.subfolderId === saved.subfolderId)) {
+      merged.push(saved);
+    }
+  }
+
+  return merged;
+}
+
 function RootFolderPermissionsEditor({
   config,
   index,
@@ -106,61 +130,61 @@ function RootFolderPermissionsEditor({
   const [loadingSubfolders, setLoadingSubfolders] = useState(false);
   const [subfolderSearch, setSubfolderSearch] = useState('');
   const [subfoldersOpen, setSubfoldersOpen] = useState(true);
-
-  const loadSubfolders = useCallback(async () => {
-    if (!config.folderId) return;
-    setLoadingSubfolders(true);
-    try {
-      const { data } = await api.get(`/folders/${config.folderId}/tree`);
-      const available = (data.subfolders || []).map((sub) => ({
-        subfolderId: toId(sub._id),
-        name: sub.name,
-      }));
-
-      onChange(index, (current) => {
-        const existing = new Map(
-          (current.subfolderConfigs || []).map((sub) => [sub.subfolderId, sub])
-        );
-
-        const mergedAvailable = available.map((sub) => {
-          const saved = existing.get(sub.subfolderId);
-          return saved
-            ? { ...saved, name: sub.name }
-            : {
-                subfolderId: sub.subfolderId,
-                name: sub.name,
-                allowedActions: ['READ'],
-                enabled: false,
-              };
-        });
-
-        for (const saved of existing.values()) {
-          if (!mergedAvailable.some((sub) => sub.subfolderId === saved.subfolderId)) {
-            mergedAvailable.push(saved);
-          }
-        }
-
-        return {
-          ...current,
-          availableSubfolders: available,
-          subfolderConfigs: mergedAvailable,
-        };
-      });
-    } catch {
-      onChange(index, (current) => ({
-        ...current,
-        availableSubfolders: [],
-      }));
-    } finally {
-      setLoadingSubfolders(false);
-    }
-  }, [config.folderId, index, onChange]);
+  const [displaySubfolders, setDisplaySubfolders] = useState(config.subfolderConfigs || []);
+  const loadCountRef = useRef(0);
 
   useEffect(() => {
-    loadSubfolders();
-  }, [loadSubfolders]);
+    if (!config.folderId) return undefined;
+
+    let cancelled = false;
+    loadCountRef.current += 1;
+    const runId = loadCountRef.current;
+
+    // #region agent log
+    fetch('http://127.0.0.1:7879/ingest/afe47dc1-7518-4b22-8821-40057cec5169',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'a0e42e'},body:JSON.stringify({sessionId:'a0e42e',runId:'post-fix',location:'GroupsPage.jsx:useEffect:folderId',message:'subfolder load effect triggered',data:{runId,index,folderId:config.folderId},timestamp:Date.now(),hypothesisId:'A'})}).catch(()=>{});
+    // #endregion
+
+    setLoadingSubfolders(true);
+
+    api
+      .get(`/folders/${config.folderId}/tree`)
+      .then(({ data }) => {
+        if (cancelled) return;
+        const available = (data.subfolders || []).map((sub) => ({
+          subfolderId: toId(sub._id),
+          name: sub.name,
+        }));
+        // #region agent log
+        fetch('http://127.0.0.1:7879/ingest/afe47dc1-7518-4b22-8821-40057cec5169',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'a0e42e'},body:JSON.stringify({sessionId:'a0e42e',runId:'post-fix',location:'GroupsPage.jsx:loadSubfolders:success',message:'tree API success',data:{runId,index,folderId:config.folderId,count:available.length},timestamp:Date.now(),hypothesisId:'C'})}).catch(()=>{});
+        // #endregion
+        setDisplaySubfolders(mergeSubfolderConfigs(available, config.subfolderConfigs));
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        // #region agent log
+        fetch('http://127.0.0.1:7879/ingest/afe47dc1-7518-4b22-8821-40057cec5169',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'a0e42e'},body:JSON.stringify({sessionId:'a0e42e',runId:'post-fix',location:'GroupsPage.jsx:loadSubfolders:error',message:'tree API failed',data:{runId,index,folderId:config.folderId,status:err?.response?.status,message:err?.response?.data?.message||err?.message},timestamp:Date.now(),hypothesisId:'C'})}).catch(()=>{});
+        // #endregion
+        setDisplaySubfolders(mergeSubfolderConfigs([], config.subfolderConfigs));
+      })
+      .finally(() => {
+        if (!cancelled) setLoadingSubfolders(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [config.folderId]);
 
   const updateRoot = (updater) => onChange(index, updater);
+
+  const persistSubfolderConfigs = (nextSubfolders) => {
+    setDisplaySubfolders(nextSubfolders);
+    onChange(index, (current) => ({
+      ...current,
+      subfolderConfigs: nextSubfolders,
+    }));
+  };
+
   const toggleRootAction = (action) => {
     updateRoot((current) => ({
       ...current,
@@ -171,28 +195,24 @@ function RootFolderPermissionsEditor({
   };
 
   const toggleSubfolderEnabled = (subfolderId) => {
-    updateRoot((current) => ({
-      ...current,
-      subfolderConfigs: current.subfolderConfigs.map((sub) =>
-        sub.subfolderId === subfolderId ? { ...sub, enabled: !sub.enabled } : sub
-      ),
-    }));
+    const next = displaySubfolders.map((sub) =>
+      sub.subfolderId === subfolderId ? { ...sub, enabled: !sub.enabled } : sub
+    );
+    persistSubfolderConfigs(next);
   };
 
   const toggleSubfolderAction = (subfolderId, action) => {
-    updateRoot((current) => ({
-      ...current,
-      subfolderConfigs: current.subfolderConfigs.map((sub) => {
-        if (sub.subfolderId !== subfolderId) return sub;
-        const allowedActions = sub.allowedActions.includes(action)
-          ? sub.allowedActions.filter((a) => a !== action)
-          : [...sub.allowedActions, action];
-        return { ...sub, allowedActions };
-      }),
-    }));
+    const next = displaySubfolders.map((sub) => {
+      if (sub.subfolderId !== subfolderId) return sub;
+      const allowedActions = sub.allowedActions.includes(action)
+        ? sub.allowedActions.filter((a) => a !== action)
+        : [...sub.allowedActions, action];
+      return { ...sub, allowedActions };
+    });
+    persistSubfolderConfigs(next);
   };
 
-  const filteredSubfolders = (config.subfolderConfigs || []).filter((sub) =>
+  const filteredSubfolders = displaySubfolders.filter((sub) =>
     sub.name?.toLowerCase().includes(subfolderSearch.trim().toLowerCase())
   );
 
@@ -209,7 +229,6 @@ function RootFolderPermissionsEditor({
               ...current,
               folderId: e.target.value,
               subfolderConfigs: [],
-              availableSubfolders: [],
             }))
           }
           className="rounded border border-slate-300 px-3 py-2 text-sm dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
@@ -277,7 +296,7 @@ function RootFolderPermissionsEditor({
 
             {loadingSubfolders ? (
               <p className="text-sm text-slate-500 dark:text-slate-400">Loading subfolders...</p>
-            ) : (config.availableSubfolders || []).length === 0 ? (
+            ) : displaySubfolders.length === 0 ? (
               <p className="text-sm text-slate-500 dark:text-slate-400">
                 No subfolders in this root folder yet.
               </p>
@@ -374,7 +393,10 @@ export default function GroupsPage() {
     });
   };
 
-  const updateRootConfig = (index, updater) => {
+  const updateRootConfig = useCallback((index, updater) => {
+    // #region agent log
+    fetch('http://127.0.0.1:7879/ingest/afe47dc1-7518-4b22-8821-40057cec5169',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'a0e42e'},body:JSON.stringify({sessionId:'a0e42e',runId:'post-fix',location:'GroupsPage.jsx:updateRootConfig',message:'updateRootConfig called',data:{index},timestamp:Date.now(),hypothesisId:'B'})}).catch(()=>{});
+    // #endregion
     setEditing((prev) => {
       if (!prev) return prev;
       const rootConfigs = prev.rootConfigs.map((config, i) =>
@@ -382,7 +404,7 @@ export default function GroupsPage() {
       );
       return { ...prev, rootConfigs };
     });
-  };
+  }, []);
 
   const addRootFolder = () => {
     if (!folders.length) {
@@ -403,7 +425,6 @@ export default function GroupsPage() {
             folderId: toId(nextFolder._id),
             allowedActions: ['READ'],
             subfolderConfigs: [],
-            availableSubfolders: [],
           },
         ],
       };
