@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react';
 import api from '../api/client';
+import { isImagePreviewFile } from '../utils/filePreview';
+import ImagePreviewZoom from './ImagePreviewZoom';
 
 export default function FilePreviewModal({ file, onClose, previewPath }) {
   const [url, setUrl] = useState(null);
@@ -8,6 +10,7 @@ export default function FilePreviewModal({ file, onClose, previewPath }) {
 
   const isPdf =
     file?.mimeType === 'application/pdf' || /\.pdf$/i.test(file?.originalName || '');
+  const isImage = isImagePreviewFile(file);
 
   useEffect(() => {
     if (!file) return undefined;
@@ -66,6 +69,8 @@ export default function FilePreviewModal({ file, onClose, previewPath }) {
                   title={file.originalName}
                   className="h-[70vh] w-full rounded border border-slate-200"
                 />
+              ) : isImage ? (
+                <ImagePreviewZoom url={url} alt={file.originalName} />
               ) : (
                 <img
                   src={url}
