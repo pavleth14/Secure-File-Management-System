@@ -7,6 +7,7 @@ import { authMiddleware } from '../middleware/authMiddleware.js';
 import { aclFromFile } from '../middleware/aclMiddleware.js';
 import { createUploadMiddleware } from '../config/multer.js';
 import { checkGroupPermission, getRootFolder, filterSubfoldersForUser, canViewFolderContents } from '../services/aclService.js';
+import { enrichSubfoldersWithDeletion } from '../services/folderDeletionService.js';
 import { listFolderFiles } from '../services/searchService.js';
 import { auditLog, buildActorLabel } from '../services/auditLogService.js';
 import { AUDIT_ACTIONS, AUDIT_CATEGORIES, TARGET_TYPES } from '../config/auditConstants.js';
@@ -206,6 +207,7 @@ router.get('/:folderId', async (req, res, next) => {
     const root = await getRootFolder(folderId);
     if (root) {
       subfolders = await filterSubfoldersForUser(req.user, root._id, subfolders);
+      subfolders = await enrichSubfoldersWithDeletion(req.user, root._id, subfolders);
     }
 
     res.json({ files: result.files, subfolders, showContents: result.showContents });

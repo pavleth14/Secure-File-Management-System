@@ -107,7 +107,6 @@ export default function FolderFilesPage() {
     isSuperAdmin || isAdmin || permissions.includes(action);
 
   const canCreateSubfolders = can(PERMS.FOLDER_CREATE);
-  const canDeleteSubfolders = isSuperAdmin || isAdmin;
 
 
   const setSelectedSubfolder = (subfolderId) => {
@@ -476,7 +475,7 @@ export default function FolderFilesPage() {
           onSelect={setSelectedSubfolder}
 
           canCreateSubfolders={canCreateSubfolders}
-          canDeleteSubfolders={canDeleteSubfolders}
+          canDeleteSubfolders={false}
 
           newSubfolderName={newSubfolder}
 
@@ -622,7 +621,7 @@ export default function FolderFilesPage() {
 
                         onDeleteFolder={handleDeleteSubfolder}
 
-                        canDeleteFolder={canDeleteSubfolders}
+                        canDeleteFolder={false}
 
                         sortBy={sortBy}
 

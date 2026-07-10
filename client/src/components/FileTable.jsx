@@ -94,6 +94,8 @@ export default function FileTable({
           {folders.map((folder) => {
             const folderId = toId(folder._id);
             const folderFavorited = isFavorite?.(folderFavoriteType, folderId);
+            const folderCanDelete =
+              folder.canDelete !== undefined ? folder.canDelete : canDeleteFolder;
             return (
               <tr
                 key={`folder-${folderId}`}
@@ -132,7 +134,7 @@ export default function FileTable({
                 <td className="px-4 py-3 text-sm text-slate-400 dark:text-slate-500">—</td>
                 <td className="px-4 py-3 text-sm text-slate-400 dark:text-slate-500">—</td>
                 <td className="px-4 py-3 text-right whitespace-nowrap">
-                  {canDeleteFolder && (
+                  {folderCanDelete ? (
                     <button
                       type="button"
                       onClick={() => onDeleteFolder?.(folderId, folder.name)}
@@ -140,7 +142,14 @@ export default function FileTable({
                     >
                       Delete
                     </button>
-                  )}
+                  ) : folder.deletionBlockedReason ? (
+                    <span
+                      className="cursor-help text-sm text-slate-400 dark:text-slate-500"
+                      title={folder.deletionBlockedReason}
+                    >
+                      Delete
+                    </span>
+                  ) : null}
                 </td>
               </tr>
             );

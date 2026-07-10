@@ -1,4 +1,5 @@
 import mongoose from 'mongoose';
+import { ROLES } from '../config/constants.js';
 
 const folderSchema = new mongoose.Schema(
   {
@@ -10,6 +11,16 @@ const folderSchema = new mongoose.Schema(
       default: null,
     },
     isRoot: { type: Boolean, default: false },
+    createdBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      default: null,
+    },
+    creatorRole: {
+      type: String,
+      enum: Object.values(ROLES),
+      default: null,
+    },
   },
   { timestamps: true }
 );

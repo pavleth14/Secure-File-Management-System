@@ -106,15 +106,32 @@ export default function FolderSidebar({
               <span className="truncate">{folder.name}</span>
             </button>
 
-            {canDeleteSubfolders && (
-              <button
-                type="button"
-                onClick={() => onDeleteSubfolder(id, folder.name)}
-                className="mr-2 hidden text-xs text-red-500 group-hover:inline"
-              >
-                ×
-              </button>
-            )}
+            {(() => {
+              const folderCanDelete =
+                folder.canDelete !== undefined ? folder.canDelete : canDeleteSubfolders;
+              if (folderCanDelete) {
+                return (
+                  <button
+                    type="button"
+                    onClick={() => onDeleteSubfolder(id, folder.name)}
+                    className="mr-2 hidden text-xs text-red-500 group-hover:inline"
+                  >
+                    ×
+                  </button>
+                );
+              }
+              if (folder.deletionBlockedReason) {
+                return (
+                  <span
+                    className="mr-2 hidden cursor-help text-xs text-slate-400 group-hover:inline dark:text-slate-500"
+                    title={folder.deletionBlockedReason}
+                  >
+                    ×
+                  </span>
+                );
+              }
+              return null;
+            })()}
           </div>
 
           {/* CHILDREN */}

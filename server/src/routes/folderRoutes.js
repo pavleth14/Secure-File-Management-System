@@ -21,6 +21,10 @@ import {
   updateRelativePathsAfterFolderRename,
 } from '../services/storageService.js';
 import { getDescendantsFlat } from '../utils/folderTree.js';
+import {
+  enrichSubfoldersWithDeletion,
+  assertFolderDeletionAllowed,
+} from '../services/folderDeletionService.js';
 import { auditLog, buildActorLabel } from '../services/auditLogService.js';
 import { AUDIT_ACTIONS, AUDIT_CATEGORIES, TARGET_TYPES } from '../config/auditConstants.js';
 
@@ -97,17 +101,21 @@ router.get('/:id/tree', async (req, res, next) => {
       subfolders
     );
 
-    const enrichedSubfolders = await Promise.all(
-      visibleSubfolders.map(async (folder) => {
-        const fileCount = await FileModel.countDocuments({
-          $or: [{ folderId: folder._id }, { subfolderId: folder._id }],
-        });
+    const enrichedSubfolders = await enrichSubfoldersWithDeletion(
+      req.user,
+      rootFolder._id,
+      await Promise.all(
+        visibleSubfolders.map(async (folder) => {
+          const fileCount = await FileModel.countDocuments({
+            $or: [{ folderId: folder._id }, { subfolderId: folder._id }],
+          });
 
-        return {
-          ...folder,
-          hasFiles: fileCount > 0,
-        };
-      })
+          return {
+            ...folder,
+            hasFiles: fileCount > 0,
+          };
+        })
+      )
     );
     const permissions = await getUserPermissionsForFolder(req.user, rootFolder._id);
     const showContents = await canViewFolderContents(req.user, rootFolder._id, null);
@@ -219,6 +227,8 @@ router.post('/', async (req, res, next) => {
           relativePath,
           parentFolderId,
           isRoot: false,
+          createdBy: req.user._id,
+          creatorRole: req.user.role,
         });
 
         await createFolderOnDisk(relativePath);
@@ -257,6 +267,8 @@ router.post('/', async (req, res, next) => {
         relativePath,
         isRoot: true,
         parentFolderId: null,
+        createdBy: req.user._id,
+        creatorRole: req.user.role,
       });
 
       await createFolderOnDisk(relativePath);
@@ -430,16 +442,23 @@ router.delete('/:id', async (req, res, next) => {
       return res.json({ message: 'Root folder deleted' });
     }
 
-    const root = await getRootFolder(folder._id);
-    const check = await checkGroupPermission(
-      req.user,
-      root._id,
-      PERMISSIONS.DELETE,
-      folder._id
-    );
-
-    if (!check.allowed && req.user.role !== ROLES.SUPER_ADMIN && req.user.role !== ROLES.ADMIN) {
-      return res.status(403).json({ message: 'Permission denied' });
+    try {
+      await assertFolderDeletionAllowed(req.user, folder);
+    } catch (err) {
+      if (err.status === 403) {
+        await auditLog({
+          user: req.user,
+          action: AUDIT_ACTIONS.FOLDER_DELETE_DENIED,
+          category: AUDIT_CATEGORIES.FOLDERS,
+          targetType: TARGET_TYPES.FOLDER,
+          targetId: folder._id,
+          targetName: folder.name,
+          details: `${buildActorLabel(req.user)} was denied deletion of folder ${folder.name}: ${err.message}`,
+          req,
+        });
+        return res.status(403).json({ message: err.message });
+      }
+      throw err;
     }
 
     const childCount = await Folder.countDocuments({ parentFolderId: folder._id });
