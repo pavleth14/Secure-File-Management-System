@@ -16,10 +16,7 @@ export const PERMISSIONS = {
 
 export const ALL_PERMISSIONS = Object.values(PERMISSIONS);
 
-/** Users may delete folders they created only within this window (ms). */
-export const USER_FOLDER_DELETE_WINDOW_MS = 24 * 60 * 60 * 1000;
-
-export const GROUP_NAMES = ['eld', 'dispatch', 'safety', 'maintenance'];
+export const GROUP_NAMES = [];
 
 export const ROOT_FOLDER_NAMES = [
   'folder1',

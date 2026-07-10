@@ -32,26 +32,26 @@ export async function seedDatabase() {
   await ensureStorageRoot();
 
   const rootFolders = {};
-  for (const name of ROOT_FOLDER_NAMES) {
-    let folder = await Folder.findOne({ name, isRoot: true });
-    const relativePath = buildRelativePath(name);
+  // for (const name of ROOT_FOLDER_NAMES) {
+  //   let folder = await Folder.findOne({ name, isRoot: true });
+  //   const relativePath = buildRelativePath(name);
 
-    if (!folder) {
-      folder = await Folder.create({
-        name,
-        relativePath,
-        isRoot: true,
-        parentFolderId: null,
-      });
-      await createFolderOnDisk(relativePath);
-    } else if (!folder.relativePath) {
-      folder.relativePath = relativePath;
-      await folder.save();
-      await createFolderOnDisk(relativePath);
-    }
+  //   if (!folder) {
+  //     folder = await Folder.create({
+  //       name,
+  //       relativePath,
+  //       isRoot: true,
+  //       parentFolderId: null,
+  //     });
+  //     await createFolderOnDisk(relativePath);
+  //   } else if (!folder.relativePath) {
+  //     folder.relativePath = relativePath;
+  //     await folder.save();
+  //     await createFolderOnDisk(relativePath);
+  //   }
 
-    rootFolders[name] = folder;
-  }
+  //   rootFolders[name] = folder;
+  // }
 
   const foldersMissingPath = await Folder.find({
     $or: [{ relativePath: { $exists: false } }, { relativePath: null }, { relativePath: '' }],
