@@ -24,12 +24,16 @@ export async function getRootFolder(folderId) {
   return current;
 }
 
+function permRootFolderId(perm) {
+  return (perm.folderId?._id || perm.folderId)?.toString?.() || null;
+}
+
 function permissionMatches(perm, rootFolderId, targetFolderId, permissions) {
-  const permRoot = perm.folderId.toString();
+  const permRoot = permRootFolderId(perm);
   const rootId = rootFolderId.toString();
   const targetId = targetFolderId.toString();
 
-  if (permRoot !== rootId) return false;
+  if (!permRoot || permRoot !== rootId) return false;
 
   if (!perm.subfolderId) {
     if (hasSubfolderRestrictions(permissions, rootFolderId)) {
@@ -52,8 +56,33 @@ export function hasAction(permissions, rootFolderId, targetFolderId, action) {
 export function hasSubfolderRestrictions(permissions, rootFolderId) {
   const rootId = rootFolderId.toString();
   return permissions.some(
-    (perm) => perm.folderId.toString() === rootId && perm.subfolderId
+    (perm) => permRootFolderId(perm) === rootId && perm.subfolderId
   );
+}
+
+function hasAnySubfolderRead(permissions, rootFolderId) {
+  const rootId = rootFolderId.toString();
+  return permissions.some(
+    (perm) =>
+      permRootFolderId(perm) === rootId &&
+      perm.subfolderId &&
+      perm.allowedActions.includes(PERMISSIONS.READ)
+  );
+}
+
+function canReadFolder(permissions, rootFolderId, targetFolderId) {
+  if (hasAction(permissions, rootFolderId, targetFolderId, PERMISSIONS.READ)) {
+    return true;
+  }
+
+  const rootId = rootFolderId.toString();
+  const targetId = targetFolderId.toString();
+
+  if (targetId === rootId) {
+    return hasAnySubfolderRead(permissions, rootFolderId);
+  }
+
+  return false;
 }
 
 export function findPermissionForContext(permissions, rootFolderId, targetFolderId) {
@@ -62,7 +91,7 @@ export function findPermissionForContext(permissions, rootFolderId, targetFolder
 
   const exactSubfolder = permissions.find(
     (perm) =>
-      perm.folderId.toString() === rootId &&
+      permRootFolderId(perm) === rootId &&
       perm.subfolderId?.toString() === targetId
   );
   if (exactSubfolder) return exactSubfolder;
@@ -70,7 +99,7 @@ export function findPermissionForContext(permissions, rootFolderId, targetFolder
   if (targetId === rootId) {
     return (
       permissions.find(
-        (perm) => perm.folderId.toString() === rootId && !perm.subfolderId
+        (perm) => permRootFolderId(perm) === rootId && !perm.subfolderId
       ) || null
     );
   }
@@ -78,7 +107,7 @@ export function findPermissionForContext(permissions, rootFolderId, targetFolder
   if (!hasSubfolderRestrictions(permissions, rootFolderId)) {
     return (
       permissions.find(
-        (perm) => perm.folderId.toString() === rootId && !perm.subfolderId
+        (perm) => permRootFolderId(perm) === rootId && !perm.subfolderId
       ) || null
     );
   }
@@ -144,12 +173,15 @@ export async function checkGroupPermission(user, folderId, action, subfolderId =
     return { allowed: false, message: 'Group not found' };
   }
 
-  const allowed = hasAction(
-    group.permissions,
-    rootFolder._id,
-    targetFolderId,
-    action
-  );
+  const allowed =
+    action === PERMISSIONS.READ
+      ? canReadFolder(group.permissions, rootFolder._id, targetFolderId)
+      : hasAction(
+          group.permissions,
+          rootFolder._id,
+          targetFolderId,
+          action
+        );
 
   if (!allowed) {
     return { allowed: false, message: 'Permission denied' };
@@ -171,9 +203,9 @@ export async function getAccessibleFolderIds(user) {
 
   const folderIds = new Set();
   for (const perm of group.permissions) {
-    if (!perm.subfolderId && perm.allowedActions.includes(PERMISSIONS.READ)) {
-      folderIds.add(perm.folderId.toString());
-    }
+    if (!perm.allowedActions.includes(PERMISSIONS.READ)) continue;
+    const rootId = permRootFolderId(perm);
+    if (rootId) folderIds.add(rootId);
   }
 
   return Array.from(folderIds);
@@ -210,7 +242,7 @@ export async function getUserPermissionsForFolder(user, folderId) {
   const restricted = hasSubfolderRestrictions(group.permissions, rootFolder._id);
 
   for (const perm of group.permissions) {
-    if (perm.folderId.toString() !== rootId) continue;
+    if (permRootFolderId(perm) !== rootId) continue;
 
     if (!perm.subfolderId) {
       if (restricted) {
