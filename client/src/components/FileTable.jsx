@@ -1,4 +1,5 @@
 import { formatSize, formatDate, toId } from '../utils/format';
+import { isPreviewableFile } from '../utils/filePreview';
 import { getFileExtension } from '../utils/uploadTypes';
 import { StarIcon } from './icons';
 import { useContextMenu } from '../hooks/useContextMenu';
@@ -61,6 +62,11 @@ export default function FileTable({
   onOpenFile,
 }) {
   const { openContextMenu, contextMenuNode } = useContextMenu();
+  // #region agent log
+  if (files.length > 0) {
+    fetch('http://127.0.0.1:7879/ingest/afe47dc1-7518-4b22-8821-40057cec5169',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'a0e42e'},body:JSON.stringify({sessionId:'a0e42e',location:'FileTable.jsx:64',message:'FileTable render - isPreviewableFile check',data:{isDefined:typeof isPreviewableFile==='function',fileCount:files.length,samplePreviewable:typeof isPreviewableFile==='function'?isPreviewableFile(files[0]):null},timestamp:Date.now(),hypothesisId:'H1',runId:'post-fix'})}).catch(()=>{});
+  }
+  // #endregion
   const handleSort = (key) => {
     if (sortBy === key) {
       onSortChange(key, sortDir === 'asc' ? 'desc' : 'asc');
