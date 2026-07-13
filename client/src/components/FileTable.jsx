@@ -1,7 +1,11 @@
 import { formatSize, formatDate, toId } from '../utils/format';
-import { isPreviewableFile } from '../utils/filePreview';
 import { getFileExtension } from '../utils/uploadTypes';
 import { StarIcon } from './icons';
+import { useContextMenu } from '../hooks/useContextMenu';
+import {
+  buildFileContextMenuItems,
+  buildFolderContextMenuItems,
+} from '../utils/explorerContextMenu';
 
 const SORTABLE_COLUMNS = [
   { key: 'name', label: 'Name' },
@@ -49,7 +53,14 @@ export default function FileTable({
   isFavorite,
   onToggleFavorite,
   embedded = false,
+  showContextMenu = false,
+  canRead = true,
+  canRename = false,
+  onRenameFolder,
+  onRenameFile,
+  onOpenFile,
 }) {
+  const { openContextMenu, contextMenuNode } = useContextMenu();
   const handleSort = (key) => {
     if (sortBy === key) {
       onSortChange(key, sortDir === 'asc' ? 'desc' : 'asc');
@@ -100,6 +111,24 @@ export default function FileTable({
               <tr
                 key={`folder-${folderId}`}
                 className="text-slate-900 hover:bg-slate-50 dark:text-slate-100 dark:hover:bg-slate-700/50"
+                onContextMenu={
+                  showContextMenu
+                    ? (event) =>
+                        openContextMenu(
+                          event,
+                          buildFolderContextMenuItems({
+                            folder,
+                            folderId,
+                            folderCanDelete,
+                            canRead,
+                            canRename,
+                            onOpenFolder,
+                            onRenameFolder,
+                            onDeleteFolder,
+                          })
+                        )
+                    : undefined
+                }
               >
                 {onToggleFavorite && (
                   <td className="px-2 py-3 text-center">
@@ -168,7 +197,30 @@ export default function FileTable({
               const previewable = isPreviewableFile(file);
               const favorited = isFavorite?.(fileType, file._id);
               return (
-                <tr key={file._id} className="text-slate-900 hover:bg-slate-50 dark:text-slate-100 dark:hover:bg-slate-700/50">
+                <tr
+                  key={file._id}
+                  className="text-slate-900 hover:bg-slate-50 dark:text-slate-100 dark:hover:bg-slate-700/50"
+                  onContextMenu={
+                    showContextMenu
+                      ? (event) =>
+                          openContextMenu(
+                            event,
+                            buildFileContextMenuItems({
+                              file,
+                              canRead,
+                              canRename,
+                              canDownload,
+                              canDelete,
+                              onOpenFile,
+                              onPreview,
+                              onRenameFile,
+                              onDownload,
+                              onDelete,
+                            })
+                          )
+                      : undefined
+                  }
+                >
                   {onToggleFavorite && (
                     <td className="px-2 py-3 text-center">
                       <button
@@ -236,6 +288,7 @@ export default function FileTable({
           )}
         </tbody>
       </table>
+      {contextMenuNode}
     </div>
   );
 }

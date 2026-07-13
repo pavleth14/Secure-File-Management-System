@@ -16,11 +16,19 @@ import FileExplorerBreadcrumb from '../components/FileExplorerBreadcrumb';
 
 import FilePreviewModal from '../components/FilePreviewModal';
 
+import ConfirmDialog from '../components/ConfirmDialog';
+
+import RenameDialog from '../components/RenameDialog';
+
+import { useConfirmDialog } from '../hooks/useConfirmDialog';
+
 import UploadDropzone from '../components/UploadDropzone';
 
 import { UploadCloudIcon } from '../components/icons';
 
 import { toId } from '../utils/format';
+
+import { isPreviewableFile } from '../utils/filePreview';
 
 import { buildSubfolderPath, getParentSubfolderId } from '../utils/folderPath';
 
@@ -38,6 +46,7 @@ const PERMS = {
   READ: 'READ',
   UPLOAD: 'UPLOAD',
   DOWNLOAD: 'DOWNLOAD',
+  EDIT: 'EDIT',
   DELETE: 'DELETE',
   FOLDER_CREATE: 'FOLDER_CREATE',
 };
@@ -55,6 +64,8 @@ export default function FolderFilesPage() {
   const { enqueueFiles } = useUpload();
 
   const { isFavorite, toggleFavorite } = useFavorites();
+
+  const { confirm, dialogProps } = useConfirmDialog();
 
   const { width: sidebarWidth, isResizing, startResize } = useResizableSidebar();
 
@@ -85,6 +96,8 @@ export default function FolderFilesPage() {
   const [sortDir, setSortDir] = useState('desc');
 
   const [previewFile, setPreviewFile] = useState(null);
+
+  const [renameTarget, setRenameTarget] = useState(null);
 
 
 
@@ -338,13 +351,53 @@ export default function FolderFilesPage() {
 
 
 
+  const handleOpenFile = (file) => {
+
+    if (isPreviewableFile(file)) {
+
+      setPreviewFile(file);
+
+      return;
+
+    }
+
+    if (can(PERMS.DOWNLOAD)) {
+
+      handleDownload(file._id, file.originalName);
+
+    }
+
+  };
+
+
+
   const handleDelete = async (fileId) => {
 
-    if (!confirm('Delete this file?')) return;
+    const confirmed = await confirm({
+
+      title: 'Delete Item',
+
+      message: 'Are you sure you want to delete this file?',
+
+      confirmLabel: 'Delete',
+
+      cancelLabel: 'Cancel',
+
+      destructive: true,
+
+    });
+
+    if (!confirmed) return;
 
     try {
 
       await api.delete(`/files/${fileId}`);
+
+      if (previewFile && toId(previewFile._id) === toId(fileId)) {
+
+        setPreviewFile(null);
+
+      }
 
       await loadFiles();
 
@@ -394,7 +447,21 @@ export default function FolderFilesPage() {
 
   const handleDeleteSubfolder = async (subfolderId, name) => {
 
-    if (!confirm(`Delete subfolder "${name}"? It must be empty.`)) return;
+    const confirmed = await confirm({
+
+      title: 'Delete Item',
+
+      message: 'Are you sure you want to delete this folder?',
+
+      confirmLabel: 'Delete',
+
+      cancelLabel: 'Cancel',
+
+      destructive: true,
+
+    });
+
+    if (!confirmed) return;
 
     try {
 
@@ -411,6 +478,76 @@ export default function FolderFilesPage() {
       setError(err.response?.data?.message || 'Failed to delete subfolder');
 
     }
+
+  };
+
+
+
+  const handleRenameConfirm = async (newName) => {
+
+    if (!renameTarget?.id || !newName?.trim()) return;
+
+    try {
+
+      if (renameTarget.type === 'file') {
+
+        await api.put(`/files/${renameTarget.id}`, { name: newName.trim() });
+
+        if (previewFile && toId(previewFile._id) === toId(renameTarget.id)) {
+
+          setPreviewFile((prev) =>
+
+            prev ? { ...prev, originalName: newName.trim() } : null
+
+          );
+
+        }
+
+        await loadFiles();
+
+      } else {
+
+        await api.put(`/folders/${renameTarget.id}`, { name: newName.trim() });
+
+        await loadTree();
+
+        await loadFiles();
+
+      }
+
+      setRenameTarget(null);
+
+    } catch (err) {
+
+      setError(
+
+        err.response?.data?.message ||
+
+          (renameTarget.type === 'file'
+
+            ? 'Failed to rename file'
+
+            : 'Failed to rename folder')
+
+      );
+
+    }
+
+  };
+
+
+
+  const openRenameFolder = (folderId, name) => {
+
+    setRenameTarget({ type: 'folder', id: folderId, name });
+
+  };
+
+
+
+  const openRenameFile = (file) => {
+
+    setRenameTarget({ type: 'file', id: file._id, name: file.originalName });
 
   };
 
@@ -450,6 +587,8 @@ export default function FolderFilesPage() {
 
         <FilePreviewModal
 
+          key={toId(previewFile._id)}
+
           file={previewFile}
 
           onClose={() => setPreviewFile(null)}
@@ -457,6 +596,22 @@ export default function FolderFilesPage() {
         />
 
       )}
+
+      <ConfirmDialog {...dialogProps} />
+
+      <RenameDialog
+
+        open={Boolean(renameTarget)}
+
+        currentName={renameTarget?.name || ''}
+
+        title={renameTarget?.type === 'file' ? 'Rename file' : 'Rename folder'}
+
+        onConfirm={handleRenameConfirm}
+
+        onCancel={() => setRenameTarget(null)}
+
+      />
 
 
 
@@ -476,6 +631,14 @@ export default function FolderFilesPage() {
 
           canCreateSubfolders={canCreateSubfolders}
           canDeleteSubfolders={false}
+
+          showContextMenu
+
+          canRead={can(PERMS.READ)}
+
+          canRename={can(PERMS.EDIT)}
+
+          onRenameFolder={openRenameFolder}
 
           newSubfolderName={newSubfolder}
 
@@ -613,6 +776,8 @@ export default function FolderFilesPage() {
 
                         embedded
 
+                        showContextMenu
+
                         folders={currentSubfolders}
 
                         files={filteredFiles}
@@ -622,6 +787,16 @@ export default function FolderFilesPage() {
                         onDeleteFolder={handleDeleteSubfolder}
 
                         canDeleteFolder={false}
+
+                        canRead={can(PERMS.READ)}
+
+                        canRename={can(PERMS.EDIT)}
+
+                        onRenameFolder={openRenameFolder}
+
+                        onRenameFile={openRenameFile}
+
+                        onOpenFile={handleOpenFile}
 
                         sortBy={sortBy}
 

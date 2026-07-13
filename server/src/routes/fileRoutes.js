@@ -17,7 +17,10 @@ import {
   resolveFullPath,
   unlinkFile,
   pathExists,
+  renameOnDisk,
+  sanitizeName,
 } from '../services/storageService.js';
+import { buildRelativePath } from '../config/storage.js';
 
 const router = Router();
 const upload = createUploadMiddleware();
@@ -211,6 +214,73 @@ router.get('/:folderId', async (req, res, next) => {
     }
 
     res.json({ files: result.files, subfolders, showContents: result.showContents });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.put('/:id', aclFromFile(PERMISSIONS.EDIT), async (req, res, next) => {
+  try {
+    const file = req.fileRecord;
+    const { name } = req.body;
+
+    if (!name?.trim()) {
+      return res.status(400).json({ message: 'File name required' });
+    }
+
+    const newName = sanitizeName(name.trim());
+    const oldName = file.originalName;
+
+    if (newName === file.filename && newName === file.originalName) {
+      return res.json({ file });
+    }
+
+    const duplicate = await FileModel.findOne({
+      folderId: file.folderId,
+      subfolderId: file.subfolderId ?? null,
+      _id: { $ne: file._id },
+      filename: newName,
+    });
+
+    if (duplicate) {
+      return res.status(409).json({ message: 'A file with this name already exists here' });
+    }
+
+    const oldRelativePath = file.relativePath;
+    const parentRelativePath = oldRelativePath.includes('/')
+      ? oldRelativePath.slice(0, oldRelativePath.lastIndexOf('/'))
+      : '';
+    const newRelativePath = parentRelativePath
+      ? buildRelativePath(parentRelativePath, newName)
+      : buildRelativePath(newName);
+
+    if (oldRelativePath !== newRelativePath) {
+      if (await pathExists(newRelativePath)) {
+        return res.status(409).json({ message: 'A file with this name already exists here' });
+      }
+
+      await renameOnDisk(oldRelativePath, newRelativePath);
+      file.filename = newName;
+      file.originalName = newName;
+      file.relativePath = newRelativePath;
+      await file.save();
+    }
+
+    await auditLog({
+      user: req.user,
+      action: AUDIT_ACTIONS.FILE_RENAME,
+      category: AUDIT_CATEGORIES.EDIT,
+      targetType: TARGET_TYPES.FILE,
+      targetId: file._id,
+      targetName: newName,
+      details: `${buildActorLabel(req.user)} renamed file ${oldName} to ${newName}`,
+      oldValues: { name: oldName },
+      newValues: { name: newName },
+      req,
+    });
+
+    const populated = await FileModel.findById(file._id).populate('uploadedBy', 'name email');
+    res.json({ file: populated });
   } catch (err) {
     next(err);
   }

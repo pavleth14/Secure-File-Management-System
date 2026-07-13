@@ -1,6 +1,11 @@
 import { useState } from 'react';
 import { toId } from '../utils/format';
 import { StarIcon } from './icons';
+import { useContextMenu } from '../hooks/useContextMenu';
+import {
+  buildFolderContextMenuItems,
+  buildRootViewContextMenuItems,
+} from '../utils/explorerContextMenu';
 
 export default function FolderSidebar({
   rootFolder,
@@ -21,8 +26,13 @@ export default function FolderSidebar({
   virtualRoot = false,
   sidebarTitle = 'Folders',
   showFolderFavorites = true,
+  showContextMenu = false,
+  canRead = true,
+  canRename = false,
+  onRenameFolder,
 }) {
   const [expanded, setExpanded] = useState({});
+  const { openContextMenu, contextMenuNode } = useContextMenu();
 
   const ROOT_ID = rootFolder?._id;
 
@@ -58,7 +68,31 @@ export default function FolderSidebar({
 
       return (
         <div key={id}>
-          <div className={`group flex items-center ${isSelected ? 'bg-brand-50 dark:bg-brand-900/30' : 'hover:bg-slate-50 dark:hover:bg-slate-700/50'}`}>
+          <div
+            className={`group flex items-center ${isSelected ? 'bg-brand-50 dark:bg-brand-900/30' : 'hover:bg-slate-50 dark:hover:bg-slate-700/50'}`}
+            onContextMenu={
+              showContextMenu
+                ? (event) =>
+                    openContextMenu(
+                      event,
+                      buildFolderContextMenuItems({
+                        folder,
+                        folderId: id,
+                        folderCanDelete:
+                          folder.canDelete !== undefined
+                            ? folder.canDelete
+                            : canDeleteSubfolders,
+                        canRead,
+                        canRename,
+                        allowRename: true,
+                        onOpenFolder: onSelect,
+                        onRenameFolder,
+                        onDeleteFolder: onDeleteSubfolder,
+                      })
+                    )
+                : undefined
+            }
+          >
             {showFolderFavorites && onToggleFavorite && (
               <button
                 type="button"
@@ -147,6 +181,7 @@ export default function FolderSidebar({
     <aside
       className="flex h-full min-h-0 shrink-0 flex-col border-r border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-900"
       style={{ width, minWidth: width, maxWidth: width }}
+      onContextMenu={showContextMenu ? (event) => event.preventDefault() : undefined}
     >
       {/* header */}
       <div className="border-b border-slate-200 px-4 py-3 dark:border-slate-700">
@@ -159,10 +194,25 @@ export default function FolderSidebar({
       </div>
 
       {/* tree */}
-      <nav className="flex-1 overflow-y-auto py-2">
+      <nav
+        className="flex-1 overflow-y-auto py-2"
+        onContextMenu={showContextMenu ? (event) => event.preventDefault() : undefined}
+      >
         {/* ROOT VIEW */}
         <div
           className={`flex w-full items-center ${!selectedSubfolderId ? 'bg-brand-50 dark:bg-brand-900/30' : 'hover:bg-slate-50 dark:hover:bg-slate-700/50'}`}
+          onContextMenu={
+            showContextMenu
+              ? (event) =>
+                  openContextMenu(
+                    event,
+                    buildRootViewContextMenuItems({
+                      canRead,
+                      onOpenFolder: onSelect,
+                    })
+                  )
+              : undefined
+          }
         >
           {showFolderFavorites && onToggleFavorite && rootFolder?._id && (
             <button
@@ -233,6 +283,7 @@ export default function FolderSidebar({
           </button>
         </form>
       )}
+      {contextMenuNode}
     </aside>
   );
 }
