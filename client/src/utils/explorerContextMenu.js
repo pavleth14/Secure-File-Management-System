@@ -93,3 +93,122 @@ export function buildRootViewContextMenuItems({ canRead, onOpenFolder }) {
     },
   ];
 }
+
+export function buildPersonalFolderContextMenuItems({
+  folder,
+  folderId,
+  onOpenFolder,
+  onRenameFolder,
+  onDownloadFolder,
+  onDeleteFolder,
+}) {
+  return [
+    {
+      id: 'open',
+      label: 'Open',
+      visible: true,
+      onClick: () => onOpenFolder?.(folderId),
+    },
+    {
+      id: 'rename',
+      label: 'Rename',
+      visible: true,
+      onClick: () => onRenameFolder?.(folderId, folder.name),
+    },
+    {
+      id: 'download',
+      label: 'Download',
+      visible: true,
+      onClick: () => onDownloadFolder?.(folderId),
+    },
+    {
+      id: 'delete',
+      label: 'Delete',
+      visible: true,
+      destructive: true,
+      onClick: () => onDeleteFolder?.(folderId, folder.name),
+    },
+  ];
+}
+
+export function buildPersonalFileContextMenuItems({
+  file,
+  onOpenFile,
+  onPreview,
+  onRenameFile,
+  onDownload,
+  onDelete,
+}) {
+  const previewable = isPreviewableFile(file);
+  const fileId = file._id;
+  const fileName = file.originalName || file.name;
+
+  return [
+    {
+      id: 'open',
+      label: 'Open',
+      visible: true,
+      onClick: () => {
+        if (onOpenFile) {
+          onOpenFile(file);
+          return;
+        }
+        if (previewable) onPreview?.(file);
+      },
+    },
+    {
+      id: 'rename',
+      label: 'Rename',
+      visible: true,
+      onClick: () => onRenameFile?.(file),
+    },
+    {
+      id: 'download',
+      label: 'Download',
+      visible: true,
+      onClick: () => onDownload?.(fileId, fileName),
+    },
+    {
+      id: 'delete',
+      label: 'Delete',
+      visible: true,
+      destructive: true,
+      onClick: () => onDelete?.(fileId),
+    },
+  ];
+}
+
+export function buildPersonalRootViewContextMenuItems({
+  onOpenFolder,
+  onRenameFolder,
+  onDownloadFolder,
+  onDeleteFolder,
+}) {
+  return [
+    {
+      id: 'open',
+      label: 'Open',
+      visible: true,
+      onClick: () => onOpenFolder?.(null),
+    },
+    {
+      id: 'rename',
+      label: 'Rename',
+      visible: true,
+      onClick: () => onRenameFolder?.(null, 'My Files'),
+    },
+    {
+      id: 'download',
+      label: 'Download',
+      visible: true,
+      onClick: () => onDownloadFolder?.(null),
+    },
+    {
+      id: 'delete',
+      label: 'Delete',
+      visible: true,
+      destructive: true,
+      onClick: () => onDeleteFolder?.(null, 'My Files'),
+    },
+  ];
+}

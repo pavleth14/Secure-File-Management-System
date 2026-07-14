@@ -5,6 +5,8 @@ import { useContextMenu } from '../hooks/useContextMenu';
 import {
   buildFolderContextMenuItems,
   buildRootViewContextMenuItems,
+  buildPersonalFolderContextMenuItems,
+  buildPersonalRootViewContextMenuItems,
 } from '../utils/explorerContextMenu';
 
 export default function FolderSidebar({
@@ -30,6 +32,8 @@ export default function FolderSidebar({
   canRead = true,
   canRename = false,
   onRenameFolder,
+  personalContextMenu = false,
+  onDownloadFolder,
 }) {
   const [expanded, setExpanded] = useState({});
   const { openContextMenu, contextMenuNode } = useContextMenu();
@@ -75,20 +79,29 @@ export default function FolderSidebar({
                 ? (event) =>
                     openContextMenu(
                       event,
-                      buildFolderContextMenuItems({
-                        folder,
-                        folderId: id,
-                        folderCanDelete:
-                          folder.canDelete !== undefined
-                            ? folder.canDelete
-                            : canDeleteSubfolders,
-                        canRead,
-                        canRename,
-                        allowRename: true,
-                        onOpenFolder: onSelect,
-                        onRenameFolder,
-                        onDeleteFolder: onDeleteSubfolder,
-                      })
+                      personalContextMenu
+                        ? buildPersonalFolderContextMenuItems({
+                            folder,
+                            folderId: id,
+                            onOpenFolder: onSelect,
+                            onRenameFolder,
+                            onDownloadFolder,
+                            onDeleteFolder: onDeleteSubfolder,
+                          })
+                        : buildFolderContextMenuItems({
+                            folder,
+                            folderId: id,
+                            folderCanDelete:
+                              folder.canDelete !== undefined
+                                ? folder.canDelete
+                                : canDeleteSubfolders,
+                            canRead,
+                            canRename,
+                            allowRename: true,
+                            onOpenFolder: onSelect,
+                            onRenameFolder,
+                            onDeleteFolder: onDeleteSubfolder,
+                          })
                     )
                 : undefined
             }
@@ -206,10 +219,17 @@ export default function FolderSidebar({
               ? (event) =>
                   openContextMenu(
                     event,
-                    buildRootViewContextMenuItems({
-                      canRead,
-                      onOpenFolder: onSelect,
-                    })
+                    personalContextMenu
+                      ? buildPersonalRootViewContextMenuItems({
+                          onOpenFolder: onSelect,
+                          onRenameFolder,
+                          onDownloadFolder,
+                          onDeleteFolder: onDeleteSubfolder,
+                        })
+                      : buildRootViewContextMenuItems({
+                          canRead,
+                          onOpenFolder: onSelect,
+                        })
                   )
               : undefined
           }

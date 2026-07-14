@@ -5,7 +5,9 @@ import {
   buildRelativePath,
   createFolderOnDisk,
   removeFromDisk,
+  renameOnDisk,
 } from './storageService.js';
+import { replaceRelativePathPrefix } from '../config/storage.js';
 
 export const MY_FILES_VIRTUAL_ROOT_ID = 'my-files-root';
 
@@ -114,4 +116,88 @@ export async function deletePersonalFolder(userId, folderId) {
 
   await removeFromDisk(folder.relativePath, true);
   await PersonalFolder.deleteOne({ _id: folder._id });
+}
+
+async function updatePersonalPathsAfterFolderRename(
+  userId,
+  folderId,
+  oldRelativePath,
+  newRelativePath
+) {
+  const descendants = await PersonalFolder.find({
+    userId,
+    relativePath: { $regex: `^${escapeRegex(oldRelativePath)}/` },
+  });
+
+  for (const descendant of descendants) {
+    descendant.relativePath = replaceRelativePathPrefix(
+      descendant.relativePath,
+      oldRelativePath,
+      newRelativePath
+    );
+    await descendant.save();
+  }
+
+  const files = await PersonalFile.find({
+    userId,
+    relativePath: { $regex: `^${escapeRegex(oldRelativePath)}/` },
+  });
+
+  for (const file of files) {
+    file.relativePath = replaceRelativePathPrefix(
+      file.relativePath,
+      oldRelativePath,
+      newRelativePath
+    );
+    await file.save();
+  }
+}
+
+function escapeRegex(value) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+export async function renamePersonalFolder(userId, folderId, name) {
+  const folder = await findOwnedPersonalFolder(userId, folderId);
+  const folderName = sanitizeName(name);
+
+  if (!folderName) {
+    throw Object.assign(new Error('Folder name required'), { status: 400 });
+  }
+
+  const duplicate = await PersonalFolder.findOne({
+    userId,
+    name: folderName,
+    parentFolderId: folder.parentFolderId || null,
+    _id: { $ne: folder._id },
+  });
+
+  if (duplicate) {
+    throw Object.assign(new Error('A folder with this name already exists here'), {
+      status: 409,
+    });
+  }
+
+  const oldRelativePath = folder.relativePath;
+  const parentRelativePath = oldRelativePath.includes('/')
+    ? oldRelativePath.slice(0, oldRelativePath.lastIndexOf('/'))
+    : '';
+  const newRelativePath = parentRelativePath
+    ? buildRelativePath(parentRelativePath, folderName)
+    : buildRelativePath('myfiles', userId.toString(), folderName);
+
+  if (oldRelativePath !== newRelativePath) {
+    await renameOnDisk(oldRelativePath, newRelativePath);
+    folder.name = folderName;
+    folder.relativePath = newRelativePath;
+    await folder.save();
+    await updatePersonalPathsAfterFolderRename(
+      userId,
+      folder._id,
+      oldRelativePath,
+      newRelativePath
+    );
+  }
+
+  return folder;
 }

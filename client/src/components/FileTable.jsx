@@ -6,6 +6,8 @@ import { useContextMenu } from '../hooks/useContextMenu';
 import {
   buildFileContextMenuItems,
   buildFolderContextMenuItems,
+  buildPersonalFileContextMenuItems,
+  buildPersonalFolderContextMenuItems,
 } from '../utils/explorerContextMenu';
 
 const SORTABLE_COLUMNS = [
@@ -55,18 +57,15 @@ export default function FileTable({
   onToggleFavorite,
   embedded = false,
   showContextMenu = false,
+  personalContextMenu = false,
   canRead = true,
   canRename = false,
   onRenameFolder,
   onRenameFile,
   onOpenFile,
+  onDownloadFolder,
 }) {
   const { openContextMenu, contextMenuNode } = useContextMenu();
-  // #region agent log
-  if (files.length > 0) {
-    fetch('http://127.0.0.1:7879/ingest/afe47dc1-7518-4b22-8821-40057cec5169',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'a0e42e'},body:JSON.stringify({sessionId:'a0e42e',location:'FileTable.jsx:64',message:'FileTable render - isPreviewableFile check',data:{isDefined:typeof isPreviewableFile==='function',fileCount:files.length,samplePreviewable:typeof isPreviewableFile==='function'?isPreviewableFile(files[0]):null},timestamp:Date.now(),hypothesisId:'H1',runId:'post-fix'})}).catch(()=>{});
-  }
-  // #endregion
   const handleSort = (key) => {
     if (sortBy === key) {
       onSortChange(key, sortDir === 'asc' ? 'desc' : 'asc');
@@ -122,16 +121,25 @@ export default function FileTable({
                     ? (event) =>
                         openContextMenu(
                           event,
-                          buildFolderContextMenuItems({
-                            folder,
-                            folderId,
-                            folderCanDelete,
-                            canRead,
-                            canRename,
-                            onOpenFolder,
-                            onRenameFolder,
-                            onDeleteFolder,
-                          })
+                          personalContextMenu
+                            ? buildPersonalFolderContextMenuItems({
+                                folder,
+                                folderId,
+                                onOpenFolder,
+                                onRenameFolder,
+                                onDownloadFolder,
+                                onDeleteFolder,
+                              })
+                            : buildFolderContextMenuItems({
+                                folder,
+                                folderId,
+                                folderCanDelete,
+                                canRead,
+                                canRename,
+                                onOpenFolder,
+                                onRenameFolder,
+                                onDeleteFolder,
+                              })
                         )
                     : undefined
                 }
@@ -211,18 +219,27 @@ export default function FileTable({
                       ? (event) =>
                           openContextMenu(
                             event,
-                            buildFileContextMenuItems({
-                              file,
-                              canRead,
-                              canRename,
-                              canDownload,
-                              canDelete,
-                              onOpenFile,
-                              onPreview,
-                              onRenameFile,
-                              onDownload,
-                              onDelete,
-                            })
+                            personalContextMenu
+                              ? buildPersonalFileContextMenuItems({
+                                  file,
+                                  onOpenFile,
+                                  onPreview,
+                                  onRenameFile,
+                                  onDownload,
+                                  onDelete,
+                                })
+                              : buildFileContextMenuItems({
+                                  file,
+                                  canRead,
+                                  canRename,
+                                  canDownload,
+                                  canDelete,
+                                  onOpenFile,
+                                  onPreview,
+                                  onRenameFile,
+                                  onDownload,
+                                  onDelete,
+                                })
                           )
                       : undefined
                   }

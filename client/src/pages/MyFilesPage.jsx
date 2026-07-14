@@ -5,6 +5,9 @@ import FolderSidebar from '../components/FolderSidebar';
 import FileTable from '../components/FileTable';
 import FileExplorerBreadcrumb from '../components/FileExplorerBreadcrumb';
 import FilePreviewModal from '../components/FilePreviewModal';
+import ConfirmDialog from '../components/ConfirmDialog';
+import RenameDialog from '../components/RenameDialog';
+import { useConfirmDialog } from '../hooks/useConfirmDialog';
 import UploadDropzone from '../components/UploadDropzone';
 import { UploadCloudIcon } from '../components/icons';
 import { useFavorites } from '../hooks/useFavorites';
@@ -17,12 +20,15 @@ import {
 } from '../hooks/useResizableSidebar';
 import { filterFilesBySearch } from '../utils/extensionFilter';
 import { buildSubfolderPath, getParentSubfolderId } from '../utils/folderPath';
+import { isPreviewableFile } from '../utils/filePreview';
+import { toId } from '../utils/format';
 import ExtensionFilterSelect from '../components/ExtensionFilterSelect';
 import SidebarResizeHandle from '../components/SidebarResizeHandle';
 
 export default function MyFilesPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const { isFavorite, toggleFavorite } = useFavorites();
+  const { confirm, dialogProps } = useConfirmDialog();
   const { enqueueFiles } = useUpload();
   const { width: sidebarWidth, isResizing, startResize } = useResizableSidebar(
     MY_FILES_SIDEBAR_STORAGE_KEY
@@ -38,6 +44,7 @@ export default function MyFilesPage() {
   const [sortBy, setSortBy] = useState('date');
   const [sortDir, setSortDir] = useState('desc');
   const [previewFile, setPreviewFile] = useState(null);
+  const [renameTarget, setRenameTarget] = useState(null);
   const [searchInput, setSearchInput] = useState('');
   const debouncedSearch = useDebouncedValue(searchInput.trim(), 250);
 
@@ -170,10 +177,29 @@ export default function MyFilesPage() {
     }
   };
 
+  const handleOpenFile = (file) => {
+    if (isPreviewableFile(file)) {
+      setPreviewFile(file);
+      return;
+    }
+    handleDownload(file._id, file.originalName || file.name);
+  };
+
   const handleDelete = async (fileId) => {
-    if (!confirm('Delete this file from My Files?')) return;
+    const confirmed = await confirm({
+      title: 'Delete Item',
+      message: 'Are you sure you want to delete this file?',
+      confirmLabel: 'Delete',
+      cancelLabel: 'Cancel',
+      destructive: true,
+    });
+    if (!confirmed) return;
+
     try {
       await api.delete(`/my-files/${fileId}`);
+      if (previewFile && toId(previewFile._id) === toId(fileId)) {
+        setPreviewFile(null);
+      }
       await loadFiles();
       await loadTree();
     } catch (err) {
@@ -199,7 +225,17 @@ export default function MyFilesPage() {
   };
 
   const handleDeleteSubfolder = async (subfolderId, name) => {
-    if (!confirm(`Delete subfolder "${name}"? It must be empty.`)) return;
+    if (!subfolderId) return;
+
+    const confirmed = await confirm({
+      title: 'Delete Item',
+      message: 'Are you sure you want to delete this folder?',
+      confirmLabel: 'Delete',
+      cancelLabel: 'Cancel',
+      destructive: true,
+    });
+    if (!confirmed) return;
+
     try {
       await api.delete(`/my-files/folders/${subfolderId}`);
       if (selectedSubfolder === subfolderId) setSelectedSubfolder(null);
@@ -207,6 +243,49 @@ export default function MyFilesPage() {
       await loadFiles();
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to delete subfolder');
+    }
+  };
+
+  const openRenameFolder = (folderId, name) => {
+    if (!folderId) return;
+    setRenameTarget({ type: 'folder', id: folderId, name });
+  };
+
+  const openRenameFile = (file) => {
+    setRenameTarget({
+      type: 'file',
+      id: file._id,
+      name: file.originalName || file.name,
+    });
+  };
+
+  const handleRenameConfirm = async (newName) => {
+    if (!renameTarget?.id || !newName?.trim()) return;
+
+    try {
+      if (renameTarget.type === 'file') {
+        await api.put(`/my-files/${renameTarget.id}`, { name: newName.trim() });
+        if (previewFile && toId(previewFile._id) === toId(renameTarget.id)) {
+          setPreviewFile((prev) =>
+            prev ? { ...prev, originalName: newName.trim(), name: newName.trim() } : null
+          );
+        }
+        await loadFiles();
+      } else {
+        await api.put(`/my-files/folders/${renameTarget.id}`, {
+          name: newName.trim(),
+        });
+        await loadTree();
+        await loadFiles();
+      }
+      setRenameTarget(null);
+    } catch (err) {
+      setError(
+        err.response?.data?.message ||
+          (renameTarget.type === 'file'
+            ? 'Failed to rename file'
+            : 'Failed to rename folder')
+      );
     }
   };
 
@@ -226,11 +305,22 @@ export default function MyFilesPage() {
     <div className="-mx-4 my-1 flex min-h-[calc(100vh-8rem)] flex-col sm:-mx-6">
       {previewFile && (
         <FilePreviewModal
+          key={toId(previewFile._id)}
           file={previewFile}
           previewPath={`/my-files/preview/${previewFile._id}`}
           onClose={() => setPreviewFile(null)}
         />
       )}
+
+      <ConfirmDialog {...dialogProps} />
+
+      <RenameDialog
+        open={Boolean(renameTarget)}
+        currentName={renameTarget?.name || ''}
+        title={renameTarget?.type === 'file' ? 'Rename file' : 'Rename folder'}
+        onConfirm={handleRenameConfirm}
+        onCancel={() => setRenameTarget(null)}
+      />
 
       <div className="flex min-h-0 flex-1 overflow-hidden">
         <FolderSidebar
@@ -240,6 +330,9 @@ export default function MyFilesPage() {
           selectedSubfolderId={selectedSubfolder}
           onSelect={setSelectedSubfolder}
           canManageSubfolders
+          showContextMenu
+          personalContextMenu
+          onRenameFolder={openRenameFolder}
           newSubfolderName={newSubfolder}
           onNewSubfolderNameChange={setNewSubfolder}
           onCreateSubfolder={handleCreateSubfolder}
@@ -315,10 +408,15 @@ export default function MyFilesPage() {
                     ) : (
                       <FileTable
                         embedded
+                        showContextMenu
+                        personalContextMenu
                         folders={currentSubfolders}
                         files={displayedFiles}
                         onOpenFolder={setSelectedSubfolder}
                         onDeleteFolder={handleDeleteSubfolder}
+                        onRenameFolder={openRenameFolder}
+                        onRenameFile={openRenameFile}
+                        onOpenFile={handleOpenFile}
                         canDeleteFolder
                         sortBy={sortBy}
                         sortDir={sortDir}

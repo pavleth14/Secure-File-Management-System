@@ -13,12 +13,14 @@ import {
   assertMyFilesStorageLimit,
   findOwnedPersonalFile,
   serializePersonalFile,
+  renamePersonalFile,
 } from '../services/myFilesService.js';
 import {
   createPersonalFolder,
   deletePersonalFolder,
   getPersonalFoldersTree,
   listPersonalFolderChildren,
+  renamePersonalFolder,
 } from '../services/personalFolderService.js';
 import { buildPersonalMongoSort, needsInMemorySort, sortFiles } from '../utils/fileSort.js';
 import { auditLog, buildActorLabel } from '../services/auditLogService.js';
@@ -43,6 +45,20 @@ router.post('/folders', async (req, res, next) => {
     const { name, parentFolderId = null } = req.body;
     const folder = await createPersonalFolder(req.user._id, name, parentFolderId || null);
     res.status(201).json({ folder });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.put('/folders/:folderId', async (req, res, next) => {
+  try {
+    const { name } = req.body;
+    const folder = await renamePersonalFolder(
+      req.user._id,
+      req.params.folderId,
+      name
+    );
+    res.json({ folder });
   } catch (err) {
     next(err);
   }
@@ -199,6 +215,28 @@ router.get('/download/:id', async (req, res, next) => {
     });
 
     res.download(resolveFullPath(file.relativePath), file.name);
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.put('/:id', async (req, res, next) => {
+  try {
+    const { name } = req.body;
+    const file = await renamePersonalFile(req.user._id, req.params.id, name);
+
+    await auditLog({
+      user: req.user,
+      action: AUDIT_ACTIONS.FILE_RENAME,
+      category: AUDIT_CATEGORIES.EDIT,
+      targetType: TARGET_TYPES.PERSONAL_FILE,
+      targetId: file._id,
+      targetName: file.name,
+      details: `${buildActorLabel(req.user)} renamed personal file to ${file.name}`,
+      req,
+    });
+
+    res.json({ file: serializePersonalFile(file) });
   } catch (err) {
     next(err);
   }
