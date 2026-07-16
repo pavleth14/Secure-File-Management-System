@@ -1,3 +1,4 @@
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import GlobalSearch from './GlobalSearch';
@@ -5,11 +6,144 @@ import ThemeToggle from './ThemeToggle';
 import UploadManager from './UploadManager';
 import logo from '../assets/logo2.png';
 
-const navLinkClass = (active) =>
-  `px-3 py-2 rounded-lg text-sm font-medium transition-colors ${active
-    ? 'bg-brand-600 text-white'
-    : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-700 dark:hover:text-white'
-  }`;
+const dropdownLinkClass = () =>
+  'nav-dropdown-link mx-1.5 my-0.5 block rounded-full px-4 py-2.5 text-sm font-medium transition-all duration-300 ease-in-out';
+
+function TopNavItem({ active, children, className = '', ...props }) {
+  return (
+    <button
+      type="button"
+      className={`nav-top-item rounded-full px-5 py-2.5 text-sm font-medium transition-all duration-300 ease-in-out ${
+        active ? 'nav-top-item-active' : ''
+      } ${className}`}
+      {...props}
+    >
+      {children}
+    </button>
+  );
+}
+
+function DatabaseDropdown({ links, location }) {
+  const [open, setOpen] = useState(false);
+  const containerRef = useRef(null);
+
+  const isDatabaseActive = useMemo(
+    () =>
+      links.some((link) =>
+        link.to === '/admin'
+          ? location.pathname === '/admin'
+          : location.pathname.startsWith(link.to)
+      ),
+    [links, location.pathname]
+  );
+
+  const close = useCallback(() => setOpen(false), []);
+
+  useEffect(() => {
+    const handlePointerDown = (event) => {
+      if (!containerRef.current?.contains(event.target)) {
+        close();
+      }
+    };
+
+    const handleEscape = (event) => {
+      if (event.key === 'Escape') close();
+    };
+
+    document.addEventListener('pointerdown', handlePointerDown);
+    document.addEventListener('keydown', handleEscape);
+    return () => {
+      document.removeEventListener('pointerdown', handlePointerDown);
+      document.removeEventListener('keydown', handleEscape);
+    };
+  }, [close]);
+
+  return (
+    <div
+      ref={containerRef}
+      className="relative"
+      onMouseEnter={() => setOpen(true)}
+      onMouseLeave={() => setOpen(false)}
+    >
+      <TopNavItem
+        active={isDatabaseActive || open}
+        aria-expanded={open}
+        aria-haspopup="true"
+        onClick={() => setOpen((prev) => !prev)}
+      >
+        Database
+        <span
+          className={`ml-1.5 inline-block transition-transform duration-300 ease-in-out ${
+            open ? 'rotate-180' : 'rotate-0'
+          }`}
+          aria-hidden
+        >
+          ▾
+        </span>
+      </TopNavItem>
+
+      <div
+        className={`absolute left-0 top-full z-50 min-w-[11rem] pt-2 transition-all ease-in-out ${
+          open
+            ? 'pointer-events-auto translate-y-0 opacity-100'
+            : 'pointer-events-none -translate-y-2 opacity-0'
+        }`}
+        style={{ transitionDuration: '350ms' }}
+      >
+        <div className="rounded-xl border border-slate-200 bg-white px-1 py-1.5 shadow-lg dark:border-slate-600 dark:bg-slate-800">
+          {links.map((link) => (
+              <Link
+                key={link.to}
+                to={link.to}
+                className={dropdownLinkClass()}
+                onClick={close}
+                aria-current={
+                  (link.to === '/admin'
+                    ? location.pathname === '/admin'
+                    : location.pathname.startsWith(link.to))
+                    ? 'page'
+                    : undefined
+                }
+              >
+                {link.label}
+              </Link>
+            ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function BoardNavItem() {
+  const [showTooltip, setShowTooltip] = useState(false);
+
+  return (
+    <div className="relative">
+      <TopNavItem
+        active={showTooltip}
+        aria-describedby="board-coming-soon"
+        onMouseEnter={() => setShowTooltip(true)}
+        onMouseLeave={() => setShowTooltip(false)}
+        onFocus={() => setShowTooltip(true)}
+        onBlur={() => setShowTooltip(false)}
+      >
+        Board
+      </TopNavItem>
+
+      <div
+        id="board-coming-soon"
+        role="tooltip"
+        className={`pointer-events-none absolute left-1/2 top-full z-50 mt-2 -translate-x-1/2 whitespace-nowrap rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 shadow-md transition-all duration-300 ease-in-out dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 ${
+          showTooltip
+            ? 'translate-y-0 opacity-100'
+            : '-translate-y-1 opacity-0'
+        }`}
+      >
+        Coming Soon
+      </div>
+    </div>
+  );
+}
 
 export default function Layout() {
   const { user, logout, isSuperAdmin, isAdmin } = useAuth();
@@ -23,7 +157,6 @@ export default function Layout() {
 
   if (isAdmin) {
     links.push({ to: '/users', label: 'Users' });
- 
     links.push({ to: '/admin/logs', label: 'Logs' });
   }
 
@@ -35,50 +168,29 @@ export default function Layout() {
     <div className="min-h-screen">
       <header className="border-b border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-900">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-4 sm:px-6">
-          {/* Left Section */}
           <div className="flex items-center gap-16">
             <div className="flex items-center gap-6">
-              <Link
-                to="/dashboard">
+              <Link to="/dashboard">
                 <img
                   src={logo}
                   alt="TBF File Manager"
                   className="h-12 w-24 rounded"
                 />
               </Link>
-        
             </div>
 
-            {/* Navigation + Search */}
-            <div className="flex w-fit gap-3">
-              <nav className="flex  gap-1">
-                {links.map((link) => {
-                  const isActive =
-                    link.to === '/admin'
-                      ? location.pathname === '/admin'
-                      : location.pathname.startsWith(link.to);
-
-                  return (
-                    <Link
-                      key={link.to}
-                      to={link.to}
-                      className={navLinkClass(isActive)}
-                    >
-                      {link.label}
-                    </Link>
-                  );
-                })}
+            <div className="flex w-fit gap-1">
+              <nav className="flex items-center gap-1">
+                <DatabaseDropdown links={links} location={location} />
+                <BoardNavItem />
               </nav>
-
-    
-        
-        </div>
-
+            </div>
           </div>
 
-          {/* Right Section */}
           <div className="flex w-[500px] items-center gap-4">
-          <div className='flex items-center w-full'><GlobalSearch/></div>
+            <div className="flex w-full items-center">
+              <GlobalSearch />
+            </div>
 
             <ThemeToggle />
 
@@ -95,7 +207,7 @@ export default function Layout() {
 
             <button
               onClick={logout}
-              className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-700"
+              className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-700 transition-colors duration-200 ease-in-out hover:bg-slate-50 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-700"
             >
               Logout
             </button>
@@ -104,10 +216,11 @@ export default function Layout() {
       </header>
 
       <main
-        className={`mx-auto w-full px-4 sm:px-6 ${location.pathname.includes('/files') || location.pathname.startsWith('/my-files')
+        className={`mx-auto w-full px-4 sm:px-6 ${
+          location.pathname.includes('/files') || location.pathname.startsWith('/my-files')
             ? 'max-w-full py-0'
             : 'max-w-7xl py-8'
-          }`}
+        }`}
       >
         <Outlet />
       </main>

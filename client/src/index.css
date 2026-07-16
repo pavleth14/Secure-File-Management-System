@@ -2,8 +2,15 @@
 @tailwind components;
 @tailwind utilities;
 
+@layer base {
+  html {
+    font-family: ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji',
+      'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
+  }
+}
+
 body {
-  @apply bg-slate-50 text-slate-900 antialiased transition-colors duration-200;
+  @apply bg-slate-50 font-sans text-slate-900 antialiased transition-colors duration-200;
 }
 
 .dark body {
@@ -32,4 +39,45 @@ body {
 /* Native form controls follow the theme (date pickers, selects, checkboxes). */
 .dark {
   color-scheme: dark;
+}
+
+/* Top navigation pill hover */
+.nav-top-item {
+  color: rgb(71 85 105);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+}
+
+.dark .nav-top-item {
+  color: rgb(203 213 225);
+}
+
+.nav-top-item:hover,
+.nav-top-item:focus-visible,
+.nav-top-item-active {
+  background-color: #eab307;
+  color: rgb(15 23 42);
+}
+
+.dark .nav-top-item:hover,
+.dark .nav-top-item:focus-visible,
+.dark .nav-top-item-active {
+  color: rgb(15 23 42);
+}
+
+/* Database dropdown pill hover */
+.nav-dropdown-link {
+  color: rgb(71 85 105);
+  background: transparent;
+}
+
+.dark .nav-dropdown-link {
+  color: rgb(203 213 225);
+}
+
+.nav-dropdown-link:hover,
+.nav-dropdown-link:focus-visible {
+  background-color: #eab307;
+  color: rgb(15 23 42);
 }
