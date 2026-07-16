@@ -12,6 +12,14 @@ import AdminPage from './pages/AdminPage';
 import UsersPage from './pages/UsersPage';
 import GroupsPage from './pages/GroupsPage';
 import LogsPage from './pages/LogsPage';
+import RecruiterBoardPage from './pages/RecruiterBoardPage';
+import ImportLeadsPage from './pages/ImportLeadsPage';
+import ArchiveLeadsPage from './pages/ArchiveLeadsPage';
+import LeadSourcesPage from './pages/LeadSourcesPage';
+import {
+  RecruitingBoardGuard,
+  RecruitingManagerGuard,
+} from './components/RecruitingGuard';
 
 function ProtectedRoute({ children, roles }) {
   const { user, loading } = useAuth();
@@ -101,6 +109,38 @@ export default function App() {
             <RoleGuard roles={['SUPER_ADMIN', 'ADMIN']}>
               <LogsPage />
             </RoleGuard>
+          }
+        />
+        <Route
+          path="/recruiting/boards/:userId"
+          element={
+            <RecruitingBoardGuard>
+              <RecruiterBoardPage />
+            </RecruitingBoardGuard>
+          }
+        />
+        <Route
+          path="/recruiting/import"
+          element={
+            <RecruitingManagerGuard>
+              <ImportLeadsPage />
+            </RecruitingManagerGuard>
+          }
+        />
+        <Route
+          path="/recruiting/archive"
+          element={
+            <RecruitingManagerGuard>
+              <ArchiveLeadsPage />
+            </RecruitingManagerGuard>
+          }
+        />
+        <Route
+          path="/recruiting/sources"
+          element={
+            <RecruitingManagerGuard>
+              <LeadSourcesPage />
+            </RecruitingManagerGuard>
           }
         />
       </Route>

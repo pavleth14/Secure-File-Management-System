@@ -19,6 +19,8 @@ export default function UsersPage() {
     password: '',
     role: 'USER',
     groupId: '',
+    isRecruiter: false,
+    isRecruitingManager: false,
   });
 
   const canChangePassword = (user) => {
@@ -66,7 +68,15 @@ export default function UsersPage() {
         groupId: form.groupId || null,
       });
       setShowForm(false);
-      setForm({ name: '', email: '', password: '', role: 'USER', groupId: '' });
+      setForm({
+        name: '',
+        email: '',
+        password: '',
+        role: 'USER',
+        groupId: '',
+        isRecruiter: false,
+        isRecruitingManager: false,
+      });
       await load();
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to create user');
@@ -96,6 +106,15 @@ export default function UsersPage() {
       setError('');
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to change password');
+    }
+  };
+
+  const handleRecruitingFlagChange = async (userId, field, value) => {
+    try {
+      await api.put(`/users/${userId}`, { [field]: value });
+      await load();
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to update recruiting flags');
     }
   };
 
@@ -230,6 +249,37 @@ export default function UsersPage() {
               ))}
             </select>
           </div>
+
+          {isSuperAdmin && (
+            <div className="mt-4 border-t border-slate-200 pt-4 dark:border-slate-700">
+              <h3 className="mb-3 text-sm font-semibold text-slate-900 dark:text-slate-100">
+                Recruiting
+              </h3>
+              <div className="flex flex-col gap-2 sm:flex-row sm:gap-6">
+                <label className="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-300">
+                  <input
+                    type="checkbox"
+                    checked={form.isRecruiter}
+                    onChange={(e) => setForm({ ...form, isRecruiter: e.target.checked })}
+                    className="rounded border-slate-300 dark:border-slate-600"
+                  />
+                  Is Recruiter
+                </label>
+                <label className="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-300">
+                  <input
+                    type="checkbox"
+                    checked={form.isRecruitingManager}
+                    onChange={(e) =>
+                      setForm({ ...form, isRecruitingManager: e.target.checked })
+                    }
+                    className="rounded border-slate-300 dark:border-slate-600"
+                  />
+                  Is Recruiting Manager
+                </label>
+              </div>
+            </div>
+          )}
+
           <button
             type="submit"
             className="mt-4 rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white"
@@ -255,6 +305,11 @@ export default function UsersPage() {
               <th className="px-4 py-3 text-left text-xs font-medium uppercase text-slate-500 dark:text-slate-400">
                 Group
               </th>
+              {isSuperAdmin && (
+                <th className="px-4 py-3 text-left text-xs font-medium uppercase text-slate-500 dark:text-slate-400">
+                  Recruiting
+                </th>
+              )}
               <th className="px-4 py-3 text-right text-xs font-medium uppercase text-slate-500 dark:text-slate-400">
                 Actions
               </th>
@@ -280,6 +335,38 @@ export default function UsersPage() {
                     ))}
                   </select>
                 </td>
+                {isSuperAdmin && (
+                  <td className="px-4 py-3">
+                    <div className="flex flex-col gap-1.5 text-sm">
+                      <label className="flex items-center gap-2 text-slate-700 dark:text-slate-300">
+                        <input
+                          type="checkbox"
+                          checked={Boolean(user.isRecruiter)}
+                          onChange={(e) =>
+                            handleRecruitingFlagChange(user.id, 'isRecruiter', e.target.checked)
+                          }
+                          className="rounded border-slate-300 dark:border-slate-600"
+                        />
+                        Recruiter
+                      </label>
+                      <label className="flex items-center gap-2 text-slate-700 dark:text-slate-300">
+                        <input
+                          type="checkbox"
+                          checked={Boolean(user.isRecruitingManager)}
+                          onChange={(e) =>
+                            handleRecruitingFlagChange(
+                              user.id,
+                              'isRecruitingManager',
+                              e.target.checked
+                            )
+                          }
+                          className="rounded border-slate-300 dark:border-slate-600"
+                        />
+                        Manager
+                      </label>
+                    </div>
+                  </td>
+                )}
                 <td className="px-4 py-3 text-right whitespace-nowrap">
                   {canChangePassword(user) && (
                     <button

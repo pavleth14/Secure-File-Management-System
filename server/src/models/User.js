@@ -22,6 +22,8 @@ const userSchema = new mongoose.Schema(
       ref: 'Group',
       default: null,
     },
+    isRecruiter: { type: Boolean, default: false },
+    isRecruitingManager: { type: Boolean, default: false },
   },
   { timestamps: true }
 );

@@ -11,6 +11,7 @@ export const AUDIT_CATEGORIES = {
   FOLDERS: 'folders',
   AUTH: 'auth',
   SYSTEM: 'system',
+  RECRUITING: 'recruiting',
 };
 
 export const AUDIT_ACTIONS = {
@@ -53,6 +54,15 @@ export const AUDIT_ACTIONS = {
 
   SETTINGS_UPDATE: 'SETTINGS_UPDATE',
   SYSTEM_CONFIGURATION_CHANGE: 'SYSTEM_CONFIGURATION_CHANGE',
+
+  LEAD_CREATE: 'LEAD_CREATE',
+  LEAD_IMPORT: 'LEAD_IMPORT',
+  LEAD_UPDATE: 'LEAD_UPDATE',
+  LEAD_REASSIGN: 'LEAD_REASSIGN',
+  LEAD_ARCHIVE: 'LEAD_ARCHIVE',
+  LEAD_COMMENT_ADD: 'LEAD_COMMENT_ADD',
+  LEAD_COMMENT_EDIT: 'LEAD_COMMENT_EDIT',
+  LEAD_SOURCE_CREATE: 'LEAD_SOURCE_CREATE',
 };
 
 export const TARGET_TYPES = {
@@ -65,4 +75,6 @@ export const TARGET_TYPES = {
   ROLE: 'role',
   SYSTEM: 'system',
   AUTH: 'auth',
+  LEAD: 'lead',
+  LEAD_SOURCE: 'lead_source',
 };

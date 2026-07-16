@@ -18,6 +18,8 @@ import logRoutes from './routes/logRoutes.js';
 import myFilesRoutes from './routes/myFilesRoutes.js';
 import favoritesRoutes from './routes/favoritesRoutes.js';
 import dashboardRoutes from './routes/dashboardRoutes.js';
+import recruitingRoutes from './routes/recruitingRoutes.js';
+import { ensureDefaultLeadSources } from './services/leadSourceService.js';
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -80,12 +82,14 @@ app.use('/api/logs', logRoutes);
 app.use('/api/my-files', myFilesRoutes);
 app.use('/api/favorites', favoritesRoutes);
 app.use('/api/dashboard', dashboardRoutes);
+app.use('/api/recruiting', recruitingRoutes);
 
 app.use(errorHandler);
 
 async function start() {
   await connectDB();
   await seedDatabase();
+  await ensureDefaultLeadSources();
   const server = app.listen(PORT, '0.0.0.0', () => {
     console.log(`Server running on http://0.0.0.0:${PORT}`);
   });

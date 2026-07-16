@@ -150,6 +150,9 @@ export function AuthProvider({ children }) {
   const isAdminOnly = user?.role === ROLES.ADMIN;
   const isAdmin = user?.role === ROLES.ADMIN || isSuperAdmin;
   const isUser = user?.role === ROLES.USER;
+  const isRecruiter = Boolean(user?.isRecruiter);
+  const isRecruitingManager = Boolean(user?.isRecruitingManager);
+  const hasRecruitingAccess = isRecruiter || isRecruitingManager;
 
   return (
     <AuthContext.Provider
@@ -166,6 +169,9 @@ export function AuthProvider({ children }) {
         isAdminOnly,
         isAdmin,
         isUser,
+        isRecruiter,
+        isRecruitingManager,
+        hasRecruitingAccess,
       }}
     >
       {children}

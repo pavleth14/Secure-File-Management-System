@@ -37,6 +37,7 @@ import {
   getSuperAdminEmailFromEnv,
   EMAIL_INVALID_MESSAGE,
 } from '../utils/emailValidation.js';
+import { formatUserResponse } from '../utils/userFormat.js';
 
 const router = Router();
 
@@ -447,15 +448,7 @@ router.get('/session-events', async (req, res, next) => {
 });
 
 function sanitizeUser(user) {
-  const obj = user.toObject ? user.toObject() : user;
-  return {
-    id: obj._id,
-    name: obj.name,
-    email: obj.email,
-    role: obj.role,
-    groupId: obj.groupId?._id || obj.groupId || null,
-    group: obj.groupId?.name ? { id: obj.groupId._id, name: obj.groupId.name } : null,
-  };
+  return formatUserResponse(user);
 }
 
 export default router;

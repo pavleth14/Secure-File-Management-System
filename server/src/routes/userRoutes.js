@@ -8,6 +8,7 @@ import { roleMiddleware, canManageTargetUser } from '../middleware/roleMiddlewar
 import { auditLog, buildActorLabel } from '../services/auditLogService.js';
 import { AUDIT_ACTIONS, AUDIT_CATEGORIES, TARGET_TYPES } from '../config/auditConstants.js';
 import { isValidEmail, EMAIL_INVALID_MESSAGE } from '../utils/emailValidation.js';
+import { formatUserResponse } from '../utils/userFormat.js';
 
 const router = Router();
 
@@ -34,7 +35,7 @@ router.get('/', async (req, res, next) => {
 
 router.post('/', async (req, res, next) => {
   try {
-    const { name, email, password, role, groupId } = req.body;
+    const { name, email, password, role, groupId, isRecruiter, isRecruitingManager } = req.body;
 
     if (!name || !email || !password) {
       return res.status(400).json({ message: 'Name, email and password required' });
@@ -71,13 +72,22 @@ router.post('/', async (req, res, next) => {
     }
 
     const passwordHash = await bcrypt.hash(password, 12);
-    const user = await User.create({
+    const createPayload = {
       name,
       email: email.toLowerCase(),
       passwordHash,
       role: assignedRole,
       groupId: groupId || null,
-    });
+    };
+
+    if (req.user.role === ROLES.SUPER_ADMIN) {
+      if (isRecruiter !== undefined) createPayload.isRecruiter = Boolean(isRecruiter);
+      if (isRecruitingManager !== undefined) {
+        createPayload.isRecruitingManager = Boolean(isRecruitingManager);
+      }
+    }
+
+    const user = await User.create(createPayload);
 
     const populated = await User.findById(user._id)
       .select('-passwordHash')
@@ -112,7 +122,7 @@ router.put('/:id', async (req, res, next) => {
       return res.status(403).json({ message: 'Cannot manage this user' });
     }
 
-    const { name, email, password, role, groupId } = req.body;
+    const { name, email, password, role, groupId, isRecruiter, isRecruitingManager } = req.body;
     const oldRole = target.role;
     const oldGroupId = target.groupId?.toString() || null;
     const oldValues = {
@@ -158,6 +168,13 @@ router.put('/:id', async (req, res, next) => {
         }
       }
       target.groupId = groupId || null;
+    }
+
+    if (req.user.role === ROLES.SUPER_ADMIN) {
+      if (isRecruiter !== undefined) target.isRecruiter = Boolean(isRecruiter);
+      if (isRecruitingManager !== undefined) {
+        target.isRecruitingManager = Boolean(isRecruitingManager);
+      }
     }
 
     await target.save();
@@ -278,15 +295,7 @@ router.delete('/:id', async (req, res, next) => {
 });
 
 function formatUser(user) {
-  return {
-    id: user._id,
-    name: user.name,
-    email: user.email,
-    role: user.role,
-    groupId: user.groupId?._id || user.groupId || null,
-    groupName: user.groupId?.name || null,
-    createdAt: user.createdAt,
-  };
+  return formatUserResponse(user);
 }
 
 export default router;

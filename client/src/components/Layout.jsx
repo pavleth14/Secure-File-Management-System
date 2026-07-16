@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import api from '../api/client';
 import GlobalSearch from './GlobalSearch';
 import ThemeToggle from './ThemeToggle';
 import UploadManager from './UploadManager';
@@ -145,9 +146,133 @@ function BoardNavItem() {
   );
 }
 
+function RecruitingDropdown({ boards, showImportLeads, location }) {
+  const [open, setOpen] = useState(false);
+  const containerRef = useRef(null);
+
+  const isRecruitingActive = useMemo(
+    () =>
+      location.pathname.startsWith('/recruiting/boards') ||
+      location.pathname.startsWith('/recruiting/import') ||
+      location.pathname.startsWith('/recruiting/archive') ||
+      location.pathname.startsWith('/recruiting/sources'),
+    [location.pathname]
+  );
+
+  const close = useCallback(() => setOpen(false), []);
+
+  useEffect(() => {
+    const handlePointerDown = (event) => {
+      if (!containerRef.current?.contains(event.target)) {
+        close();
+      }
+    };
+
+    const handleEscape = (event) => {
+      if (event.key === 'Escape') close();
+    };
+
+    document.addEventListener('pointerdown', handlePointerDown);
+    document.addEventListener('keydown', handleEscape);
+    return () => {
+      document.removeEventListener('pointerdown', handlePointerDown);
+      document.removeEventListener('keydown', handleEscape);
+    };
+  }, [close]);
+
+  return (
+    <div
+      ref={containerRef}
+      className="relative"
+      onMouseEnter={() => setOpen(true)}
+      onMouseLeave={() => setOpen(false)}
+    >
+      <TopNavItem
+        active={isRecruitingActive || open}
+        aria-expanded={open}
+        aria-haspopup="true"
+        onClick={() => setOpen((prev) => !prev)}
+      >
+        Recruiting
+        <span
+          className={`ml-1.5 inline-block transition-transform duration-300 ease-in-out ${
+            open ? 'rotate-180' : 'rotate-0'
+          }`}
+          aria-hidden
+        >
+          ▾
+        </span>
+      </TopNavItem>
+
+      <div
+        className={`absolute left-0 top-full z-50 min-w-[11rem] pt-2 transition-all ease-in-out ${
+          open
+            ? 'pointer-events-auto translate-y-0 opacity-100'
+            : 'pointer-events-none -translate-y-2 opacity-0'
+        }`}
+        style={{ transitionDuration: '350ms' }}
+      >
+        <div className="rounded-xl border border-slate-200 bg-white px-1 py-1.5 shadow-lg dark:border-slate-600 dark:bg-slate-800">
+          {boards.map((board) => (
+            <Link
+              key={board.userId}
+              to={`/recruiting/boards/${board.userId}`}
+              className={dropdownLinkClass()}
+              onClick={close}
+              aria-current={
+                location.pathname === `/recruiting/boards/${board.userId}`
+                  ? 'page'
+                  : undefined
+              }
+            >
+              {board.label}
+            </Link>
+          ))}
+          {showImportLeads && (
+            <>
+              <Link
+                to="/recruiting/import"
+                className={dropdownLinkClass()}
+                onClick={close}
+                aria-current={
+                  location.pathname.startsWith('/recruiting/import') ? 'page' : undefined
+                }
+              >
+                Import Leads
+              </Link>
+              <Link
+                to="/recruiting/archive"
+                className={dropdownLinkClass()}
+                onClick={close}
+                aria-current={
+                  location.pathname.startsWith('/recruiting/archive') ? 'page' : undefined
+                }
+              >
+                Archive
+              </Link>
+              <Link
+                to="/recruiting/sources"
+                className={dropdownLinkClass()}
+                onClick={close}
+                aria-current={
+                  location.pathname.startsWith('/recruiting/sources') ? 'page' : undefined
+                }
+              >
+                Lead Sources
+              </Link>
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function Layout() {
-  const { user, logout, isSuperAdmin, isAdmin } = useAuth();
+  const { user, logout, isSuperAdmin, isAdmin, hasRecruitingAccess, isRecruitingManager } =
+    useAuth();
   const location = useLocation();
+  const [recruitingBoards, setRecruitingBoards] = useState([]);
 
   const links = [
     { to: '/dashboard', label: 'Dashboard' },
@@ -163,6 +288,34 @@ export default function Layout() {
   if (isSuperAdmin) {
     links.push({ to: '/groups', label: 'Groups' });
   }
+
+  useEffect(() => {
+    if (!hasRecruitingAccess) {
+      setRecruitingBoards([]);
+      return undefined;
+    }
+
+    let cancelled = false;
+
+    async function loadBoards() {
+      try {
+        const { data } = await api.get('/recruiting/boards');
+        if (!cancelled) {
+          setRecruitingBoards(data.boards || []);
+        }
+      } catch {
+        if (!cancelled) {
+          setRecruitingBoards([]);
+        }
+      }
+    }
+
+    loadBoards();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [hasRecruitingAccess, user?.id]);
 
   return (
     <div className="min-h-screen">
@@ -182,6 +335,13 @@ export default function Layout() {
             <div className="flex w-fit gap-1">
               <nav className="flex items-center gap-1">
                 <DatabaseDropdown links={links} location={location} />
+                {hasRecruitingAccess && (
+                  <RecruitingDropdown
+                    boards={recruitingBoards}
+                    showImportLeads={isRecruitingManager}
+                    location={location}
+                  />
+                )}
                 <BoardNavItem />
               </nav>
             </div>
