@@ -146,9 +146,14 @@ function BoardNavItem() {
   );
 }
 
-function RecruitingDropdown({ boards, showImportLeads, location }) {
+function RecruitingDropdown({ boards, showImportLeads, location, currentUserId, isRecruiter }) {
   const [open, setOpen] = useState(false);
   const containerRef = useRef(null);
+
+  const showOwnBoardDivider = useMemo(() => {
+    if (!isRecruiter || boards.length <= 1 || !currentUserId) return false;
+    return boards[0]?.userId?.toString?.() === currentUserId.toString();
+  }, [boards, currentUserId, isRecruiter]);
 
   const isRecruitingActive = useMemo(
     () =>
@@ -213,20 +218,28 @@ function RecruitingDropdown({ boards, showImportLeads, location }) {
         style={{ transitionDuration: '350ms' }}
       >
         <div className="rounded-xl border border-slate-200 bg-white px-1 py-1.5 shadow-lg dark:border-slate-600 dark:bg-slate-800">
-          {boards.map((board) => (
-            <Link
-              key={board.userId}
-              to={`/recruiting/boards/${board.userId}`}
-              className={dropdownLinkClass()}
-              onClick={close}
-              aria-current={
-                location.pathname === `/recruiting/boards/${board.userId}`
-                  ? 'page'
-                  : undefined
-              }
-            >
-              {board.label}
-            </Link>
+          {boards.map((board, index) => (
+            <div key={board.userId}>
+              <Link
+                to={`/recruiting/boards/${board.userId}`}
+                className={dropdownLinkClass()}
+                onClick={close}
+                aria-current={
+                  location.pathname === `/recruiting/boards/${board.userId}`
+                    ? 'page'
+                    : undefined
+                }
+              >
+                {board.label}
+              </Link>
+              {showOwnBoardDivider && index === 0 && (
+                <div
+                  className="my-1 border-t border-slate-200 dark:border-slate-600"
+                  role="separator"
+                  aria-hidden
+                />
+              )}
+            </div>
           ))}
           {showImportLeads && (
             <>
@@ -269,7 +282,7 @@ function RecruitingDropdown({ boards, showImportLeads, location }) {
 }
 
 export default function Layout() {
-  const { user, logout, isSuperAdmin, isAdmin, hasRecruitingAccess, isRecruitingManager } =
+  const { user, logout, isSuperAdmin, isAdmin, hasRecruitingAccess, isRecruitingManager, isRecruiter } =
     useAuth();
   const location = useLocation();
   const [recruitingBoards, setRecruitingBoards] = useState([]);
@@ -340,6 +353,8 @@ export default function Layout() {
                     boards={recruitingBoards}
                     showImportLeads={isRecruitingManager}
                     location={location}
+                    currentUserId={user?.id}
+                    isRecruiter={isRecruiter}
                   />
                 )}
                 <BoardNavItem />

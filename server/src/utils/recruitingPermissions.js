@@ -17,3 +17,16 @@ export function hasRecruitingModuleAccess(user) {
 export function hasRecruitingAllBoardsAccess(user) {
   return Boolean(user?.isRecruitingManager || isRecruitingModuleUser(user));
 }
+
+export function isOwnRecruiterBoard(user, boardUserId) {
+  return Boolean(
+    user?.isRecruiter && user._id.toString() === boardUserId.toString()
+  );
+}
+
+export function canMutateLeadsOnBoard(user, boardUserId) {
+  if (user?.isRecruitingManager) return true;
+  if (isRecruitingModuleUser(user)) return true;
+  if (isOwnRecruiterBoard(user, boardUserId)) return true;
+  return false;
+}

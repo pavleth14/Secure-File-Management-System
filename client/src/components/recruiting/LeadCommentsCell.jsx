@@ -8,12 +8,12 @@ import {
   sortCommentsNewestFirst,
 } from '../../utils/leadPermissions';
 
-function CommentItem({ comment, currentUserId, onEditComment }) {
+function CommentItem({ comment, currentUserId, onEditComment, readOnly }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(comment.text);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
-  const editable = canEditComment(comment, currentUserId);
+  const editable = !readOnly && onEditComment && canEditComment(comment, currentUserId);
 
   useEffect(() => {
     setDraft(comment.text);
@@ -104,6 +104,7 @@ export default function LeadCommentsCell({
   onClose,
   currentUserId,
   onEditComment,
+  readOnly = false,
 }) {
   const cellRef = useRef(null);
   const popoverRef = useRef(null);
@@ -250,7 +251,8 @@ export default function LeadCommentsCell({
                       key={comment.id}
                       comment={comment}
                       currentUserId={currentUserId}
-                      onEditComment={handleEditComment}
+                      onEditComment={onEditComment}
+                      readOnly={readOnly}
                     />
                   ))}
                 </ul>

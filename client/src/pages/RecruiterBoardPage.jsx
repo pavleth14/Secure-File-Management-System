@@ -39,6 +39,8 @@ function buildQueryParams(filters, recruiterId) {
 export default function RecruiterBoardPage() {
   const { userId } = useParams();
   const { user, isRecruitingManager, isRecruiter, isRecruitingModuleUser } = useAuth();
+  const isOwnBoard = user?.id === userId;
+  const boardReadOnly = isRecruiter && !isRecruitingManager && !isOwnBoard;
   const { sources } = useLeadSources();
   const { recruiters } = useRecruiters();
 
@@ -232,9 +234,11 @@ export default function RecruiterBoardPage() {
         <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
           {isRecruitingManager
             ? 'Viewing recruiter board as recruiting manager.'
-            : isRecruitingModuleUser
-              ? 'Viewing recruiter board.'
-              : 'Your assigned leads.'}
+            : boardReadOnly
+              ? 'View-only access to this recruiter board.'
+              : isRecruitingModuleUser
+                ? 'Viewing recruiter board.'
+                : 'Your assigned leads.'}
         </p>
       </div>
 
@@ -257,14 +261,15 @@ export default function RecruiterBoardPage() {
         leads={leads}
         isRecruitingManager={isRecruitingManager}
         isRecruiter={isRecruiter}
+        readOnly={boardReadOnly}
         currentUserId={user?.id}
         sortBy={filters.sortBy}
         sortDir={filters.sortDir}
         onSortChange={handleSortChange}
-        onUpdateLead={handleUpdateLead}
+        onUpdateLead={boardReadOnly ? undefined : handleUpdateLead}
         onViewLead={setViewLead}
-        onAddComment={setCommentLead}
-        onEditComment={handleEditComment}
+        onAddComment={boardReadOnly ? undefined : setCommentLead}
+        onEditComment={boardReadOnly ? undefined : handleEditComment}
         onAssignLead={isRecruitingManager ? setAssignLead : undefined}
         onArchiveLead={isRecruitingManager ? handleArchiveLead : undefined}
         loading={leadsLoading}

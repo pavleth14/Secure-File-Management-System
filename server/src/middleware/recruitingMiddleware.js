@@ -3,6 +3,8 @@ import {
   hasRecruitingModuleAccess,
   hasRecruitingAllBoardsAccess,
   isRecruitingModuleUser,
+  isOwnRecruiterBoard,
+  canMutateLeadsOnBoard,
 } from '../utils/recruitingPermissions.js';
 
 export function requireRecruitingAccess(req, res, next) {
@@ -21,7 +23,7 @@ export function requireRecruitingManager(req, res, next) {
 
 export function canAccessRecruiterBoard(user, boardUserId) {
   if (hasRecruitingAllBoardsAccess(user)) return true;
-  if (user.isRecruiter && user._id.toString() === boardUserId.toString()) return true;
+  if (user.isRecruiter) return true;
   return false;
 }
 
@@ -65,4 +67,4 @@ export async function loadLeadForUser(req, res, next) {
   }
 }
 
-export { canAccessLead, isRecruitingModuleUser };
+export { canAccessLead, isRecruitingModuleUser, isOwnRecruiterBoard, canMutateLeadsOnBoard };

@@ -22,7 +22,7 @@ export function canViewLead(user, lead) {
   const recruiterId =
     lead.assignedRecruiter?._id?.toString() || lead.assignedRecruiter?.toString();
 
-  if (user.isRecruiter && !lead.archived && recruiterId === user._id.toString()) {
+  if (user.isRecruiter && !lead.archived && recruiterId) {
     return true;
   }
   return false;
@@ -294,12 +294,11 @@ export async function listActiveLeads(user, options = {}) {
       filter.assignedRecruiter = recruiterId;
     }
   } else if (user.isRecruiter) {
-    if (recruiterId && recruiterId !== user._id.toString()) {
-      const err = new Error('Access denied to this board');
-      err.status = 403;
-      throw err;
+    if (recruiterId) {
+      filter.assignedRecruiter = recruiterId;
+    } else {
+      filter.assignedRecruiter = user._id;
     }
-    filter.assignedRecruiter = user._id;
   } else {
     const err = new Error('Recruiting access required');
     err.status = 403;

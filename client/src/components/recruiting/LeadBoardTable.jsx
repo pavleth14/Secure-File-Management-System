@@ -79,6 +79,7 @@ export default function LeadBoardTable({
   leads,
   isRecruitingManager,
   isRecruiter = false,
+  readOnly = false,
   currentUserId,
   sortBy,
   sortDir,
@@ -112,12 +113,15 @@ export default function LeadBoardTable({
         label: 'Open/View Lead',
         onClick: () => onViewLead(lead),
       },
-      {
+    ];
+
+    if (!readOnly && onAddComment) {
+      items.push({
         id: 'comment',
         label: 'Add Comment',
         onClick: () => onAddComment(lead),
-      },
-    ];
+      });
+    }
 
     if (isRecruitingManager && onAssignLead) {
       items.push({
@@ -206,9 +210,12 @@ export default function LeadBoardTable({
               </tr>
             ) : (
               leads.map((lead) => {
-                const personalEditable = canEditPersonalInfo(lead, isRecruitingManager);
-                const statusEditable = canEditStatus(isRecruitingManager, isRecruiter);
-                const driverTypeEditable = canEditDriverType(isRecruitingManager, isRecruiter);
+                const personalEditable =
+                  !readOnly && canEditPersonalInfo(lead, isRecruitingManager);
+                const statusEditable =
+                  !readOnly && canEditStatus(isRecruitingManager, isRecruiter);
+                const driverTypeEditable =
+                  !readOnly && canEditDriverType(isRecruitingManager, isRecruiter);
 
                 return (
                   <tr
@@ -326,7 +333,8 @@ export default function LeadBoardTable({
                       }
                       onClose={() => setOpenCommentsLeadId(null)}
                       currentUserId={currentUserId}
-                      onEditComment={onEditComment}
+                      onEditComment={readOnly ? undefined : onEditComment}
+                      readOnly={readOnly}
                     />
                   </tr>
                 );

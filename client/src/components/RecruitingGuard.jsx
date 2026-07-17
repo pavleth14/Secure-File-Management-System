@@ -1,4 +1,4 @@
-import { Navigate, useParams } from 'react-router-dom';
+import { Navigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
 export function RecruitingAccessGuard({ children }) {
@@ -22,20 +22,11 @@ export function RecruitingManagerGuard({ children }) {
 }
 
 export function RecruitingBoardGuard({ children }) {
-  const { user, hasRecruitingAccess, isRecruitingManager, isRecruitingModuleUser } = useAuth();
-  const { userId } = useParams();
+  const { hasRecruitingAccess } = useAuth();
 
   if (!hasRecruitingAccess) {
     return <Navigate to="/dashboard" replace />;
   }
 
-  if (isRecruitingManager || isRecruitingModuleUser) {
-    return children;
-  }
-
-  if (user.isRecruiter && user.id === userId) {
-    return children;
-  }
-
-  return <Navigate to="/dashboard" replace />;
+  return children;
 }

@@ -17,6 +17,14 @@ const router = Router();
 
 router.use(authMiddleware);
 
+async function buildRecruiterBoards() {
+  const recruiters = await User.find({ isRecruiter: true }).select('name').sort({ name: 1 });
+  return recruiters.map((recruiter) => ({
+    userId: recruiter._id,
+    label: recruiterBoardLabel(recruiter.name),
+  }));
+}
+
 async function buildManagerBoards() {
   const recruiters = await User.find({ isRecruiter: true }).select('name').sort({ name: 1 });
   const boards = recruiters.map((recruiter) => ({
@@ -60,13 +68,12 @@ router.get('/boards', requireRecruitingAccess, async (req, res, next) => {
     }
 
     if (req.user.isRecruiter) {
+      const boards = await buildRecruiterBoards();
+      const ownId = req.user._id.toString();
+      const ownBoard = boards.find((board) => board.userId.toString() === ownId);
+      const otherBoards = boards.filter((board) => board.userId.toString() !== ownId);
       return res.json({
-        boards: [
-          {
-            userId: req.user._id,
-            label: recruiterBoardLabel(req.user.name),
-          },
-        ],
+        boards: ownBoard ? [ownBoard, ...otherBoards] : boards,
       });
     }
 

@@ -4,6 +4,7 @@ import {
   requireRecruitingAccess,
   requireRecruitingManager,
   loadLeadForUser,
+  loadLeadForView,
 } from '../middleware/recruitingMiddleware.js';
 import {
   listActiveLeads,
@@ -129,7 +130,7 @@ router.get('/archived', requireRecruitingManager, async (req, res, next) => {
   }
 });
 
-router.get('/:id', loadLeadForUser, async (req, res) => {
+router.get('/:id', loadLeadForView, async (req, res) => {
   res.json({ lead: formatLead(req.lead) });
 });
 
