@@ -379,7 +379,9 @@ export default function Layout() {
         className={`mx-auto w-full px-4 sm:px-6 ${
           location.pathname.includes('/files') || location.pathname.startsWith('/my-files')
             ? 'max-w-full py-0'
-            : 'max-w-7xl py-8'
+            : location.pathname.startsWith('/recruiting/boards')
+              ? 'w-[95vw] max-w-[95vw] py-8'
+              : 'max-w-7xl py-8'
         }`}
       >
         <Outlet />

@@ -38,7 +38,7 @@ function buildQueryParams(filters, recruiterId) {
 
 export default function RecruiterBoardPage() {
   const { userId } = useParams();
-  const { user, isRecruitingManager } = useAuth();
+  const { user, isRecruitingManager, isRecruiter, isRecruitingModuleUser } = useAuth();
   const { sources } = useLeadSources();
   const { recruiters } = useRecruiters();
 
@@ -232,7 +232,9 @@ export default function RecruiterBoardPage() {
         <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
           {isRecruitingManager
             ? 'Viewing recruiter board as recruiting manager.'
-            : 'Your assigned leads.'}
+            : isRecruitingModuleUser
+              ? 'Viewing recruiter board.'
+              : 'Your assigned leads.'}
         </p>
       </div>
 
@@ -254,6 +256,7 @@ export default function RecruiterBoardPage() {
       <LeadBoardTable
         leads={leads}
         isRecruitingManager={isRecruitingManager}
+        isRecruiter={isRecruiter}
         currentUserId={user?.id}
         sortBy={filters.sortBy}
         sortDir={filters.sortDir}

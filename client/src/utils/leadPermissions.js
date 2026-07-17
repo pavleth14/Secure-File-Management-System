@@ -24,12 +24,12 @@ export function canEditPersonalInfo(lead, isRecruitingManager) {
   return isWithinPersonalInfoEditWindow(lead);
 }
 
-export function canEditStatus() {
-  return true;
+export function canEditStatus(isRecruitingManager, isRecruiter) {
+  return Boolean(isRecruitingManager || isRecruiter);
 }
 
-export function canEditDriverType() {
-  return true;
+export function canEditDriverType(isRecruitingManager, isRecruiter) {
+  return Boolean(isRecruitingManager || isRecruiter);
 }
 
 export function getLatestComment(comments) {

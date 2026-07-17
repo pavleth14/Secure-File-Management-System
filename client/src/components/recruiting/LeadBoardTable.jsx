@@ -78,6 +78,7 @@ function EditableTextCell({ value, editable, onSave }) {
 export default function LeadBoardTable({
   leads,
   isRecruitingManager,
+  isRecruiter = false,
   currentUserId,
   sortBy,
   sortDir,
@@ -206,8 +207,8 @@ export default function LeadBoardTable({
             ) : (
               leads.map((lead) => {
                 const personalEditable = canEditPersonalInfo(lead, isRecruitingManager);
-                const statusEditable = canEditStatus();
-                const driverTypeEditable = canEditDriverType();
+                const statusEditable = canEditStatus(isRecruitingManager, isRecruiter);
+                const driverTypeEditable = canEditDriverType(isRecruitingManager, isRecruiter);
 
                 return (
                   <tr

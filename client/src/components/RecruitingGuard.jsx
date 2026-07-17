@@ -2,9 +2,9 @@ import { Navigate, useParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
 export function RecruitingAccessGuard({ children }) {
-  const { user } = useAuth();
+  const { hasRecruitingAccess } = useAuth();
 
-  if (!user?.isRecruiter && !user?.isRecruitingManager) {
+  if (!hasRecruitingAccess) {
     return <Navigate to="/dashboard" replace />;
   }
 
@@ -22,14 +22,14 @@ export function RecruitingManagerGuard({ children }) {
 }
 
 export function RecruitingBoardGuard({ children }) {
-  const { user } = useAuth();
+  const { user, hasRecruitingAccess, isRecruitingManager, isRecruitingModuleUser } = useAuth();
   const { userId } = useParams();
 
-  if (!user?.isRecruiter && !user?.isRecruitingManager) {
+  if (!hasRecruitingAccess) {
     return <Navigate to="/dashboard" replace />;
   }
 
-  if (user.isRecruitingManager) {
+  if (isRecruitingManager || isRecruitingModuleUser) {
     return children;
   }
 

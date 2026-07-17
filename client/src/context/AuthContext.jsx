@@ -152,7 +152,8 @@ export function AuthProvider({ children }) {
   const isUser = user?.role === ROLES.USER;
   const isRecruiter = Boolean(user?.isRecruiter);
   const isRecruitingManager = Boolean(user?.isRecruitingManager);
-  const hasRecruitingAccess = isRecruiter || isRecruitingManager;
+  const isRecruitingModuleUser = isUser && !isRecruiter && !isRecruitingManager;
+  const hasRecruitingAccess = isRecruiter || isRecruitingManager || isRecruitingModuleUser;
 
   return (
     <AuthContext.Provider
@@ -171,6 +172,7 @@ export function AuthProvider({ children }) {
         isUser,
         isRecruiter,
         isRecruitingManager,
+        isRecruitingModuleUser,
         hasRecruitingAccess,
       }}
     >

@@ -9,13 +9,28 @@ import {
   DEFAULT_LEAD_STATUS,
 } from '../config/recruitingConstants.js';
 import { assertValidLeadSource } from './leadSourceService.js';
+import { isRecruitingModuleUser } from '../utils/recruitingPermissions.js';
 
 const PERSONAL_INFO_FIELDS = ['firstName', 'lastName', 'phone', 'email', 'stateCity'];
 const IMMUTABLE_FIELDS = ['source', 'createdAt', 'updatedAt'];
 const MAX_COMMENT_LENGTH = 2000;
 
+export function canViewLead(user, lead) {
+  if (user.isRecruitingManager) return true;
+  if (isRecruitingModuleUser(user) && !lead.archived) return true;
+
+  const recruiterId =
+    lead.assignedRecruiter?._id?.toString() || lead.assignedRecruiter?.toString();
+
+  if (user.isRecruiter && !lead.archived && recruiterId === user._id.toString()) {
+    return true;
+  }
+  return false;
+}
+
 export function canAccessLead(user, lead) {
   if (user.isRecruitingManager) return true;
+  if (isRecruitingModuleUser(user) && !lead.archived) return true;
 
   const recruiterId =
     lead.assignedRecruiter?._id?.toString() || lead.assignedRecruiter?.toString();
@@ -274,6 +289,10 @@ export async function listActiveLeads(user, options = {}) {
     if (recruiterId) {
       filter.assignedRecruiter = recruiterId;
     }
+  } else if (isRecruitingModuleUser(user)) {
+    if (recruiterId) {
+      filter.assignedRecruiter = recruiterId;
+    }
   } else if (user.isRecruiter) {
     if (recruiterId && recruiterId !== user._id.toString()) {
       const err = new Error('Access denied to this board');
@@ -411,6 +430,14 @@ function validateLeadUpdate(user, lead, updates) {
       const err = new Error(
         'Personal information can only be edited within 24 hours of lead creation'
       );
+      err.status = 403;
+      throw err;
+    }
+  }
+
+  if (isRecruitingModuleUser(user)) {
+    if (updates.status !== undefined || updates.driverType !== undefined) {
+      const err = new Error('Status and driver type cannot be edited with your access level');
       err.status = 403;
       throw err;
     }
