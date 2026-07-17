@@ -5,6 +5,8 @@ import {
   isRecruitingModuleUser,
   isOwnRecruiterBoard,
   canMutateLeadsOnBoard,
+  isRecruiterReadOnlyBoard,
+  canMutateLead,
 } from '../utils/recruitingPermissions.js';
 
 export function requireRecruitingAccess(req, res, next) {
@@ -67,4 +69,11 @@ export async function loadLeadForUser(req, res, next) {
   }
 }
 
-export { canAccessLead, isRecruitingModuleUser, isOwnRecruiterBoard, canMutateLeadsOnBoard };
+export {
+  canAccessLead,
+  isRecruitingModuleUser,
+  isOwnRecruiterBoard,
+  canMutateLeadsOnBoard,
+  isRecruiterReadOnlyBoard,
+  canMutateLead,
+};

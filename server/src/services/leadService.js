@@ -9,40 +9,18 @@ import {
   DEFAULT_LEAD_STATUS,
 } from '../config/recruitingConstants.js';
 import { assertValidLeadSource } from './leadSourceService.js';
-import { isRecruitingModuleUser } from '../utils/recruitingPermissions.js';
+import { isRecruitingModuleUser, canMutateLead, canViewLeadOnRecruiterBoard } from '../utils/recruitingPermissions.js';
 
 const PERSONAL_INFO_FIELDS = ['firstName', 'lastName', 'phone', 'email', 'stateCity'];
 const IMMUTABLE_FIELDS = ['source', 'createdAt', 'updatedAt'];
 const MAX_COMMENT_LENGTH = 2000;
 
 export function canViewLead(user, lead) {
-  if (user.isRecruitingManager) return true;
-  if (isRecruitingModuleUser(user) && !lead.archived) return true;
-
-  const recruiterId =
-    lead.assignedRecruiter?._id?.toString() || lead.assignedRecruiter?.toString();
-
-  if (user.isRecruiter && !lead.archived && recruiterId) {
-    return true;
-  }
-  return false;
+  return canViewLeadOnRecruiterBoard(user, lead);
 }
 
 export function canAccessLead(user, lead) {
-  if (user.isRecruitingManager) return true;
-  if (isRecruitingModuleUser(user) && !lead.archived) return true;
-
-  const recruiterId =
-    lead.assignedRecruiter?._id?.toString() || lead.assignedRecruiter?.toString();
-
-  if (
-    user.isRecruiter &&
-    !lead.archived &&
-    recruiterId === user._id.toString()
-  ) {
-    return true;
-  }
-  return false;
+  return canMutateLead(user, lead);
 }
 
 export function isWithinPersonalInfoEditWindow(lead) {
@@ -405,6 +383,12 @@ export async function createLead(user, payload) {
 }
 
 function validateLeadUpdate(user, lead, updates) {
+  if (!canMutateLead(user, lead)) {
+    const err = new Error('Access denied to modify this lead');
+    err.status = 403;
+    throw err;
+  }
+
   const rejectedFields = [];
 
   for (const field of IMMUTABLE_FIELDS) {
@@ -425,7 +409,8 @@ function validateLeadUpdate(user, lead, updates) {
 
   if (personalInfoChanges.length > 0) {
     const withinWindow = isWithinPersonalInfoEditWindow(lead);
-    if (!withinWindow && !user.isRecruitingManager) {
+    const hasManagerBypass = Boolean(user.isRecruitingManager);
+    if (!withinWindow && !hasManagerBypass) {
       const err = new Error(
         'Personal information can only be edited within 24 hours of lead creation'
       );
@@ -486,6 +471,12 @@ export async function updateLead(user, lead, updates) {
 }
 
 export async function addComment(user, lead, text) {
+  if (!canMutateLead(user, lead)) {
+    const err = new Error('Access denied to modify this lead');
+    err.status = 403;
+    throw err;
+  }
+
   const trimmed = String(text || '').trim();
   if (!trimmed) {
     const err = new Error('Comment text is required');
@@ -508,6 +499,12 @@ export async function addComment(user, lead, text) {
 }
 
 export async function editComment(user, lead, commentId, text) {
+  if (!canMutateLead(user, lead)) {
+    const err = new Error('Access denied to modify this lead');
+    err.status = 403;
+    throw err;
+  }
+
   const trimmed = String(text || '').trim();
   if (!trimmed) {
     const err = new Error('Comment text is required');

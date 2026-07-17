@@ -19,16 +19,19 @@ export function canEditComment(comment, currentUserId) {
   return isWithinCommentEditWindow(comment);
 }
 
-export function canEditPersonalInfo(lead, isRecruitingManager) {
+export function canEditPersonalInfo(lead, { isRecruitingManager = false, readOnly = false } = {}) {
+  if (readOnly) return false;
   if (isRecruitingManager) return true;
   return isWithinPersonalInfoEditWindow(lead);
 }
 
-export function canEditStatus(isRecruitingManager, isRecruiter) {
+export function canEditStatus(isRecruitingManager, isRecruiter, readOnly = false) {
+  if (readOnly) return false;
   return Boolean(isRecruitingManager || isRecruiter);
 }
 
-export function canEditDriverType(isRecruitingManager, isRecruiter) {
+export function canEditDriverType(isRecruitingManager, isRecruiter, readOnly = false) {
+  if (readOnly) return false;
   return Boolean(isRecruitingManager || isRecruiter);
 }
 

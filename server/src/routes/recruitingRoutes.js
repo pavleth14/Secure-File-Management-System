@@ -7,6 +7,9 @@ import {
   requireRecruitingManager,
   canAccessRecruiterBoard,
   isRecruitingModuleUser,
+  isOwnRecruiterBoard,
+  isRecruiterReadOnlyBoard,
+  canMutateLeadsOnBoard,
 } from '../middleware/recruitingMiddleware.js';
 import { recruiterBoardLabel } from '../utils/userFormat.js';
 import leadRoutes from './leadRoutes.js';
@@ -117,6 +120,11 @@ router.get('/boards/:userId', requireRecruitingAccess, async (req, res, next) =>
         label: boardOwner.isRecruiter
           ? recruiterBoardLabel(boardOwner.name)
           : `${recruiterBoardLabel(boardOwner.name)} (Inactive)`,
+      },
+      permissions: {
+        isOwnBoard: isOwnRecruiterBoard(req.user, userId),
+        readOnly: isRecruiterReadOnlyBoard(req.user, userId),
+        canMutate: canMutateLeadsOnBoard(req.user, userId),
       },
     });
   } catch (err) {

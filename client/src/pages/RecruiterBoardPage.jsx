@@ -40,7 +40,9 @@ export default function RecruiterBoardPage() {
   const { userId } = useParams();
   const { user, isRecruitingManager, isRecruiter, isRecruitingModuleUser } = useAuth();
   const isOwnBoard = user?.id === userId;
-  const boardReadOnly = isRecruiter && !isRecruitingManager && !isOwnBoard;
+  const [boardReadOnly, setBoardReadOnly] = useState(
+    isRecruiter && !isRecruitingManager && !isOwnBoard
+  );
   const { sources } = useLeadSources();
   const { recruiters } = useRecruiters();
 
@@ -85,6 +87,11 @@ export default function RecruiterBoardPage() {
         const { data } = await api.get(`/recruiting/boards/${userId}`);
         if (!cancelled) {
           setBoardLabel(data.board.label);
+          if (typeof data.permissions?.readOnly === 'boolean') {
+            setBoardReadOnly(data.permissions.readOnly);
+          } else {
+            setBoardReadOnly(isRecruiter && !isRecruitingManager && user?.id !== userId);
+          }
         }
       } catch (err) {
         if (!cancelled) {
@@ -102,7 +109,7 @@ export default function RecruiterBoardPage() {
     return () => {
       cancelled = true;
     };
-  }, [userId]);
+  }, [userId, isRecruiter, isRecruitingManager, user?.id]);
 
   const loadLeads = useCallback(async () => {
     setLeadsLoading(true);
