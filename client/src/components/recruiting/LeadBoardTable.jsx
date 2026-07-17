@@ -79,6 +79,7 @@ export default function LeadBoardTable({
   leads,
   isRecruitingManager,
   isRecruiter = false,
+  isOwnBoard = false,
   readOnly = false,
   currentUserId,
   sortBy,
@@ -210,15 +211,18 @@ export default function LeadBoardTable({
               </tr>
             ) : (
               leads.map((lead) => {
+                const editOptions = { readOnly, isOwnBoard };
                 const personalEditable = canEditPersonalInfo(lead, {
                   isRecruitingManager,
+                  isRecruiter,
+                  isOwnBoard,
                   readOnly,
                 });
-                const statusEditable = canEditStatus(isRecruitingManager, isRecruiter, readOnly);
+                const statusEditable = canEditStatus(isRecruitingManager, isRecruiter, editOptions);
                 const driverTypeEditable = canEditDriverType(
                   isRecruitingManager,
                   isRecruiter,
-                  readOnly
+                  editOptions
                 );
 
                 return (

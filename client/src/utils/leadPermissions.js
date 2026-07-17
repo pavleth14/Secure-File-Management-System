@@ -19,20 +19,38 @@ export function canEditComment(comment, currentUserId) {
   return isWithinCommentEditWindow(comment);
 }
 
-export function canEditPersonalInfo(lead, { isRecruitingManager = false, readOnly = false } = {}) {
+export function canEditPersonalInfo(
+  lead,
+  { isRecruitingManager = false, isRecruiter = false, isOwnBoard = false, readOnly = false } = {}
+) {
   if (readOnly) return false;
   if (isRecruitingManager) return true;
+  if (!isRecruiter || !isOwnBoard) return false;
   return isWithinPersonalInfoEditWindow(lead);
 }
 
-export function canEditStatus(isRecruitingManager, isRecruiter, readOnly = false) {
+export function canEditStatus(
+  isRecruitingManager,
+  isRecruiter,
+  { readOnly = false, isOwnBoard = false } = {}
+) {
   if (readOnly) return false;
-  return Boolean(isRecruitingManager || isRecruiter);
+  if (isRecruitingManager) return true;
+  return Boolean(isRecruiter && isOwnBoard);
 }
 
-export function canEditDriverType(isRecruitingManager, isRecruiter, readOnly = false) {
+export function canEditDriverType(
+  isRecruitingManager,
+  isRecruiter,
+  { readOnly = false, isOwnBoard = false } = {}
+) {
   if (readOnly) return false;
-  return Boolean(isRecruitingManager || isRecruiter);
+  if (isRecruitingManager) return true;
+  return Boolean(isRecruiter && isOwnBoard);
+}
+
+export function isRecruiterBoardReadOnly({ isRecruiter, isRecruitingManager, isOwnBoard }) {
+  return Boolean(isRecruiter && !isRecruitingManager && !isOwnBoard);
 }
 
 export function getLatestComment(comments) {

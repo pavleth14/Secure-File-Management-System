@@ -3,7 +3,7 @@ import { useParams } from 'react-router-dom';
 import api from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import { LEAD_BOARD_PAGE_SIZES } from '../constants/recruitingConstants';
-import { getLeadDateRange } from '../utils/leadPermissions';
+import { getLeadDateRange, isRecruiterBoardReadOnly } from '../utils/leadPermissions';
 import { useLeadSources, useRecruiters } from '../hooks/useRecruitingData';
 import LeadBoardToolbar from '../components/recruiting/LeadBoardToolbar';
 import LeadBoardTable from '../components/recruiting/LeadBoardTable';
@@ -39,9 +39,9 @@ function buildQueryParams(filters, recruiterId) {
 export default function RecruiterBoardPage() {
   const { userId } = useParams();
   const { user, isRecruitingManager, isRecruiter, isRecruitingModuleUser } = useAuth();
-  const isOwnBoard = user?.id === userId;
-  const [boardReadOnly, setBoardReadOnly] = useState(
-    isRecruiter && !isRecruitingManager && !isOwnBoard
+  const isOwnBoard = user?.id?.toString() === userId?.toString();
+  const [boardReadOnly, setBoardReadOnly] = useState(() =>
+    isRecruiterBoardReadOnly({ isRecruiter, isRecruitingManager, isOwnBoard })
   );
   const { sources } = useLeadSources();
   const { recruiters } = useRecruiters();
@@ -78,6 +78,10 @@ export default function RecruiterBoardPage() {
   const [assignSubmitting, setAssignSubmitting] = useState(false);
 
   useEffect(() => {
+    setBoardReadOnly(isRecruiterBoardReadOnly({ isRecruiter, isRecruitingManager, isOwnBoard }));
+  }, [userId, isRecruiter, isRecruitingManager, isOwnBoard]);
+
+  useEffect(() => {
     let cancelled = false;
 
     async function loadBoard() {
@@ -90,7 +94,9 @@ export default function RecruiterBoardPage() {
           if (typeof data.permissions?.readOnly === 'boolean') {
             setBoardReadOnly(data.permissions.readOnly);
           } else {
-            setBoardReadOnly(isRecruiter && !isRecruitingManager && user?.id !== userId);
+            setBoardReadOnly(
+              isRecruiterBoardReadOnly({ isRecruiter, isRecruitingManager, isOwnBoard })
+            );
           }
         }
       } catch (err) {
@@ -109,7 +115,7 @@ export default function RecruiterBoardPage() {
     return () => {
       cancelled = true;
     };
-  }, [userId, isRecruiter, isRecruitingManager, user?.id]);
+  }, [userId, isRecruiter, isRecruitingManager, isOwnBoard]);
 
   const loadLeads = useCallback(async () => {
     setLeadsLoading(true);
@@ -268,6 +274,7 @@ export default function RecruiterBoardPage() {
         leads={leads}
         isRecruitingManager={isRecruitingManager}
         isRecruiter={isRecruiter}
+        isOwnBoard={isOwnBoard}
         readOnly={boardReadOnly}
         currentUserId={user?.id}
         sortBy={filters.sortBy}
