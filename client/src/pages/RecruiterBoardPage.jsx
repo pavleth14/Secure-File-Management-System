@@ -39,10 +39,15 @@ function buildQueryParams(filters, recruiterId) {
 export default function RecruiterBoardPage() {
   const { userId } = useParams();
   const { user, isRecruitingManager, isRecruiter, isRecruitingModuleUser } = useAuth();
-  const isOwnBoard = user?.id?.toString() === userId?.toString();
-  const [boardReadOnly, setBoardReadOnly] = useState(() =>
-    isRecruiterBoardReadOnly({ isRecruiter, isRecruitingManager, isOwnBoard })
+  const loggedInUserId = user?.id?.toString?.() || user?._id?.toString?.();
+  const isOwnBoard = Boolean(
+    loggedInUserId && userId && loggedInUserId === userId.toString()
   );
+  const boardReadOnly = isRecruiterBoardReadOnly({
+    isRecruiter,
+    isRecruitingManager,
+    isOwnBoard,
+  });
   const { sources } = useLeadSources();
   const { recruiters } = useRecruiters();
 
@@ -78,10 +83,6 @@ export default function RecruiterBoardPage() {
   const [assignSubmitting, setAssignSubmitting] = useState(false);
 
   useEffect(() => {
-    setBoardReadOnly(isRecruiterBoardReadOnly({ isRecruiter, isRecruitingManager, isOwnBoard }));
-  }, [userId, isRecruiter, isRecruitingManager, isOwnBoard]);
-
-  useEffect(() => {
     let cancelled = false;
 
     async function loadBoard() {
@@ -91,13 +92,6 @@ export default function RecruiterBoardPage() {
         const { data } = await api.get(`/recruiting/boards/${userId}`);
         if (!cancelled) {
           setBoardLabel(data.board.label);
-          if (typeof data.permissions?.readOnly === 'boolean') {
-            setBoardReadOnly(data.permissions.readOnly);
-          } else {
-            setBoardReadOnly(
-              isRecruiterBoardReadOnly({ isRecruiter, isRecruitingManager, isOwnBoard })
-            );
-          }
         }
       } catch (err) {
         if (!cancelled) {
@@ -115,7 +109,7 @@ export default function RecruiterBoardPage() {
     return () => {
       cancelled = true;
     };
-  }, [userId, isRecruiter, isRecruitingManager, isOwnBoard]);
+  }, [userId]);
 
   const loadLeads = useCallback(async () => {
     setLeadsLoading(true);

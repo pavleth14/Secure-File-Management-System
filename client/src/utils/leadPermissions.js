@@ -1,9 +1,26 @@
 import { LEAD_PERSONAL_INFO_EDIT_WINDOW_MS, LEAD_COMMENT_EDIT_WINDOW_MS } from '../constants/recruitingConstants';
 
 export function isWithinPersonalInfoEditWindow(lead) {
-  if (!lead?.createdAt) return false;
-  const createdAt = new Date(lead.createdAt).getTime();
-  return Date.now() - createdAt <= LEAD_PERSONAL_INFO_EDIT_WINDOW_MS;
+  const referenceDate = lead?.importedAt || lead?.createdAt;
+  if (!referenceDate) return false;
+
+  const referenceTime = new Date(referenceDate).getTime();
+  const now = Date.now();
+  const timeDifferenceMs = now - referenceTime;
+  const withinWindow = timeDifferenceMs <= LEAD_PERSONAL_INFO_EDIT_WINDOW_MS;
+
+  console.log('[PERSONAL-INFO-EDIT-WINDOW]', {
+    leadId: lead?.id || lead?._id,
+    createdAt: lead?.createdAt,
+    importedAt: lead?.importedAt,
+    referenceUsed: lead?.importedAt ? 'importedAt' : 'createdAt',
+    currentTime: new Date(now).toISOString(),
+    timeDifferenceMs,
+    editWindowMs: LEAD_PERSONAL_INFO_EDIT_WINDOW_MS,
+    withinWindow,
+  });
+
+  return withinWindow;
 }
 
 export function isWithinCommentEditWindow(comment) {
@@ -23,10 +40,38 @@ export function canEditPersonalInfo(
   lead,
   { isRecruitingManager = false, isRecruiter = false, isOwnBoard = false, readOnly = false } = {}
 ) {
-  if (readOnly) return false;
-  if (isRecruitingManager) return true;
-  if (!isRecruiter || !isOwnBoard) return false;
-  return isWithinPersonalInfoEditWindow(lead);
+  const editWindow = isWithinPersonalInfoEditWindow(lead);
+
+  console.log('[CAN EDIT PERSONAL INFO CHECK]', {
+    leadId: lead?.id || lead?._id,
+    leadName: `${lead?.firstName || ''} ${lead?.lastName || ''}`,
+    createdAt: lead?.createdAt,
+    importedAt: lead?.importedAt,
+    isRecruitingManager,
+    isRecruiter,
+    isOwnBoard,
+    readOnly,
+    editWindow,
+  });
+
+  if (readOnly) {
+    console.log('[CAN EDIT PERSONAL INFO RESULT]', false, 'Reason: readOnly');
+    return false;
+  }
+
+  if (isRecruitingManager) {
+    console.log('[CAN EDIT PERSONAL INFO RESULT]', true, 'Reason: recruiting manager');
+    return true;
+  }
+
+  if (!isRecruiter || !isOwnBoard) {
+    console.log('[CAN EDIT PERSONAL INFO RESULT]', false, 'Reason: not own recruiter board');
+    return false;
+  }
+
+  console.log('[CAN EDIT PERSONAL INFO RESULT]', editWindow, 'Reason: 24h window check');
+
+  return editWindow;
 }
 
 export function canEditStatus(

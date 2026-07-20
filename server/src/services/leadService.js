@@ -12,7 +12,7 @@ import { assertValidLeadSource } from './leadSourceService.js';
 import { isRecruitingModuleUser, canMutateLead, canViewLeadOnRecruiterBoard } from '../utils/recruitingPermissions.js';
 
 const PERSONAL_INFO_FIELDS = ['firstName', 'lastName', 'phone', 'email', 'stateCity'];
-const IMMUTABLE_FIELDS = ['source', 'createdAt', 'updatedAt'];
+const IMMUTABLE_FIELDS = ['source', 'createdAt', 'updatedAt', 'importedAt'];
 const MAX_COMMENT_LENGTH = 2000;
 
 export function canViewLead(user, lead) {
@@ -24,8 +24,27 @@ export function canAccessLead(user, lead) {
 }
 
 export function isWithinPersonalInfoEditWindow(lead) {
-  const createdAt = lead.createdAt instanceof Date ? lead.createdAt : new Date(lead.createdAt);
-  return Date.now() - createdAt.getTime() <= LEAD_PERSONAL_INFO_EDIT_WINDOW_MS;
+  const referenceDate = lead.importedAt || lead.createdAt;
+  if (!referenceDate) return false;
+
+  const referenceTime =
+    referenceDate instanceof Date ? referenceDate.getTime() : new Date(referenceDate).getTime();
+  const now = Date.now();
+  const timeDifferenceMs = now - referenceTime;
+  const withinWindow = timeDifferenceMs <= LEAD_PERSONAL_INFO_EDIT_WINDOW_MS;
+
+  console.log('[PERSONAL-INFO-EDIT-WINDOW]', {
+    leadId: lead._id?.toString?.() || lead.id,
+    createdAt: lead.createdAt,
+    importedAt: lead.importedAt,
+    referenceUsed: lead.importedAt ? 'importedAt' : 'createdAt',
+    currentTime: new Date(now).toISOString(),
+    timeDifferenceMs,
+    editWindowMs: LEAD_PERSONAL_INFO_EDIT_WINDOW_MS,
+    withinWindow,
+  });
+
+  return withinWindow;
 }
 
 export function isWithinCommentEditWindow(comment) {
@@ -78,6 +97,7 @@ export function formatLead(lead) {
       : null,
     comments: (lead.comments || []).map(formatComment),
     createdAt: lead.createdAt,
+    importedAt: lead.importedAt,
     updatedAt: lead.updatedAt,
   };
   // Temporary date import debugging

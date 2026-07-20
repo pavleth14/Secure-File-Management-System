@@ -98,6 +98,23 @@ export default function LeadBoardTable({
 }) {
   const { openContextMenu, contextMenuNode } = useContextMenu();
   const [openCommentsLeadId, setOpenCommentsLeadId] = useState(null);
+  useEffect(() => {
+    console.log('[LEAD BOARD TABLE PROPS]', {
+      isRecruitingManager,
+      isRecruiter,
+      isOwnBoard,
+      readOnly,
+      currentUserId,
+      leadsCount: leads.length,
+    });
+  }, [
+    isRecruitingManager,
+    isRecruiter,
+    isOwnBoard,
+    readOnly,
+    currentUserId,
+    leads.length,
+  ]);
 
   useEffect(() => {
     if (!leads.length) return;
@@ -288,11 +305,12 @@ export default function LeadBoardTable({
                     </td>
 
                     <td className="px-4 py-3 text-sm">
-                      <EditableTextCell
+                      {/* <EditableTextCell
                         value={lead.firstName}
                         editable={personalEditable}
                         onSave={(value) => onUpdateLead(lead.id, { firstName: value })}
-                      />
+                      /> */}
+                      <input type="text" value={lead.firstName} onChange={(event) => onUpdateLead(lead.id, { firstName: event.target.value })} />
                     </td>
 
                     <td className="px-4 py-3 text-sm">

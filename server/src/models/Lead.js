@@ -47,6 +47,7 @@ const leadSchema = new mongoose.Schema(
       trim: true,
     },
     date: { type: String, trim: true, default: '' },
+    importedAt: { type: Date, default: null },
     assignedRecruiter: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',

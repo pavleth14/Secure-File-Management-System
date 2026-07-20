@@ -500,6 +500,7 @@ export async function confirmLeadImport(manager, previewId, selectedRowNumbers =
       date: payload.date,
       assignedRecruiter,
       createdAt: payload.createdAt,
+      importedAt: importTimestamp,
       updatedAt: importTimestamp,
     };
 
