@@ -99,6 +99,17 @@ export default function LeadBoardTable({
   const { openContextMenu, contextMenuNode } = useContextMenu();
   const [openCommentsLeadId, setOpenCommentsLeadId] = useState(null);
 
+  useEffect(() => {
+    if (!leads.length) return;
+    const first = leads[0];
+    // Temporary date import debugging
+    console.log('[DATE-DISPLAY] LeadBoardTable render', {
+      date: first.date,
+      createdAt: first.createdAt,
+      rendered: first.date || formatDate(first.createdAt),
+    });
+  }, [leads]);
+
   const handleSort = (key) => {
     if (sortBy === key) {
       onSortChange(key, sortDir === 'asc' ? 'desc' : 'asc');
@@ -273,7 +284,7 @@ export default function LeadBoardTable({
 
                     <td className="px-4 py-3 text-sm">{lead.source}</td>
                     <td className="whitespace-nowrap px-4 py-3 text-sm">
-                      {formatDate(lead.createdAt)}
+                      {lead.date || formatDate(lead.createdAt)}
                     </td>
 
                     <td className="px-4 py-3 text-sm">

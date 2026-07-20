@@ -47,7 +47,7 @@ function normalizePhone(phone) {
 }
 
 function parseCsvBuffer(buffer) {
-  const workbook = XLSX.read(buffer, { type: 'buffer', raw: false });
+  const workbook = XLSX.read(buffer, { type: 'buffer', raw: true, cellDates: false });
   const sheetName = workbook.SheetNames[0];
   if (!sheetName) {
     const err = new Error('CSV file is empty');
@@ -56,7 +56,52 @@ function parseCsvBuffer(buffer) {
   }
 
   const sheet = workbook.Sheets[sheetName];
-  return XLSX.utils.sheet_to_json(sheet, { defval: '' });
+  const rows = XLSX.utils.sheet_to_json(sheet, { defval: '', raw: true });
+  if (rows.length > 0) {
+    const dateKey = Object.keys(rows[0]).find((key) => HEADER_TO_FIELD[normalizeHeader(key)] === 'date');
+    // Temporary date import debugging
+    console.log('[DATE-IMPORT] after XLSX parse (row 1)', {
+      rawDateValue: dateKey ? rows[0][dateKey] : undefined,
+      rawDateType: dateKey ? typeof rows[0][dateKey] : undefined,
+    });
+  }
+  return rows;
+}
+
+function isExcelDateSerial(value) {
+  const serial = Number(value);
+  return Number.isFinite(serial) && serial >= 1 && serial <= 2958465;
+}
+
+function formatExcelSerialToDateString(serial) {
+  const parsed = XLSX.SSF.parse_date_code(Number(serial));
+  if (!parsed) return String(serial);
+  return `${parsed.m}/${parsed.d}/${parsed.y}`;
+}
+
+function normalizeImportDateValue(value) {
+  if (value === null || value === undefined || value === '') return '';
+
+  if (value instanceof Date) {
+    if (Number.isNaN(value.getTime())) return '';
+    return `${value.getMonth() + 1}/${value.getDate()}/${value.getFullYear()}`;
+  }
+
+  if (typeof value === 'number') {
+    if (isExcelDateSerial(value)) {
+      return formatExcelSerialToDateString(value);
+    }
+    return String(value).trim();
+  }
+
+  const trimmed = String(value).trim();
+  if (!trimmed) return '';
+
+  if (/^\d+(\.\d+)?$/.test(trimmed) && isExcelDateSerial(Number(trimmed))) {
+    return formatExcelSerialToDateString(Number(trimmed));
+  }
+
+  return trimmed;
 }
 
 function mapCsvRow(rawRow) {
@@ -64,15 +109,21 @@ function mapCsvRow(rawRow) {
   for (const [header, value] of Object.entries(rawRow)) {
     const field = HEADER_TO_FIELD[normalizeHeader(header)];
     if (field) {
-      mapped[field] = String(value ?? '').trim();
+      mapped[field] =
+        field === 'date' ? normalizeImportDateValue(value) : String(value ?? '').trim();
     }
+  }
+  // Temporary date import debugging
+  if (mapped.date !== undefined) {
+    console.log('[DATE-IMPORT] mapCsvRow', { date: mapped.date });
   }
   return mapped;
 }
 
 function parseLeadDate(value, fallbackDate) {
-  if (!value) return fallbackDate;
-  const parsed = new Date(value);
+  const normalized = normalizeImportDateValue(value);
+  if (!normalized) return fallbackDate;
+  const parsed = new Date(normalized);
   if (Number.isNaN(parsed.getTime())) {
     return fallbackDate;
   }
@@ -107,9 +158,11 @@ function validateMappedRow(row, importDate, allowedSources) {
   }
 
   const parsedCreatedAt = parseLeadDate(row.date, importDate);
-  if (row.date) {
-    const directParse = new Date(row.date);
-    if (Number.isNaN(directParse.getTime())) {
+  if (row.date && !normalizeImportDateValue(row.date)) {
+    warnings.push('Invalid date in CSV; import date will be used');
+  } else if (row.date && parsedCreatedAt.getTime() === importDate.getTime()) {
+    const normalized = normalizeImportDateValue(row.date);
+    if (normalized && Number.isNaN(new Date(normalized).getTime())) {
       warnings.push('Invalid date in CSV; import date will be used');
     }
   }
@@ -360,6 +413,7 @@ async function revalidateRowForImport(row) {
       status: row.resolvedStatus,
       driverType: row.resolvedDriverType,
       source: row.resolvedSource,
+      date: row.date?.trim() || '',
       createdAt: row.parsedCreatedAt,
       commentsText: row.comments?.trim() || '',
     },
@@ -443,10 +497,14 @@ export async function confirmLeadImport(manager, previewId, selectedRowNumbers =
       status: payload.status,
       driverType: payload.driverType,
       source: payload.source,
+      date: payload.date,
       assignedRecruiter,
       createdAt: payload.createdAt,
       updatedAt: importTimestamp,
     };
+
+    // Temporary date import debugging
+    console.log('[DATE-IMPORT] before Lead.create', { date: leadData.date, email: leadData.email });
 
     if (payload.commentsText) {
       leadData.comments = [

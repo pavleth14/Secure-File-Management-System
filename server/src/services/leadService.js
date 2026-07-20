@@ -53,7 +53,7 @@ function formatComment(comment) {
 
 export function formatLead(lead) {
   const recruiter = lead.assignedRecruiter;
-  return {
+  const formatted = {
     id: lead._id,
     firstName: lead.firstName,
     lastName: lead.lastName,
@@ -63,6 +63,7 @@ export function formatLead(lead) {
     status: lead.status,
     driverType: lead.driverType,
     source: lead.source,
+    date: lead.date || '',
     assignedRecruiter: {
       id: recruiter?._id || recruiter,
       name: recruiter?.name || null,
@@ -79,6 +80,14 @@ export function formatLead(lead) {
     createdAt: lead.createdAt,
     updatedAt: lead.updatedAt,
   };
+  // Temporary date import debugging
+  if (formatted.date) {
+    console.log('[DATE-IMPORT] formatLead API response', {
+      leadId: formatted.id,
+      date: formatted.date,
+    });
+  }
+  return formatted;
 }
 
 function normalizePhone(phone) {
