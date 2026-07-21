@@ -23,6 +23,13 @@ export function requireRecruitingManager(req, res, next) {
   next();
 }
 
+export function requireRecruitingImportAccess(req, res, next) {
+  if (req.user?.isRecruitingManager || req.user?.role === 'SUPER_ADMIN') {
+    return next();
+  }
+  return res.status(403).json({ message: 'Recruiting import access required' });
+}
+
 export function canAccessRecruiterBoard(user, boardUserId) {
   if (hasRecruitingAllBoardsAccess(user)) return true;
   if (user.isRecruiter) return true;

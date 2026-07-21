@@ -11,6 +11,16 @@ export function RecruitingAccessGuard({ children }) {
   return children;
 }
 
+export function RecruitingImportGuard({ children }) {
+  const { isRecruitingManager, isSuperAdmin } = useAuth();
+
+  if (isRecruitingManager || isSuperAdmin) {
+    return children;
+  }
+
+  return <Navigate to="/dashboard" replace />;
+}
+
 export function RecruitingManagerGuard({ children }) {
   const { user } = useAuth();
 

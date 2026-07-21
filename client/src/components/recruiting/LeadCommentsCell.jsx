@@ -251,7 +251,7 @@ export default function LeadCommentsCell({
                       key={comment.id}
                       comment={comment}
                       currentUserId={currentUserId}
-                      onEditComment={onEditComment}
+                      onEditComment={readOnly ? undefined : handleEditComment}
                       readOnly={readOnly}
                     />
                   ))}

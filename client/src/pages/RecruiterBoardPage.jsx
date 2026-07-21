@@ -177,6 +177,11 @@ export default function RecruiterBoardPage() {
   };
 
   const handleEditComment = async (leadId, commentId, text) => {
+    console.log('[COMMENT-UPDATE]', {
+      leadId,
+      commentId,
+      updatePayload: { text },
+    });
     setActionError('');
     const { data } = await api.put(`/recruiting/leads/${leadId}/comments/${commentId}`, { text });
     setLeads((prev) => prev.map((lead) => (lead.id === leadId ? data.lead : lead)));

@@ -18,6 +18,7 @@ import ArchiveLeadsPage from './pages/ArchiveLeadsPage';
 import LeadSourcesPage from './pages/LeadSourcesPage';
 import {
   RecruitingBoardGuard,
+  RecruitingImportGuard,
   RecruitingManagerGuard,
 } from './components/RecruitingGuard';
 
@@ -122,9 +123,9 @@ export default function App() {
         <Route
           path="/recruiting/import"
           element={
-            <RecruitingManagerGuard>
+            <RecruitingImportGuard>
               <ImportLeadsPage />
-            </RecruitingManagerGuard>
+            </RecruitingImportGuard>
           }
         />
         <Route

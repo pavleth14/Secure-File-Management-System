@@ -201,6 +201,11 @@ router.post('/:id/comments', loadLeadForUser, async (req, res, next) => {
 
 router.put('/:id/comments/:commentId', loadLeadForUser, async (req, res, next) => {
   try {
+    console.log('[COMMENT-UPDATE]', {
+      leadId: req.params.id,
+      commentId: req.params.commentId,
+      updatePayload: req.body,
+    });
     const leadDoc = await Lead.findById(req.lead._id);
     const existing = leadDoc.comments.id(req.params.commentId);
     const oldText = existing?.text || null;

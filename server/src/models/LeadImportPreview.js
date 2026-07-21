@@ -39,6 +39,11 @@ const leadImportPreviewSchema = new mongoose.Schema(
       required: true,
     },
     fileName: { type: String, default: '' },
+    assignedRecruiterId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      default: null,
+    },
     rows: [previewRowSchema],
     expiresAt: {
       type: Date,

@@ -351,7 +351,7 @@ export default function Layout() {
                 {hasRecruitingAccess && (
                   <RecruitingDropdown
                     boards={recruitingBoards}
-                    showImportLeads={isRecruitingManager}
+                    showImportLeads={isRecruitingManager || isSuperAdmin}
                     location={location}
                     currentUserId={user?.id}
                     isRecruiter={isRecruiter}

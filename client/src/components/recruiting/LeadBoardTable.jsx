@@ -240,6 +240,9 @@ export default function LeadBoardTable({
               </tr>
             ) : (
               leads.map((lead) => {
+                const timeDifferenceMs = lead.importedAt
+                  ? Date.now() - new Date(lead.importedAt).getTime()
+                  : null;
                 const editWindow = isWithinPersonalInfoEditWindow(lead);
                 const personalEditable = canEditPersonalInfo(lead, {
                   isRecruitingManager,
@@ -264,10 +267,13 @@ export default function LeadBoardTable({
                   leadId: lead.id,
                   importedAt: lead.importedAt,
                   currentTime: new Date().toISOString(),
+                  timeDifferenceMs,
                   editWindow,
                   statusEditable,
                   driverTypeEditable,
                   personalEditable,
+                  isOwnBoard,
+                  currentUserId,
                 });
 
                 return (

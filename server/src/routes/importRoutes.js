@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { authMiddleware } from '../middleware/authMiddleware.js';
-import { requireRecruitingManager } from '../middleware/recruitingMiddleware.js';
+import { requireRecruitingImportAccess } from '../middleware/recruitingMiddleware.js';
 import { createRecruitingImportUpload } from '../config/recruitingImportMulter.js';
 import { previewLeadImport, confirmLeadImport } from '../services/leadImportService.js';
 import { auditLeadImported } from '../services/recruitingAuditService.js';
@@ -9,7 +9,7 @@ const router = Router();
 const upload = createRecruitingImportUpload();
 
 router.use(authMiddleware);
-router.use(requireRecruitingManager);
+router.use(requireRecruitingImportAccess);
 
 router.post('/preview', upload.single('file'), async (req, res, next) => {
   try {
@@ -17,10 +17,13 @@ router.post('/preview', upload.single('file'), async (req, res, next) => {
       return res.status(400).json({ message: 'CSV file is required' });
     }
 
+    const assignedRecruiterId = req.body?.assignedRecruiterId || null;
+
     const result = await previewLeadImport(
       req.user,
       req.file.buffer,
-      req.file.originalname || ''
+      req.file.originalname || '',
+      assignedRecruiterId
     );
 
     res.json(result);

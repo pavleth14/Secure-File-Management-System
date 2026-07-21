@@ -1,19 +1,18 @@
 import { LEAD_PERSONAL_INFO_EDIT_WINDOW_MS, LEAD_COMMENT_EDIT_WINDOW_MS } from '../constants/recruitingConstants';
 
 export function isWithinPersonalInfoEditWindow(lead) {
-  const referenceDate = lead?.importedAt || lead?.createdAt;
-  if (!referenceDate) return false;
+  if (!lead?.importedAt) return false;
 
-  const referenceTime = new Date(referenceDate).getTime();
+  const referenceTime = new Date(lead.importedAt).getTime();
+  if (Number.isNaN(referenceTime)) return false;
+
   const now = Date.now();
   const timeDifferenceMs = now - referenceTime;
   const withinWindow = timeDifferenceMs <= LEAD_PERSONAL_INFO_EDIT_WINDOW_MS;
 
   console.log('[PERSONAL-INFO-EDIT-WINDOW]', {
     leadId: lead?.id || lead?._id,
-    createdAt: lead?.createdAt,
     importedAt: lead?.importedAt,
-    referenceUsed: lead?.importedAt ? 'importedAt' : 'createdAt',
     currentTime: new Date(now).toISOString(),
     timeDifferenceMs,
     editWindowMs: LEAD_PERSONAL_INFO_EDIT_WINDOW_MS,
@@ -80,8 +79,7 @@ export function canEditStatus(
 ) {
   if (readOnly) return false;
   if (isRecruitingManager) return true;
-  if (!isRecruiter || !isOwnBoard) return false;
-  return isWithinPersonalInfoEditWindow(lead);
+  return Boolean(isRecruiter && isOwnBoard);
 }
 
 export function canEditDriverType(

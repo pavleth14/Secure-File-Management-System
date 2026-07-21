@@ -242,7 +242,25 @@ function applyDuplicateChecks(row, existingKeys, seenInFile) {
   };
 }
 
-export async function previewLeadImport(manager, fileBuffer, fileName = '') {
+async function assertAssignedRecruiter(userId) {
+  if (!userId) return null;
+
+  const recruiter = await User.findById(userId).select('_id name isRecruiter');
+  if (!recruiter?.isRecruiter) {
+    const err = new Error('Selected user is not an active recruiter');
+    err.status = 400;
+    throw err;
+  }
+
+  return recruiter;
+}
+
+export async function previewLeadImport(
+  manager,
+  fileBuffer,
+  fileName = '',
+  assignedRecruiterId = null
+) {
   const rawRows = parseCsvBuffer(fileBuffer);
   if (!rawRows.length) {
     const err = new Error('CSV file contains no data rows');
@@ -288,11 +306,17 @@ export async function previewLeadImport(manager, fileBuffer, fileName = '') {
 
   const rows = validatedRows.map((row) => applyDuplicateChecks(row, existingKeys, seenInFile));
 
+  let assignedRecruiter = null;
+  if (assignedRecruiterId) {
+    assignedRecruiter = await assertAssignedRecruiter(assignedRecruiterId);
+  }
+
   const previewId = randomUUID();
   await LeadImportPreview.create({
     previewId,
     manager: manager._id,
     fileName,
+    assignedRecruiterId: assignedRecruiter?._id || null,
     rows: rows.map((row) => ({
       rowNumber: row.rowNumber,
       status: row.status,
@@ -323,6 +347,9 @@ export async function previewLeadImport(manager, fileBuffer, fileName = '') {
   return {
     previewId,
     fileName,
+    assignedRecruiter: assignedRecruiter
+      ? { id: assignedRecruiter._id, name: assignedRecruiter.name }
+      : null,
     rows: rows.map((row) => ({
       rowNumber: row.rowNumber,
       status: row.resolvedStatus || row.status,
@@ -482,11 +509,32 @@ export async function confirmLeadImport(manager, previewId, selectedRowNumbers =
     };
   }
 
-  const assignments = await getRoundRobinAssignments(rowsToImport.length);
+  let assignments;
+  let assignedRecruiterDoc = null;
+
+  if (preview.assignedRecruiterId) {
+    assignedRecruiterDoc = await assertAssignedRecruiter(preview.assignedRecruiterId);
+    assignments = rowsToImport.map(() => assignedRecruiterDoc._id);
+
+    console.log('[SPECIFIC-USER-IMPORT]', {
+      selectedRecruiterId: assignedRecruiterDoc._id.toString(),
+      selectedRecruiterName: assignedRecruiterDoc.name,
+      importedLeadsCount: rowsToImport.length,
+    });
+  } else {
+    assignments = await getRoundRobinAssignments(rowsToImport.length);
+  }
 
   for (let index = 0; index < rowsToImport.length; index += 1) {
     const { payload } = rowsToImport[index];
     const assignedRecruiter = assignments[index];
+
+    if (preview.assignedRecruiterId) {
+      console.log('[SPECIFIC-USER-IMPORT] assignedRecruiter before save', {
+        leadEmail: payload.email,
+        assignedRecruiter: assignedRecruiter.toString(),
+      });
+    }
 
     const leadData = {
       firstName: payload.firstName,

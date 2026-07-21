@@ -24,20 +24,21 @@ export function canAccessLead(user, lead) {
 }
 
 export function isWithinPersonalInfoEditWindow(lead) {
-  const referenceDate = lead.importedAt || lead.createdAt;
-  if (!referenceDate) return false;
+  if (!lead?.importedAt) return false;
 
   const referenceTime =
-    referenceDate instanceof Date ? referenceDate.getTime() : new Date(referenceDate).getTime();
+    lead.importedAt instanceof Date
+      ? lead.importedAt.getTime()
+      : new Date(lead.importedAt).getTime();
+  if (Number.isNaN(referenceTime)) return false;
+
   const now = Date.now();
   const timeDifferenceMs = now - referenceTime;
   const withinWindow = timeDifferenceMs <= LEAD_PERSONAL_INFO_EDIT_WINDOW_MS;
 
   console.log('[PERSONAL-INFO-EDIT-WINDOW]', {
     leadId: lead._id?.toString?.() || lead.id,
-    createdAt: lead.createdAt,
     importedAt: lead.importedAt,
-    referenceUsed: lead.importedAt ? 'importedAt' : 'createdAt',
     currentTime: new Date(now).toISOString(),
     timeDifferenceMs,
     editWindowMs: LEAD_PERSONAL_INFO_EDIT_WINDOW_MS,
@@ -448,17 +449,14 @@ function validateLeadUpdate(user, lead, updates) {
     }
   }
 
-  const statusOrDriverChanges =
-    updates.status !== undefined || updates.driverType !== undefined;
-
   if (
-    statusOrDriverChanges &&
+    updates.driverType !== undefined &&
     user.isRecruiter &&
     !user.isRecruitingManager &&
     !isWithinPersonalInfoEditWindow(lead)
   ) {
     const err = new Error(
-      'Status and driver type can only be edited within 24 hours of import'
+      'Driver type can only be edited within 24 hours of import'
     );
     err.status = 403;
     throw err;
@@ -576,7 +574,7 @@ export async function editComment(user, lead, commentId, text) {
   }
 
   if (!isWithinCommentEditWindow(comment)) {
-    const err = new Error('Comments can only be edited within 8 hours of creation');
+    const err = new Error('Comments can only be edited within 24 hours of creation');
     err.status = 403;
     throw err;
   }
