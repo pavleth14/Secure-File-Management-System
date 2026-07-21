@@ -75,23 +75,23 @@ export function canEditPersonalInfo(
 }
 
 export function canEditStatus(
-  isRecruitingManager,
-  isRecruiter,
-  { readOnly = false, isOwnBoard = false } = {}
+  lead,
+  { isRecruitingManager = false, isRecruiter = false, isOwnBoard = false, readOnly = false } = {}
 ) {
   if (readOnly) return false;
   if (isRecruitingManager) return true;
-  return Boolean(isRecruiter && isOwnBoard);
+  if (!isRecruiter || !isOwnBoard) return false;
+  return isWithinPersonalInfoEditWindow(lead);
 }
 
 export function canEditDriverType(
-  isRecruitingManager,
-  isRecruiter,
-  { readOnly = false, isOwnBoard = false } = {}
+  lead,
+  { isRecruitingManager = false, isRecruiter = false, isOwnBoard = false, readOnly = false } = {}
 ) {
   if (readOnly) return false;
   if (isRecruitingManager) return true;
-  return Boolean(isRecruiter && isOwnBoard);
+  if (!isRecruiter || !isOwnBoard) return false;
+  return isWithinPersonalInfoEditWindow(lead);
 }
 
 export function isRecruiterBoardReadOnly({ isRecruiter, isRecruitingManager, isOwnBoard }) {

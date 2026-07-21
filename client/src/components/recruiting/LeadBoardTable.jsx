@@ -4,6 +4,7 @@ import {
   canEditDriverType,
   canEditPersonalInfo,
   canEditStatus,
+  isWithinPersonalInfoEditWindow,
 } from '../../utils/leadPermissions';
 import {
   DRIVER_TYPES,
@@ -239,19 +240,35 @@ export default function LeadBoardTable({
               </tr>
             ) : (
               leads.map((lead) => {
-                const editOptions = { readOnly, isOwnBoard };
+                const editWindow = isWithinPersonalInfoEditWindow(lead);
                 const personalEditable = canEditPersonalInfo(lead, {
                   isRecruitingManager,
                   isRecruiter,
                   isOwnBoard,
                   readOnly,
                 });
-                const statusEditable = canEditStatus(isRecruitingManager, isRecruiter, editOptions);
-                const driverTypeEditable = canEditDriverType(
+                const statusEditable = canEditStatus(lead, {
                   isRecruitingManager,
                   isRecruiter,
-                  editOptions
-                );
+                  isOwnBoard,
+                  readOnly,
+                });
+                const driverTypeEditable = canEditDriverType(lead, {
+                  isRecruitingManager,
+                  isRecruiter,
+                  isOwnBoard,
+                  readOnly,
+                });
+
+                console.log('[LEAD-EDIT-PERMISSIONS]', {
+                  leadId: lead.id,
+                  importedAt: lead.importedAt,
+                  currentTime: new Date().toISOString(),
+                  editWindow,
+                  statusEditable,
+                  driverTypeEditable,
+                  personalEditable,
+                });
 
                 return (
                   <tr
@@ -305,12 +322,11 @@ export default function LeadBoardTable({
                     </td>
 
                     <td className="px-4 py-3 text-sm">
-                      {/* <EditableTextCell
+                      <EditableTextCell
                         value={lead.firstName}
                         editable={personalEditable}
                         onSave={(value) => onUpdateLead(lead.id, { firstName: value })}
-                      /> */}
-                      <input type="text" value={lead.firstName} onChange={(event) => onUpdateLead(lead.id, { firstName: event.target.value })} />
+                      />                      
                     </td>
 
                     <td className="px-4 py-3 text-sm">

@@ -448,6 +448,22 @@ function validateLeadUpdate(user, lead, updates) {
     }
   }
 
+  const statusOrDriverChanges =
+    updates.status !== undefined || updates.driverType !== undefined;
+
+  if (
+    statusOrDriverChanges &&
+    user.isRecruiter &&
+    !user.isRecruitingManager &&
+    !isWithinPersonalInfoEditWindow(lead)
+  ) {
+    const err = new Error(
+      'Status and driver type can only be edited within 24 hours of import'
+    );
+    err.status = 403;
+    throw err;
+  }
+
   if (isRecruitingModuleUser(user)) {
     if (updates.status !== undefined || updates.driverType !== undefined) {
       const err = new Error('Status and driver type cannot be edited with your access level');

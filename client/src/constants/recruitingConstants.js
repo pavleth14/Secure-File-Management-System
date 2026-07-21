@@ -28,7 +28,8 @@ export const LEAD_SOURCES = [
   'Website',
 ];
 
-export const LEAD_PERSONAL_INFO_EDIT_WINDOW_MS = 24 * 60 * 60 * 1000;
+export const LEAD_PERSONAL_INFO_EDIT_WINDOW_MS =  24 * 60 * 60 * 1000; // 5 minutes
+
 export const LEAD_COMMENT_EDIT_WINDOW_MS = 8 * 60 * 60 * 1000;
 
 export const LEAD_BOARD_PAGE_SIZES = [25, 50, 100];
