@@ -55,7 +55,11 @@ async function buildManagerBoards() {
 
 router.get('/boards', requireRecruitingAccess, async (req, res, next) => {
   try {
-    if (req.user.isRecruitingManager || isRecruitingModuleUser(req.user)) {
+    if (
+      req.user.isRecruitingManager ||
+      req.user.role === 'SUPER_ADMIN' ||
+      isRecruitingModuleUser(req.user)
+    ) {
       const boards = await buildManagerBoards();
 
       if (req.user.isRecruitingManager && req.user.isRecruiter) {

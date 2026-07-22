@@ -293,7 +293,7 @@ export async function listActiveLeads(user, options = {}) {
 
   const filter = { archived: false };
 
-  if (user.isRecruitingManager) {
+  if (user.isRecruitingManager || user.role === 'SUPER_ADMIN') {
     if (recruiterId) {
       filter.assignedRecruiter = recruiterId;
     }
@@ -327,7 +327,7 @@ export async function getLeadById(leadId, { listMode = false } = {}) {
 }
 
 export async function listArchivedLeads(user, options = {}) {
-  if (!user.isRecruitingManager) {
+  if (!user.isRecruitingManager && user.role !== 'SUPER_ADMIN') {
     const err = new Error('Recruiting manager access required');
     err.status = 403;
     throw err;
@@ -377,7 +377,7 @@ export async function createLead(user, payload) {
 
   let assignedRecruiter = user._id;
 
-  if (user.isRecruitingManager) {
+  if (user.isRecruitingManager || user.role === 'SUPER_ADMIN') {
     if (assignedRecruiterId) {
       await assertRecruiterUser(assignedRecruiterId);
       assignedRecruiter = assignedRecruiterId;
@@ -439,7 +439,9 @@ function validateLeadUpdate(user, lead, updates) {
 
   if (personalInfoChanges.length > 0) {
     const withinWindow = isWithinPersonalInfoEditWindow(lead);
-    const hasManagerBypass = Boolean(user.isRecruitingManager);
+    const hasManagerBypass = Boolean(
+      user.isRecruitingManager || user.role === 'SUPER_ADMIN'
+    );
     if (!withinWindow && !hasManagerBypass) {
       const err = new Error(
         'Personal information can only be edited within 24 hours of lead creation'
@@ -585,7 +587,7 @@ export async function editComment(user, lead, commentId, text) {
 }
 
 export async function assignLead(user, lead, recruiterId) {
-  if (!user.isRecruitingManager) {
+  if (!user.isRecruitingManager && user.role !== 'SUPER_ADMIN') {
     const err = new Error('Recruiting manager access required');
     err.status = 403;
     throw err;
@@ -598,7 +600,7 @@ export async function assignLead(user, lead, recruiterId) {
 }
 
 export async function archiveLead(user, lead) {
-  if (!user.isRecruitingManager) {
+  if (!user.isRecruitingManager && user.role !== 'SUPER_ADMIN') {
     const err = new Error('Recruiting manager access required');
     err.status = 403;
     throw err;

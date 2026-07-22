@@ -10,6 +10,24 @@ export const ROLES = {
   USER: 'USER',
 };
 
+function logRecruitingAccess(user) {
+  if (!user) return;
+
+  const isSuperAdmin = user.role === ROLES.SUPER_ADMIN;
+  const isRecruiting = Boolean(user.isRecruiter);
+  const isRecruitingManager = Boolean(user.isRecruitingManager);
+  const shouldShowRecruiting = isRecruiting || isRecruitingManager || isSuperAdmin;
+
+  console.log('[RECRUITING-ACCESS] after login', {
+    userId: user.id || user._id,
+    role: user.role,
+    isRecruiting,
+    isRecruitingManager,
+    isSuperAdmin,
+    shouldShowRecruiting,
+  });
+}
+
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -21,6 +39,7 @@ export function AuthProvider({ children }) {
     try {
       const { data } = await api.get('/auth/me');
       setUser(data.user);
+      logRecruitingAccess(data.user);
       return data.user;
     } catch {
       setUser(null);
@@ -52,6 +71,7 @@ export function AuthProvider({ children }) {
     setSessionMessage('');
     const { data } = await api.post('/auth/login', { email, password });
     setUser(data.user);
+    logRecruitingAccess(data.user);
     return data.user;
   };
 
@@ -153,7 +173,8 @@ export function AuthProvider({ children }) {
   const isRecruiter = Boolean(user?.isRecruiter);
   const isRecruitingManager = Boolean(user?.isRecruitingManager);
   const isRecruitingModuleUser = isUser && !isRecruiter && !isRecruitingManager;
-  const hasRecruitingAccess = isRecruiter || isRecruitingManager || isRecruitingModuleUser;
+  const shouldShowRecruiting = isRecruiter || isRecruitingManager || isSuperAdmin;
+  const hasRecruitingAccess = shouldShowRecruiting;
 
   return (
     <AuthContext.Provider
@@ -173,6 +194,7 @@ export function AuthProvider({ children }) {
         isRecruiter,
         isRecruitingManager,
         isRecruitingModuleUser,
+        shouldShowRecruiting,
         hasRecruitingAccess,
       }}
     >

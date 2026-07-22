@@ -17,6 +17,7 @@ import ImportLeadsPage from './pages/ImportLeadsPage';
 import ArchiveLeadsPage from './pages/ArchiveLeadsPage';
 import LeadSourcesPage from './pages/LeadSourcesPage';
 import {
+  RecruitingAccessGuard,
   RecruitingBoardGuard,
   RecruitingImportGuard,
   RecruitingManagerGuard,
@@ -115,33 +116,41 @@ export default function App() {
         <Route
           path="/recruiting/boards/:userId"
           element={
-            <RecruitingBoardGuard>
-              <RecruiterBoardPage />
-            </RecruitingBoardGuard>
+            <RecruitingAccessGuard>
+              <RecruitingBoardGuard>
+                <RecruiterBoardPage />
+              </RecruitingBoardGuard>
+            </RecruitingAccessGuard>
           }
         />
         <Route
           path="/recruiting/import"
           element={
-            <RecruitingImportGuard>
-              <ImportLeadsPage />
-            </RecruitingImportGuard>
+            <RecruitingAccessGuard>
+              <RecruitingImportGuard>
+                <ImportLeadsPage />
+              </RecruitingImportGuard>
+            </RecruitingAccessGuard>
           }
         />
         <Route
           path="/recruiting/archive"
           element={
-            <RecruitingManagerGuard>
-              <ArchiveLeadsPage />
-            </RecruitingManagerGuard>
+            <RecruitingAccessGuard>
+              <RecruitingManagerGuard>
+                <ArchiveLeadsPage />
+              </RecruitingManagerGuard>
+            </RecruitingAccessGuard>
           }
         />
         <Route
           path="/recruiting/sources"
           element={
-            <RecruitingManagerGuard>
-              <LeadSourcesPage />
-            </RecruitingManagerGuard>
+            <RecruitingAccessGuard>
+              <RecruitingManagerGuard>
+                <LeadSourcesPage />
+              </RecruitingManagerGuard>
+            </RecruitingAccessGuard>
           }
         />
       </Route>

@@ -10,17 +10,24 @@ import {
 } from '../utils/recruitingPermissions.js';
 
 export function requireRecruitingAccess(req, res, next) {
-  if (!hasRecruitingModuleAccess(req.user)) {
+  const accessGranted = hasRecruitingModuleAccess(req.user);
+
+  console.log('[RECRUITING-ACCESS] route guard', {
+    requestedRoute: req.originalUrl,
+    accessGranted,
+  });
+
+  if (!accessGranted) {
     return res.status(403).json({ message: 'Recruiting access required' });
   }
   next();
 }
 
 export function requireRecruitingManager(req, res, next) {
-  if (!req.user?.isRecruitingManager) {
-    return res.status(403).json({ message: 'Recruiting manager access required' });
+  if (req.user?.isRecruitingManager || req.user?.role === 'SUPER_ADMIN') {
+    return next();
   }
-  next();
+  return res.status(403).json({ message: 'Recruiting manager access required' });
 }
 
 export function requireRecruitingImportAccess(req, res, next) {

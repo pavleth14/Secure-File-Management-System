@@ -1,10 +1,17 @@
-import { Navigate } from 'react-router-dom';
+import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
 export function RecruitingAccessGuard({ children }) {
   const { hasRecruitingAccess } = useAuth();
+  const location = useLocation();
+  const accessGranted = hasRecruitingAccess;
 
-  if (!hasRecruitingAccess) {
+  console.log('[RECRUITING-ACCESS] route guard', {
+    requestedRoute: location.pathname,
+    accessGranted,
+  });
+
+  if (!accessGranted) {
     return <Navigate to="/dashboard" replace />;
   }
 
@@ -12,19 +19,33 @@ export function RecruitingAccessGuard({ children }) {
 }
 
 export function RecruitingImportGuard({ children }) {
-  const { isRecruitingManager, isSuperAdmin } = useAuth();
+  const { isRecruitingManager, isSuperAdmin, hasRecruitingAccess } = useAuth();
+  const location = useLocation();
+  const accessGranted = hasRecruitingAccess && (isRecruitingManager || isSuperAdmin);
 
-  if (isRecruitingManager || isSuperAdmin) {
-    return children;
+  console.log('[RECRUITING-ACCESS] route guard', {
+    requestedRoute: location.pathname,
+    accessGranted,
+  });
+
+  if (!accessGranted) {
+    return <Navigate to="/dashboard" replace />;
   }
 
-  return <Navigate to="/dashboard" replace />;
+  return children;
 }
 
 export function RecruitingManagerGuard({ children }) {
-  const { user } = useAuth();
+  const { isRecruitingManager, isSuperAdmin, hasRecruitingAccess } = useAuth();
+  const location = useLocation();
+  const accessGranted = hasRecruitingAccess && (isRecruitingManager || isSuperAdmin);
 
-  if (!user?.isRecruitingManager) {
+  console.log('[RECRUITING-ACCESS] route guard', {
+    requestedRoute: location.pathname,
+    accessGranted,
+  });
+
+  if (!accessGranted) {
     return <Navigate to="/dashboard" replace />;
   }
 
@@ -33,8 +54,15 @@ export function RecruitingManagerGuard({ children }) {
 
 export function RecruitingBoardGuard({ children }) {
   const { hasRecruitingAccess } = useAuth();
+  const location = useLocation();
+  const accessGranted = hasRecruitingAccess;
 
-  if (!hasRecruitingAccess) {
+  console.log('[RECRUITING-ACCESS] route guard', {
+    requestedRoute: location.pathname,
+    accessGranted,
+  });
+
+  if (!accessGranted) {
     return <Navigate to="/dashboard" replace />;
   }
 

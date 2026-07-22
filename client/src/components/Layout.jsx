@@ -282,10 +282,32 @@ function RecruitingDropdown({ boards, showImportLeads, location, currentUserId, 
 }
 
 export default function Layout() {
-  const { user, logout, isSuperAdmin, isAdmin, hasRecruitingAccess, isRecruitingManager, isRecruiter } =
-    useAuth();
+  const {
+    user,
+    logout,
+    isSuperAdmin,
+    isAdmin,
+    hasRecruitingAccess,
+    shouldShowRecruiting,
+    isRecruitingManager,
+    isRecruiter,
+  } = useAuth();
   const location = useLocation();
   const [recruitingBoards, setRecruitingBoards] = useState([]);
+
+  useEffect(() => {
+    console.log('[RECRUITING-ACCESS] navbar', {
+      currentUser: user
+        ? {
+            id: user.id,
+            role: user.role,
+            isRecruiting: Boolean(user.isRecruiter),
+            isRecruitingManager: Boolean(user.isRecruitingManager),
+          }
+        : null,
+      shouldShowRecruiting,
+    });
+  }, [user, shouldShowRecruiting]);
 
   const links = [
     { to: '/dashboard', label: 'Dashboard' },

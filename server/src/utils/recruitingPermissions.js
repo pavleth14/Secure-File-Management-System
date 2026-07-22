@@ -11,11 +11,19 @@ export function isRecruitingModuleUser(user) {
 }
 
 export function hasRecruitingModuleAccess(user) {
-  return Boolean(user?.isRecruiter || user?.isRecruitingManager || isRecruitingModuleUser(user));
+  return Boolean(
+    user?.isRecruiter ||
+    user?.isRecruitingManager ||
+    user?.role === 'SUPER_ADMIN'
+  );
 }
 
 export function hasRecruitingAllBoardsAccess(user) {
-  return Boolean(user?.isRecruitingManager || isRecruitingModuleUser(user));
+  return Boolean(
+    user?.isRecruitingManager ||
+    user?.role === 'SUPER_ADMIN' ||
+    isRecruitingModuleUser(user)
+  );
 }
 
 export function getUserId(user) {
@@ -38,7 +46,7 @@ export function isRecruiterReadOnlyBoard(user, boardUserId) {
 }
 
 export function canMutateLeadsOnBoard(user, boardUserId) {
-  if (user?.isRecruitingManager) return true;
+  if (user?.isRecruitingManager || user?.role === 'SUPER_ADMIN') return true;
   if (isRecruitingModuleUser(user)) return true;
   if (isOwnRecruiterBoard(user, boardUserId)) return true;
   return false;
@@ -53,7 +61,7 @@ export function getLeadBoardOwnerId(lead) {
 }
 
 export function canMutateLead(user, lead) {
-  if (user?.isRecruitingManager) return true;
+  if (user?.isRecruitingManager || user?.role === 'SUPER_ADMIN') return true;
   if (isRecruitingModuleUser(user) && !lead.archived) return true;
 
   const boardOwnerId = getLeadBoardOwnerId(lead);
@@ -74,7 +82,7 @@ export function canMutateLead(user, lead) {
 }
 
 export function canViewLeadOnRecruiterBoard(user, lead) {
-  if (user?.isRecruitingManager) return true;
+  if (user?.isRecruitingManager || user?.role === 'SUPER_ADMIN') return true;
   if (isRecruitingModuleUser(user) && !lead.archived) return true;
 
   const boardOwnerId = getLeadBoardOwnerId(lead);
