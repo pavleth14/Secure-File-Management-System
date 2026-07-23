@@ -267,28 +267,39 @@ function BoardsDropdown({ boards, location, showArchivedLoads }) {
         style={{ transitionDuration: '350ms' }}
       >
         <div className="rounded-xl border border-slate-200 bg-white px-1 py-1.5 shadow-lg dark:border-slate-600 dark:bg-slate-800">
-          <span className="mx-1.5 my-0.5 block rounded-full px-4 py-2.5 text-sm text-slate-400 dark:text-slate-500">
-            Global Board (soon)
-          </span>
+          <Link
+            to="/dispatch/boards/global"
+            className={dropdownLinkClass()}
+            onClick={close}
+            aria-current={location.pathname === '/dispatch/boards/global' ? 'page' : undefined}
+          >
+            Global Board
+          </Link>
           {boards.length > 0 && (
             <div className="my-1 border-t border-slate-200 dark:border-slate-700" />
           )}
           {boards.map((board) => (
-            <span
+            <Link
               key={board.id}
-              className="mx-1.5 my-0.5 block rounded-full px-4 py-2.5 text-sm text-slate-400 dark:text-slate-500"
+              to={`/dispatch/boards/${board.id}`}
+              className={dropdownLinkClass()}
+              onClick={close}
+              aria-current={location.pathname === `/dispatch/boards/${board.id}` ? 'page' : undefined}
             >
-              {board.name} (soon)
-            </span>
+              {board.name}
+            </Link>
           ))}
-          {(boards.length > 0 || true) && (
-            <div className="my-1 border-t border-slate-200 dark:border-slate-700" />
-          )}
+          <div className="my-1 border-t border-slate-200 dark:border-slate-700" />
           <Link
             to="/dispatch/loads"
             className={dropdownLinkClass()}
             onClick={close}
-            aria-current={location.pathname.startsWith('/dispatch/loads') ? 'page' : undefined}
+            aria-current={
+              location.pathname === '/dispatch/loads' ||
+              location.pathname === '/dispatch/loads/'
+                ? 'page'
+                : undefined
+            }
           >
             Loads
           </Link>
@@ -618,7 +629,9 @@ export default function Layout() {
             ? 'max-w-full py-0'
             : location.pathname.startsWith('/recruiting/boards')
               ? 'w-[95vw] max-w-[95vw] py-8'
-              : 'max-w-7xl py-8'
+              : location.pathname.startsWith('/dispatch/boards')
+                ? 'w-[95vw] max-w-[95vw] py-8'
+                : 'max-w-7xl py-8'
         }`}
       >
         <Outlet />

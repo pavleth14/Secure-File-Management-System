@@ -33,6 +33,7 @@ import {
 } from './components/DispatchSafetyGuard';
 import LoadsPage from './pages/dispatch/LoadsPage';
 import ArchiveLoadsPage from './pages/dispatch/ArchiveLoadsPage';
+import DispatchBoardPage from './pages/dispatch/DispatchBoardPage';
 
 function ProtectedRoute({ children, roles }) {
   const { user, loading } = useAuth();
@@ -194,6 +195,14 @@ export default function App() {
             <DispatchSafetyViewGuard>
               <AssignmentsPage />
             </DispatchSafetyViewGuard>
+          }
+        />
+        <Route
+          path="/dispatch/boards/:boardKey"
+          element={
+            <DispatchModuleGuard>
+              <DispatchBoardPage />
+            </DispatchModuleGuard>
           }
         />
         <Route

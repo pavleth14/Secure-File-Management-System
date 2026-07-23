@@ -3,12 +3,14 @@ import { authMiddleware } from '../middleware/authMiddleware.js';
 import {
   requireDispatchSafetyView,
   requireDispatchBoardManagement,
+  requireDispatchModuleAccess,
 } from '../middleware/dispatchMiddleware.js';
 import {
   listDispatchBoards,
   listDispatchersForAssignments,
   assignDispatcherToBoard,
 } from '../services/boardService.js';
+import { getDispatchBoardGrid } from '../services/dispatchBoardGridService.js';
 import { Driver } from '../models/Driver.js';
 import { DRIVER_TYPES, EQUIPMENT_STATUSES } from '../config/dispatchConstants.js';
 
@@ -20,6 +22,15 @@ router.get('/', requireDispatchSafetyView, async (_req, res, next) => {
   try {
     const boards = await listDispatchBoards();
     res.json({ boards });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.get('/:boardKey/grid', requireDispatchModuleAccess, async (req, res, next) => {
+  try {
+    const grid = await getDispatchBoardGrid(req.params.boardKey, req.query.weekStart);
+    res.json(grid);
   } catch (err) {
     next(err);
   }
