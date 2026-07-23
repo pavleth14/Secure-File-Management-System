@@ -160,9 +160,9 @@ export default function DispatchBoardPage() {
   return (
     <div>
       <DispatchBoardToolbar
-        boardName={boardName}
-        weekStart={weekStart || '—'}
-        weekEnd={weekEnd || '—'}
+        boardName={boardName || 'Dispatch Board'}
+        weekStart={weekStart}
+        weekEnd={weekEnd}
         loading={loading}
         canCreateLoads={canCreateOrEditLoads}
         onPrevWeek={() => weekStart && setWeekStartParam(addDaysToDateKey(weekStart, -7))}

@@ -2,7 +2,15 @@ import DispatchLoadBar from './DispatchLoadBar';
 
 const LABEL_WIDTH = '18rem';
 
-export default function DispatchBoardGrid({ days, rows, onLoadClick, onLoadContextMenu }) {
+export default function DispatchBoardGrid({ days = [], rows = [], onLoadClick, onLoadContextMenu }) {
+  if (!days.length) {
+    return (
+      <div className="rounded-xl border border-slate-200 bg-white px-4 py-10 text-center text-sm text-slate-500 shadow-sm dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400">
+        No week data available.
+      </div>
+    );
+  }
+
   return (
     <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
       <div className="min-w-[960px]">

@@ -5,8 +5,16 @@ export function addDaysToDateKey(dateKey, days) {
 }
 
 export function formatWeekLabel(weekStart, weekEnd) {
+  if (!weekStart || !weekEnd || !/^\d{4}-\d{2}-\d{2}$/.test(weekStart) || !/^\d{4}-\d{2}-\d{2}$/.test(weekEnd)) {
+    return 'Loading week...';
+  }
+
   const start = new Date(`${weekStart}T12:00:00Z`);
   const end = new Date(`${weekEnd}T12:00:00Z`);
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
+    return 'Loading week...';
+  }
+
   const formatter = new Intl.DateTimeFormat('en-US', {
     month: 'short',
     day: 'numeric',
