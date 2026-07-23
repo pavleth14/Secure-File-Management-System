@@ -110,9 +110,12 @@ export default function ArchiveLeadsPage() {
       const { data } = await api.patch(`/recruiting/leads/${leadId}`, updates);
       setLeads((prev) => prev.map((lead) => (lead.id === leadId ? data.lead : lead)));
       setViewLead((prev) => (prev?.id === leadId ? data.lead : prev));
+      return data.lead;
     } catch (err) {
-      setActionError(err.response?.data?.message || 'Failed to update lead');
+      const message = err.response?.data?.message || 'Failed to update lead';
+      setActionError(message);
       await loadLeads();
+      throw err;
     }
   };
 
@@ -191,7 +194,6 @@ export default function ArchiveLeadsPage() {
         sortBy={filters.sortBy}
         sortDir={filters.sortDir}
         onSortChange={handleSortChange}
-        onUpdateLead={handleUpdateLead}
         onViewLead={setViewLead}
         onAddComment={setCommentLead}
         onEditComment={handleEditComment}
@@ -227,7 +229,13 @@ export default function ArchiveLeadsPage() {
         </div>
       </div>
 
-      <LeadViewModal open={Boolean(viewLead)} lead={viewLead} onClose={() => setViewLead(null)} />
+      <LeadViewModal
+        open={Boolean(viewLead)}
+        lead={viewLead}
+        onClose={() => setViewLead(null)}
+        onSave={handleUpdateLead}
+        isRecruitingManager
+      />
 
       <AddCommentModal
         open={Boolean(commentLead)}
