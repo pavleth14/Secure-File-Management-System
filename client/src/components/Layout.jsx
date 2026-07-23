@@ -202,32 +202,109 @@ function SafetyDropdown({ location }) {
   );
 }
 
-function BoardNavItem() {
-  const [showTooltip, setShowTooltip] = useState(false);
+function BoardsDropdown({ boards, location, showArchivedLoads }) {
+  const [open, setOpen] = useState(false);
+  const containerRef = useRef(null);
+
+  const isBoardsActive = useMemo(
+    () =>
+      location.pathname.startsWith('/dispatch/loads') ||
+      location.pathname.startsWith('/dispatch/boards'),
+    [location.pathname]
+  );
+
+  const close = useCallback(() => setOpen(false), []);
+
+  useEffect(() => {
+    const handlePointerDown = (event) => {
+      if (!containerRef.current?.contains(event.target)) {
+        close();
+      }
+    };
+
+    const handleEscape = (event) => {
+      if (event.key === 'Escape') close();
+    };
+
+    document.addEventListener('pointerdown', handlePointerDown);
+    document.addEventListener('keydown', handleEscape);
+    return () => {
+      document.removeEventListener('pointerdown', handlePointerDown);
+      document.removeEventListener('keydown', handleEscape);
+    };
+  }, [close]);
 
   return (
-    <div className="relative">
+    <div
+      ref={containerRef}
+      className="relative"
+      onMouseEnter={() => setOpen(true)}
+      onMouseLeave={() => setOpen(false)}
+    >
       <TopNavItem
-        active={showTooltip}
-        aria-describedby="board-coming-soon"
-        onMouseEnter={() => setShowTooltip(true)}
-        onMouseLeave={() => setShowTooltip(false)}
-        onFocus={() => setShowTooltip(true)}
-        onBlur={() => setShowTooltip(false)}
+        active={isBoardsActive || open}
+        aria-expanded={open}
+        aria-haspopup="true"
+        onClick={() => setOpen((prev) => !prev)}
       >
-        Board
+        Boards
+        <span
+          className={`ml-1.5 inline-block transition-transform duration-300 ease-in-out ${
+            open ? 'rotate-180' : 'rotate-0'
+          }`}
+          aria-hidden
+        >
+          ▾
+        </span>
       </TopNavItem>
 
       <div
-        id="board-coming-soon"
-        role="tooltip"
-        className={`pointer-events-none absolute left-1/2 top-full z-50 mt-2 -translate-x-1/2 whitespace-nowrap rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 shadow-md transition-all duration-300 ease-in-out dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 ${
-          showTooltip
-            ? 'translate-y-0 opacity-100'
-            : '-translate-y-1 opacity-0'
+        className={`absolute left-0 top-full z-50 min-w-[12rem] pt-2 transition-all ease-in-out ${
+          open
+            ? 'pointer-events-auto translate-y-0 opacity-100'
+            : 'pointer-events-none -translate-y-2 opacity-0'
         }`}
+        style={{ transitionDuration: '350ms' }}
       >
-        Coming Soon
+        <div className="rounded-xl border border-slate-200 bg-white px-1 py-1.5 shadow-lg dark:border-slate-600 dark:bg-slate-800">
+          <span className="mx-1.5 my-0.5 block rounded-full px-4 py-2.5 text-sm text-slate-400 dark:text-slate-500">
+            Global Board (soon)
+          </span>
+          {boards.length > 0 && (
+            <div className="my-1 border-t border-slate-200 dark:border-slate-700" />
+          )}
+          {boards.map((board) => (
+            <span
+              key={board.id}
+              className="mx-1.5 my-0.5 block rounded-full px-4 py-2.5 text-sm text-slate-400 dark:text-slate-500"
+            >
+              {board.name} (soon)
+            </span>
+          ))}
+          {(boards.length > 0 || true) && (
+            <div className="my-1 border-t border-slate-200 dark:border-slate-700" />
+          )}
+          <Link
+            to="/dispatch/loads"
+            className={dropdownLinkClass()}
+            onClick={close}
+            aria-current={location.pathname.startsWith('/dispatch/loads') ? 'page' : undefined}
+          >
+            Loads
+          </Link>
+          {showArchivedLoads && (
+            <Link
+              to="/dispatch/loads/archived"
+              className={dropdownLinkClass()}
+              onClick={close}
+              aria-current={
+                location.pathname.startsWith('/dispatch/loads/archived') ? 'page' : undefined
+              }
+            >
+              Archived Loads
+            </Link>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -379,9 +456,12 @@ export default function Layout() {
     isRecruitingManager,
     isRecruiter,
     shouldShowSafety,
+    shouldShowBoards,
+    canViewArchivedLoads,
   } = useAuth();
   const location = useLocation();
   const [recruitingBoards, setRecruitingBoards] = useState([]);
+  const [dispatchBoards, setDispatchBoards] = useState([]);
 
   useEffect(() => {
     console.log('[RECRUITING-ACCESS] navbar', {
@@ -440,6 +520,31 @@ export default function Layout() {
     };
   }, [hasRecruitingAccess, user?.id]);
 
+  useEffect(() => {
+    if (!shouldShowBoards) {
+      setDispatchBoards([]);
+      return undefined;
+    }
+
+    let cancelled = false;
+
+    async function loadDispatchBoards() {
+      try {
+        const { data } = await api.get('/dispatch/boards');
+        if (!cancelled) {
+          setDispatchBoards(data.boards || []);
+        }
+      } catch {
+        if (!cancelled) setDispatchBoards([]);
+      }
+    }
+
+    loadDispatchBoards();
+    return () => {
+      cancelled = true;
+    };
+  }, [shouldShowBoards, user?.id]);
+
   return (
     <div className="min-h-screen">
       <header className="border-b border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-900">
@@ -467,7 +572,13 @@ export default function Layout() {
                     isRecruiter={isRecruiter}
                   />
                 )}
-                <BoardNavItem />
+                {shouldShowBoards && (
+                  <BoardsDropdown
+                    boards={dispatchBoards}
+                    location={location}
+                    showArchivedLoads={canViewArchivedLoads}
+                  />
+                )}
                 {shouldShowSafety && <SafetyDropdown location={location} />}
               </nav>
             </div>

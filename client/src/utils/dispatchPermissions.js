@@ -36,3 +36,32 @@ export function canEditAssignments(user) {
 export function canLinkFolders(user) {
   return Boolean(user?.isSafety || user?.isSafetyManager || user?.role === 'SUPER_ADMIN');
 }
+
+export function canAccessLoadsModule(user) {
+  return hasDispatchModuleAccess(user);
+}
+
+export function canCreateOrEditLoads(user) {
+  return Boolean(
+    user?.isDispatcher ||
+    user?.isDispatchTeamLeader ||
+    user?.isDispatchManager ||
+    user?.role === 'SUPER_ADMIN'
+  );
+}
+
+export function canArchiveLoads(user) {
+  return Boolean(user?.isDispatchManager || user?.role === 'SUPER_ADMIN');
+}
+
+export function canViewArchivedLoads(user) {
+  return Boolean(
+    user?.isDispatchTeamLeader ||
+    user?.isDispatchManager ||
+    user?.role === 'SUPER_ADMIN'
+  );
+}
+
+export function canCommentOnLoads(user) {
+  return hasDispatchModuleAccess(user) || hasSafetyModuleAccess(user);
+}

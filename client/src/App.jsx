@@ -26,7 +26,13 @@ import {
   RecruitingImportGuard,
   RecruitingManagerGuard,
 } from './components/RecruitingGuard';
-import { DispatchSafetyViewGuard } from './components/DispatchSafetyGuard';
+import {
+  DispatchSafetyViewGuard,
+  DispatchModuleGuard,
+  ArchivedLoadsGuard,
+} from './components/DispatchSafetyGuard';
+import LoadsPage from './pages/dispatch/LoadsPage';
+import ArchiveLoadsPage from './pages/dispatch/ArchiveLoadsPage';
 
 function ProtectedRoute({ children, roles }) {
   const { user, loading } = useAuth();
@@ -188,6 +194,24 @@ export default function App() {
             <DispatchSafetyViewGuard>
               <AssignmentsPage />
             </DispatchSafetyViewGuard>
+          }
+        />
+        <Route
+          path="/dispatch/loads"
+          element={
+            <DispatchModuleGuard>
+              <LoadsPage />
+            </DispatchModuleGuard>
+          }
+        />
+        <Route
+          path="/dispatch/loads/archived"
+          element={
+            <DispatchModuleGuard>
+              <ArchivedLoadsGuard>
+                <ArchiveLoadsPage />
+              </ArchivedLoadsGuard>
+            </DispatchModuleGuard>
           }
         />
       </Route>

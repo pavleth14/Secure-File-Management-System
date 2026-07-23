@@ -191,6 +191,12 @@ export function AuthProvider({ children }) {
     isSafety || isSafetyManager || isDispatchTeamLeader || isDispatchManager || isSuperAdmin;
   const canLinkFolders = isSafety || isSafetyManager || isSuperAdmin;
   const canManageDispatchBoards = isDispatchManager || isSuperAdmin;
+  const canCreateOrEditLoads =
+    isDispatcher || isDispatchTeamLeader || isDispatchManager || isSuperAdmin;
+  const canArchiveLoads = isDispatchManager || isSuperAdmin;
+  const canViewArchivedLoads = isDispatchTeamLeader || isDispatchManager || isSuperAdmin;
+  const canCommentOnLoads = hasDispatchModuleAccess || hasSafetyModuleAccess;
+  const shouldShowBoards = hasDispatchModuleAccess;
 
   return (
     <AuthContext.Provider
@@ -226,6 +232,11 @@ export function AuthProvider({ children }) {
         canEditAssignments,
         canLinkFolders,
         canManageDispatchBoards,
+        canCreateOrEditLoads,
+        canArchiveLoads,
+        canViewArchivedLoads,
+        canCommentOnLoads,
+        shouldShowBoards,
       }}
     >
       {children}
