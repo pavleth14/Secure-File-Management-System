@@ -7,7 +7,12 @@ import {
   canEditStatus,
   sortCommentsNewestFirst,
 } from '../../utils/leadPermissions';
-import { DRIVER_TYPES, LEAD_STATUSES } from '../../constants/recruitingConstants';
+import {
+  DRIVER_TYPES,
+  LEAD_STATUSES,
+  REJECTION_REASONS,
+  REJECTION_REASON_CUSTOM,
+} from '../../constants/recruitingConstants';
 
 const EDITABLE_FIELDS = [
   'status',
@@ -19,8 +24,21 @@ const EDITABLE_FIELDS = [
   'email',
 ];
 
+const REJECTION_DROPDOWN_OPTIONS = [...REJECTION_REASONS, REJECTION_REASON_CUSTOM];
+
 const inputClass =
   'mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100';
+
+function parseRejectionDraft(lead) {
+  const reason = lead?.rejectionReason || '';
+  if (!reason) {
+    return { rejectionReasonPreset: '', customRejectionReason: '' };
+  }
+  if (REJECTION_REASONS.includes(reason)) {
+    return { rejectionReasonPreset: reason, customRejectionReason: '' };
+  }
+  return { rejectionReasonPreset: REJECTION_REASON_CUSTOM, customRejectionReason: reason };
+}
 
 function buildDraft(lead) {
   return {
@@ -31,7 +49,16 @@ function buildDraft(lead) {
     phone: lead?.phone || '',
     stateCity: lead?.stateCity || '',
     email: lead?.email || '',
+    ...parseRejectionDraft(lead),
   };
+}
+
+function resolveRejectionReason(draft) {
+  if (draft.status !== 'Rejected') return null;
+  if (draft.rejectionReasonPreset === REJECTION_REASON_CUSTOM) {
+    return draft.customRejectionReason.trim();
+  }
+  return draft.rejectionReasonPreset.trim();
 }
 
 function getDraftChanges(original, draft) {
@@ -43,6 +70,17 @@ function getDraftChanges(original, draft) {
       changes[field] = draftValue;
     }
   }
+
+  const originalReason = original.rejectionReason || '';
+  if (draft.status === 'Rejected') {
+    const nextReason = resolveRejectionReason(draft);
+    if (nextReason !== originalReason) {
+      changes.rejectionReason = nextReason;
+    }
+  } else if (originalReason) {
+    changes.rejectionReason = null;
+  }
+
   return changes;
 }
 
@@ -86,6 +124,7 @@ export default function LeadViewModal({
   }, [displayLead, permissionContext]);
 
   const canSave = Boolean(onSave) && !readOnly;
+  const isRejected = draft.status === 'Rejected';
 
   useEffect(() => {
     setFullLead(lead);
@@ -136,7 +175,18 @@ export default function LeadViewModal({
   };
 
   const updateDraft = (field, value) => {
-    setDraft((prev) => ({ ...prev, [field]: value }));
+    if (field === 'status' && value === 'Rejected') {
+      setEditingFields((current) => ({ ...current, rejectionReason: true }));
+    }
+
+    setDraft((prev) => {
+      const next = { ...prev, [field]: value };
+      if (field === 'status' && value !== 'Rejected') {
+        next.rejectionReasonPreset = '';
+        next.customRejectionReason = '';
+      }
+      return next;
+    });
   };
 
   const handleCancel = () => {
@@ -148,6 +198,20 @@ export default function LeadViewModal({
 
   const handleSave = async () => {
     if (!onSave || !displayLead) return;
+
+    if (draft.status === 'Rejected') {
+      if (!draft.rejectionReasonPreset) {
+        setError('Please select a reason for rejection.');
+        return;
+      }
+      if (
+        draft.rejectionReasonPreset === REJECTION_REASON_CUSTOM &&
+        !draft.customRejectionReason.trim()
+      ) {
+        setError('Please enter a custom rejection reason.');
+        return;
+      }
+    }
 
     const changes = getDraftChanges(displayLead, draft);
     if (Object.keys(changes).length === 0) {
@@ -167,6 +231,10 @@ export default function LeadViewModal({
       setSaving(false);
     }
   };
+
+  const rejectionDisplayValue = isRejected
+    ? resolveRejectionReason(draft) || '—'
+    : displayLead.rejectionReason || '—';
 
   return (
     <div
@@ -223,6 +291,19 @@ export default function LeadViewModal({
                 type="select"
                 options={DRIVER_TYPES}
               />
+              {isRejected && (
+                <RejectionReasonField
+                  editable={fieldPermissions.status}
+                  editing={Boolean(editingFields.rejectionReason)}
+                  preset={draft.rejectionReasonPreset}
+                  customReason={draft.customRejectionReason}
+                  displayValue={rejectionDisplayValue}
+                  onEdit={() => startEditing('rejectionReason')}
+                  onPresetChange={(value) => updateDraft('rejectionReasonPreset', value)}
+                  onCustomChange={(value) => updateDraft('customRejectionReason', value)}
+                  className="sm:col-span-2"
+                />
+              )}
               <DetailField label="Source" value={displayLead.source} />
               <DetailField
                 label="Date"
@@ -343,6 +424,67 @@ function DetailField({ label, value, className = '' }) {
         {label}
       </dt>
       <dd className="mt-1 text-sm text-slate-900 dark:text-slate-100">{value || '—'}</dd>
+    </div>
+  );
+}
+
+function RejectionReasonField({
+  editable,
+  editing,
+  preset,
+  customReason,
+  displayValue,
+  onEdit,
+  onPresetChange,
+  onCustomChange,
+  className = '',
+}) {
+  return (
+    <div className={className}>
+      <div className="flex items-start justify-between gap-2">
+        <dt className="text-xs font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400">
+          Reason for rejection
+        </dt>
+        {editable && !editing && (
+          <button
+            type="button"
+            onClick={onEdit}
+            className="inline-flex shrink-0 items-center gap-1 text-xs font-medium text-brand-600 hover:text-brand-700 dark:text-brand-400 dark:hover:text-brand-300"
+            aria-label="Edit reason for rejection"
+          >
+            <span aria-hidden>✎</span>
+            Edit
+          </button>
+        )}
+      </div>
+
+      {editable && editing ? (
+        <div className="mt-1 space-y-3">
+          <select
+            value={preset}
+            onChange={(event) => onPresetChange(event.target.value)}
+            className={inputClass}
+          >
+            <option value="">Select a reason...</option>
+            {REJECTION_DROPDOWN_OPTIONS.map((option) => (
+              <option key={option} value={option}>
+                {option}
+              </option>
+            ))}
+          </select>
+          {preset === REJECTION_REASON_CUSTOM && (
+            <input
+              type="text"
+              value={customReason}
+              onChange={(event) => onCustomChange(event.target.value)}
+              placeholder="Enter custom rejection reason"
+              className={inputClass}
+            />
+          )}
+        </div>
+      ) : (
+        <dd className="mt-1 text-sm text-slate-900 dark:text-slate-100">{displayValue}</dd>
+      )}
     </div>
   );
 }

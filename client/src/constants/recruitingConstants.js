@@ -41,3 +41,19 @@ export const LEAD_DATE_PRESETS = [
   { value: '30', label: 'Last 30 days' },
   { value: 'custom', label: 'Custom range' },
 ];
+
+export const REJECTION_REASONS = [
+  'Excessive Moving Violations',
+  'Major Preventable Accidents',
+  'Failed Drug or Alcohol Screening',
+  'Disqualifying License Status (CDL/MVR)',
+  'Does Not Meet Company Safety Standards',
+  'SAP',
+  'Bad VOE',
+  'DUI / DWI History',
+  'Bad criminal record',
+  'Not enough experience',
+  "Doesn't speak English",
+];
+
+export const REJECTION_REASON_CUSTOM = 'Custom (nothing from above applies)';

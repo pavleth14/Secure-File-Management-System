@@ -81,6 +81,7 @@ export function formatLead(lead) {
     email: lead.email,
     stateCity: lead.stateCity,
     status: lead.status,
+    rejectionReason: lead.rejectionReason || null,
     driverType: lead.driverType,
     source: lead.source,
     date: lead.date || '',
@@ -489,6 +490,17 @@ function validateLeadUpdate(user, lead, updates) {
     err.status = 400;
     throw err;
   }
+
+  const effectiveStatus = updates.status !== undefined ? updates.status : lead.status;
+  if (effectiveStatus === 'Rejected') {
+    const reason =
+      updates.rejectionReason !== undefined ? updates.rejectionReason : lead.rejectionReason;
+    if (!reason || !String(reason).trim()) {
+      const err = new Error('Rejection reason is required when status is Rejected');
+      err.status = 400;
+      throw err;
+    }
+  }
 }
 
 export async function updateLead(user, lead, updates) {
@@ -508,7 +520,17 @@ export async function updateLead(user, lead, updates) {
   if (updates.phone !== undefined) lead.phone = nextPhone;
   if (updates.email !== undefined) lead.email = nextEmail;
   if (updates.stateCity !== undefined) lead.stateCity = updates.stateCity.trim();
-  if (updates.status !== undefined) lead.status = updates.status;
+  if (updates.status !== undefined) {
+    lead.status = updates.status;
+    if (updates.status !== 'Rejected') {
+      lead.rejectionReason = null;
+    }
+  }
+  if (updates.rejectionReason !== undefined) {
+    lead.rejectionReason = updates.rejectionReason
+      ? String(updates.rejectionReason).trim()
+      : null;
+  }
   if (updates.driverType !== undefined) lead.driverType = updates.driverType;
 
   await lead.save();
