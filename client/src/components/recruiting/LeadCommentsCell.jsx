@@ -108,6 +108,7 @@ export default function LeadCommentsCell({
 }) {
   const cellRef = useRef(null);
   const popoverRef = useRef(null);
+  const scrollListRef = useRef(null);
   const [position, setPosition] = useState({ top: 0, left: 0, width: 0 });
   const [comments, setComments] = useState(lead.comments || []);
   const [loadingComments, setLoadingComments] = useState(false);
@@ -179,19 +180,31 @@ export default function LeadCommentsCell({
       onClose();
     };
 
+    const handleScroll = (event) => {
+      const target = event.target;
+      if (
+        popoverRef.current?.contains(target) ||
+        scrollListRef.current?.contains(target) ||
+        target === scrollListRef.current
+      ) {
+        return;
+      }
+      onClose();
+    };
+
     const handleKeyDown = (event) => {
       if (event.key === 'Escape') onClose();
     };
 
     window.addEventListener('pointerdown', handlePointerDown);
     window.addEventListener('keydown', handleKeyDown);
-    window.addEventListener('scroll', onClose, true);
+    window.addEventListener('scroll', handleScroll, true);
     window.addEventListener('resize', onClose);
 
     return () => {
       window.removeEventListener('pointerdown', handlePointerDown);
       window.removeEventListener('keydown', handleKeyDown);
-      window.removeEventListener('scroll', onClose, true);
+      window.removeEventListener('scroll', handleScroll, true);
       window.removeEventListener('resize', onClose);
     };
   }, [open, onClose]);
@@ -235,8 +248,10 @@ export default function LeadCommentsCell({
               </p>
             </div>
             <div
-              className="max-h-72 overflow-y-auto px-3 py-2"
-              style={{ scrollbarGutter: 'stable' }}
+              ref={scrollListRef}
+              className="max-h-72 overflow-y-auto overscroll-y-contain px-3 py-2"
+              style={{ scrollbarGutter: 'stable', WebkitOverflowScrolling: 'touch' }}
+              onWheel={(event) => event.stopPropagation()}
             >
               {loadingComments ? (
                 <p className="py-2 text-sm text-slate-500 dark:text-slate-400">Loading comments...</p>
