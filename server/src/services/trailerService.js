@@ -7,6 +7,7 @@ import {
   assertFolderExists,
 } from './dispatchEntityHelpers.js';
 import { EQUIPMENT_STATUSES } from '../config/dispatchConstants.js';
+import { canEditSafetyEntities } from '../utils/dispatchPermissions.js';
 
 const TRAILER_SEARCH_FIELDS = [
   'trailerNumber',
@@ -52,12 +53,18 @@ function validateTrailerPayload(payload, { isUpdate = false } = {}) {
   };
 }
 
-export async function listTrailers({ search, status } = {}) {
+export async function listTrailers({ search, status, user } = {}) {
   let trailers = await Trailer.find()
     .populate('linkedFolderId', 'name')
     .sort({ trailerNumber: 1 });
 
-  trailers = filterByStatus(trailers.map((t) => t.toObject()), status);
+  trailers = trailers.map((t) => t.toObject());
+
+  if (!canEditSafetyEntities(user) && (!status || status === 'all')) {
+    trailers = trailers.filter((trailer) => trailer.status === 'Active');
+  }
+
+  trailers = filterByStatus(trailers, status);
   trailers = filterBySearch(trailers, search, (trailer) =>
     TRAILER_SEARCH_FIELDS.map((field) => trailer[field])
   );

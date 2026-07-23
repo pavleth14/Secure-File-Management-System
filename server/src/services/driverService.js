@@ -8,6 +8,7 @@ import {
   assertFolderExists,
 } from './dispatchEntityHelpers.js';
 import { DRIVER_TYPES, EQUIPMENT_STATUSES } from '../config/dispatchConstants.js';
+import { canEditSafetyEntities } from '../utils/dispatchPermissions.js';
 
 const DRIVER_SEARCH_FIELDS = [
   'name',
@@ -57,12 +58,18 @@ function validateDriverPayload(payload, { isUpdate = false } = {}) {
   };
 }
 
-export async function listDrivers({ search, status } = {}) {
+export async function listDrivers({ search, status, user } = {}) {
   let drivers = await Driver.find()
     .populate('linkedFolderId', 'name')
     .sort({ name: 1 });
 
-  drivers = filterByStatus(drivers.map((d) => d.toObject()), status);
+  drivers = drivers.map((d) => d.toObject());
+
+  if (!canEditSafetyEntities(user) && (!status || status === 'all')) {
+    drivers = drivers.filter((driver) => driver.status === 'Active');
+  }
+
+  drivers = filterByStatus(drivers, status);
   drivers = filterBySearch(drivers, search, (driver) =>
     DRIVER_SEARCH_FIELDS.map((field) => driver[field])
   );

@@ -25,6 +25,7 @@ router.get('/', async (req, res, next) => {
     const drivers = await listDrivers({
       search: req.query.search,
       status: req.query.status,
+      user: req.user,
     });
     res.json({ drivers });
   } catch (err) {

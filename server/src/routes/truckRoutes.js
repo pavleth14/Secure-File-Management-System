@@ -25,6 +25,7 @@ router.get('/', async (req, res, next) => {
     const trucks = await listTrucks({
       search: req.query.search,
       status: req.query.status,
+      user: req.user,
     });
     res.json({ trucks });
   } catch (err) {

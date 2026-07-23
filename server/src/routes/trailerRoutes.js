@@ -24,6 +24,7 @@ router.get('/', async (req, res, next) => {
     const trailers = await listTrailers({
       search: req.query.search,
       status: req.query.status,
+      user: req.user,
     });
     res.json({ trailers });
   } catch (err) {
