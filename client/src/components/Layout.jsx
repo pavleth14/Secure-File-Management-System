@@ -115,6 +115,93 @@ function DatabaseDropdown({ links, location }) {
   );
 }
 
+function SafetyDropdown({ location }) {
+  const [open, setOpen] = useState(false);
+  const containerRef = useRef(null);
+
+  const isSafetyActive = useMemo(
+    () => location.pathname.startsWith('/safety/'),
+    [location.pathname]
+  );
+
+  const close = useCallback(() => setOpen(false), []);
+
+  useEffect(() => {
+    const handlePointerDown = (event) => {
+      if (!containerRef.current?.contains(event.target)) {
+        close();
+      }
+    };
+
+    const handleEscape = (event) => {
+      if (event.key === 'Escape') close();
+    };
+
+    document.addEventListener('pointerdown', handlePointerDown);
+    document.addEventListener('keydown', handleEscape);
+    return () => {
+      document.removeEventListener('pointerdown', handlePointerDown);
+      document.removeEventListener('keydown', handleEscape);
+    };
+  }, [close]);
+
+  const links = [
+    { to: '/safety/trucks', label: 'Trucks' },
+    { to: '/safety/trailers', label: 'Trailers' },
+    { to: '/safety/drivers', label: 'Drivers' },
+    { to: '/safety/assignments', label: 'Assignments' },
+  ];
+
+  return (
+    <div
+      ref={containerRef}
+      className="relative"
+      onMouseEnter={() => setOpen(true)}
+      onMouseLeave={() => setOpen(false)}
+    >
+      <TopNavItem
+        active={isSafetyActive || open}
+        aria-expanded={open}
+        aria-haspopup="true"
+        onClick={() => setOpen((prev) => !prev)}
+      >
+        Safety
+        <span
+          className={`ml-1.5 inline-block transition-transform duration-300 ease-in-out ${
+            open ? 'rotate-180' : 'rotate-0'
+          }`}
+          aria-hidden
+        >
+          ▾
+        </span>
+      </TopNavItem>
+
+      <div
+        className={`absolute left-0 top-full z-50 min-w-[11rem] pt-2 transition-all ease-in-out ${
+          open
+            ? 'pointer-events-auto translate-y-0 opacity-100'
+            : 'pointer-events-none -translate-y-2 opacity-0'
+        }`}
+        style={{ transitionDuration: '350ms' }}
+      >
+        <div className="rounded-xl border border-slate-200 bg-white px-1 py-1.5 shadow-lg dark:border-slate-600 dark:bg-slate-800">
+          {links.map((link) => (
+            <Link
+              key={link.to}
+              to={link.to}
+              className={dropdownLinkClass()}
+              onClick={close}
+              aria-current={location.pathname.startsWith(link.to) ? 'page' : undefined}
+            >
+              {link.label}
+            </Link>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function BoardNavItem() {
   const [showTooltip, setShowTooltip] = useState(false);
 
@@ -291,6 +378,7 @@ export default function Layout() {
     shouldShowRecruiting,
     isRecruitingManager,
     isRecruiter,
+    shouldShowSafety,
   } = useAuth();
   const location = useLocation();
   const [recruitingBoards, setRecruitingBoards] = useState([]);
@@ -380,6 +468,7 @@ export default function Layout() {
                   />
                 )}
                 <BoardNavItem />
+                {shouldShowSafety && <SafetyDropdown location={location} />}
               </nav>
             </div>
           </div>

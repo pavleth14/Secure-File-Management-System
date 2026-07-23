@@ -21,7 +21,14 @@ export default function UsersPage() {
     groupId: '',
     isRecruiter: false,
     isRecruitingManager: false,
+    isDispatcher: false,
+    isDispatchTeamLeader: false,
+    isDispatchManager: false,
+    isSafety: false,
+    isSafetyManager: false,
+    dispatchBoardId: '',
   });
+  const [dispatchBoards, setDispatchBoards] = useState([]);
 
   const canChangePassword = (user) => {
     if (user.role === 'SUPER_ADMIN') return false;
@@ -31,12 +38,16 @@ export default function UsersPage() {
 
   const load = async () => {
     try {
-      const [usersRes, groupsRes] = await Promise.all([
-        api.get('/users'),
-        api.get('/groups'),
-      ]);
-      setUsers(usersRes.data.users);
-      setGroups(groupsRes.data.groups);
+      const requests = [api.get('/users'), api.get('/groups')];
+      if (isSuperAdmin) {
+        requests.push(api.get('/dispatch/boards'));
+      }
+      const results = await Promise.all(requests);
+      setUsers(results[0].data.users);
+      setGroups(results[1].data.groups);
+      if (isSuperAdmin && results[2]) {
+        setDispatchBoards(results[2].data.boards || []);
+      }
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to load');
     } finally {
@@ -66,6 +77,7 @@ export default function UsersPage() {
       await api.post('/users', {
         ...form,
         groupId: form.groupId || null,
+        dispatchBoardId: form.dispatchBoardId || null,
       });
       setShowForm(false);
       setForm({
@@ -76,6 +88,12 @@ export default function UsersPage() {
         groupId: '',
         isRecruiter: false,
         isRecruitingManager: false,
+        isDispatcher: false,
+        isDispatchTeamLeader: false,
+        isDispatchManager: false,
+        isSafety: false,
+        isSafetyManager: false,
+        dispatchBoardId: '',
       });
       await load();
     } catch (err) {
@@ -115,6 +133,24 @@ export default function UsersPage() {
       await load();
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to update recruiting flags');
+    }
+  };
+
+  const handleDispatchFlagChange = async (userId, field, value) => {
+    try {
+      await api.put(`/users/${userId}`, { [field]: value });
+      await load();
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to update dispatch/safety flags');
+    }
+  };
+
+  const handleDispatchBoardChange = async (userId, dispatchBoardId) => {
+    try {
+      await api.put(`/users/${userId}`, { dispatchBoardId: dispatchBoardId || null });
+      await load();
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to update dispatcher board');
     }
   };
 
@@ -253,6 +289,47 @@ export default function UsersPage() {
           {isSuperAdmin && (
             <div className="mt-4 border-t border-slate-200 pt-4 dark:border-slate-700">
               <h3 className="mb-3 text-sm font-semibold text-slate-900 dark:text-slate-100">
+                Dispatch & Safety
+              </h3>
+              <div className="grid gap-2 sm:grid-cols-2">
+                {[
+                  ['isDispatcher', 'Dispatcher'],
+                  ['isDispatchTeamLeader', 'Dispatch Team Leader'],
+                  ['isDispatchManager', 'Dispatch Manager'],
+                  ['isSafety', 'Safety'],
+                  ['isSafetyManager', 'Safety Manager'],
+                ].map(([field, label]) => (
+                  <label key={field} className="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-300">
+                    <input
+                      type="checkbox"
+                      checked={form[field]}
+                      onChange={(event) => setForm({ ...form, [field]: event.target.checked })}
+                      className="rounded border-slate-300 dark:border-slate-600"
+                    />
+                    {label}
+                  </label>
+                ))}
+              </div>
+              {form.isDispatcher && (
+                <select
+                  value={form.dispatchBoardId}
+                  onChange={(event) => setForm({ ...form, dispatchBoardId: event.target.value })}
+                  className="mt-3 w-full rounded-lg border px-3 py-2 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
+                >
+                  <option value="">Select dispatch board</option>
+                  {dispatchBoards.map((board) => (
+                    <option key={board.id} value={board.id}>
+                      {board.name}
+                    </option>
+                  ))}
+                </select>
+              )}
+            </div>
+          )}
+
+          {isSuperAdmin && (
+            <div className="mt-4 border-t border-slate-200 pt-4 dark:border-slate-700">
+              <h3 className="mb-3 text-sm font-semibold text-slate-900 dark:text-slate-100">
                 Recruiting
               </h3>
               <div className="flex flex-col gap-2 sm:flex-row sm:gap-6">
@@ -310,6 +387,11 @@ export default function UsersPage() {
                   Recruiting
                 </th>
               )}
+              {isSuperAdmin && (
+                <th className="px-4 py-3 text-left text-xs font-medium uppercase text-slate-500 dark:text-slate-400">
+                  Dispatch / Safety
+                </th>
+              )}
               <th className="px-4 py-3 text-right text-xs font-medium uppercase text-slate-500 dark:text-slate-400">
                 Actions
               </th>
@@ -364,6 +446,89 @@ export default function UsersPage() {
                         />
                         Manager
                       </label>
+                    </div>
+                  </td>
+                )}
+                {isSuperAdmin && (
+                  <td className="px-4 py-3">
+                    <div className="flex flex-col gap-1.5 text-sm">
+                      <label className="flex items-center gap-2 text-slate-700 dark:text-slate-300">
+                        <input
+                          type="checkbox"
+                          checked={Boolean(user.isDispatcher)}
+                          onChange={(e) =>
+                            handleDispatchFlagChange(user.id, 'isDispatcher', e.target.checked)
+                          }
+                          className="rounded border-slate-300 dark:border-slate-600"
+                        />
+                        Dispatcher
+                      </label>
+                      <label className="flex items-center gap-2 text-slate-700 dark:text-slate-300">
+                        <input
+                          type="checkbox"
+                          checked={Boolean(user.isDispatchTeamLeader)}
+                          onChange={(e) =>
+                            handleDispatchFlagChange(
+                              user.id,
+                              'isDispatchTeamLeader',
+                              e.target.checked
+                            )
+                          }
+                          className="rounded border-slate-300 dark:border-slate-600"
+                        />
+                        Team Leader
+                      </label>
+                      <label className="flex items-center gap-2 text-slate-700 dark:text-slate-300">
+                        <input
+                          type="checkbox"
+                          checked={Boolean(user.isDispatchManager)}
+                          onChange={(e) =>
+                            handleDispatchFlagChange(
+                              user.id,
+                              'isDispatchManager',
+                              e.target.checked
+                            )
+                          }
+                          className="rounded border-slate-300 dark:border-slate-600"
+                        />
+                        Manager
+                      </label>
+                      <label className="flex items-center gap-2 text-slate-700 dark:text-slate-300">
+                        <input
+                          type="checkbox"
+                          checked={Boolean(user.isSafety)}
+                          onChange={(e) =>
+                            handleDispatchFlagChange(user.id, 'isSafety', e.target.checked)
+                          }
+                          className="rounded border-slate-300 dark:border-slate-600"
+                        />
+                        Safety
+                      </label>
+                      <label className="flex items-center gap-2 text-slate-700 dark:text-slate-300">
+                        <input
+                          type="checkbox"
+                          checked={Boolean(user.isSafetyManager)}
+                          onChange={(e) =>
+                            handleDispatchFlagChange(user.id, 'isSafetyManager', e.target.checked)
+                          }
+                          className="rounded border-slate-300 dark:border-slate-600"
+                        />
+                        Safety Mgr
+                      </label>
+                      {user.isDispatcher && (
+                        <select
+                          value={user.dispatchBoardId || ''}
+                          onChange={(e) => handleDispatchBoardChange(user.id, e.target.value)}
+                          className="mt-1 rounded border px-2 py-1 text-xs dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
+                        >
+                          <option value="">No board</option>
+                          {dispatchBoards.map((board) => (
+                            <option key={board.id} value={board.id}>
+                              {board.name}
+                            </option>
+                          ))}
+                        </select>
+                      )}
                     </div>
                   </td>
                 )}

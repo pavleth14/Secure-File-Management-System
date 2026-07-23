@@ -24,6 +24,16 @@ const userSchema = new mongoose.Schema(
     },
     isRecruiter: { type: Boolean, default: false },
     isRecruitingManager: { type: Boolean, default: false },
+    isDispatcher: { type: Boolean, default: false },
+    isDispatchTeamLeader: { type: Boolean, default: false },
+    isDispatchManager: { type: Boolean, default: false },
+    isSafety: { type: Boolean, default: false },
+    isSafetyManager: { type: Boolean, default: false },
+    dispatchBoardId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'DispatchBoard',
+      default: null,
+    },
   },
   { timestamps: true }
 );

@@ -161,7 +161,8 @@ router.post('/register', authLimiter, authMiddleware, async (req, res, next) => 
 
     const populated = await User.findById(user._id)
       .select('-passwordHash')
-      .populate('groupId', 'name');
+      .populate('groupId', 'name')
+      .populate('dispatchBoardId', 'name boardNumber');
 
     res.status(201).json({
       user: sanitizeUser(populated),
@@ -216,7 +217,8 @@ router.post('/login', async (req, res, next) => {
 
     const populated = await User.findById(user._id)
       .select('-passwordHash')
-      .populate('groupId', 'name');
+      .populate('groupId', 'name')
+      .populate('dispatchBoardId', 'name boardNumber');
 
     await auditLog({
       user,
@@ -377,7 +379,8 @@ router.get('/me', authMiddleware, async (req, res, next) => {
   try {
     const user = await User.findById(req.user._id)
       .select('-passwordHash')
-      .populate('groupId', 'name');
+      .populate('groupId', 'name')
+      .populate('dispatchBoardId', 'name boardNumber');
     res.json({ user: sanitizeUser(user) });
   } catch (err) {
     next(err);

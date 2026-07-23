@@ -19,6 +19,7 @@ import myFilesRoutes from './routes/myFilesRoutes.js';
 import favoritesRoutes from './routes/favoritesRoutes.js';
 import dashboardRoutes from './routes/dashboardRoutes.js';
 import recruitingRoutes from './routes/recruitingRoutes.js';
+import dispatchRoutes from './routes/dispatchRoutes.js';
 import { ensureDefaultLeadSources } from './services/leadSourceService.js';
 
 const app = express();
@@ -83,6 +84,7 @@ app.use('/api/my-files', myFilesRoutes);
 app.use('/api/favorites', favoritesRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/recruiting', recruitingRoutes);
+app.use('/api/dispatch', dispatchRoutes);
 
 app.use(errorHandler);
 

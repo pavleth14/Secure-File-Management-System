@@ -16,12 +16,17 @@ import RecruiterBoardPage from './pages/RecruiterBoardPage';
 import ImportLeadsPage from './pages/ImportLeadsPage';
 import ArchiveLeadsPage from './pages/ArchiveLeadsPage';
 import LeadSourcesPage from './pages/LeadSourcesPage';
+import TrucksPage from './pages/safety/TrucksPage';
+import TrailersPage from './pages/safety/TrailersPage';
+import DriversPage from './pages/safety/DriversPage';
+import AssignmentsPage from './pages/safety/AssignmentsPage';
 import {
   RecruitingAccessGuard,
   RecruitingBoardGuard,
   RecruitingImportGuard,
   RecruitingManagerGuard,
 } from './components/RecruitingGuard';
+import { DispatchSafetyViewGuard } from './components/DispatchSafetyGuard';
 
 function ProtectedRoute({ children, roles }) {
   const { user, loading } = useAuth();
@@ -151,6 +156,38 @@ export default function App() {
                 <LeadSourcesPage />
               </RecruitingManagerGuard>
             </RecruitingAccessGuard>
+          }
+        />
+        <Route
+          path="/safety/trucks"
+          element={
+            <DispatchSafetyViewGuard>
+              <TrucksPage />
+            </DispatchSafetyViewGuard>
+          }
+        />
+        <Route
+          path="/safety/trailers"
+          element={
+            <DispatchSafetyViewGuard>
+              <TrailersPage />
+            </DispatchSafetyViewGuard>
+          }
+        />
+        <Route
+          path="/safety/drivers"
+          element={
+            <DispatchSafetyViewGuard>
+              <DriversPage />
+            </DispatchSafetyViewGuard>
+          }
+        />
+        <Route
+          path="/safety/assignments"
+          element={
+            <DispatchSafetyViewGuard>
+              <AssignmentsPage />
+            </DispatchSafetyViewGuard>
           }
         />
       </Route>

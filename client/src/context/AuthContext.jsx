@@ -176,6 +176,22 @@ export function AuthProvider({ children }) {
   const shouldShowRecruiting = isRecruiter || isRecruitingManager || isSuperAdmin;
   const hasRecruitingAccess = shouldShowRecruiting;
 
+  const isDispatcher = Boolean(user?.isDispatcher);
+  const isDispatchTeamLeader = Boolean(user?.isDispatchTeamLeader);
+  const isDispatchManager = Boolean(user?.isDispatchManager);
+  const isSafety = Boolean(user?.isSafety);
+  const isSafetyManager = Boolean(user?.isSafetyManager);
+  const hasDispatchModuleAccess = isDispatcher || isDispatchTeamLeader || isDispatchManager || isSuperAdmin;
+  const hasSafetyModuleAccess = isSafety || isSafetyManager || isSuperAdmin;
+  const hasDispatchSafetyViewAccess = hasDispatchModuleAccess || hasSafetyModuleAccess;
+  const shouldShowSafety = hasSafetyModuleAccess || hasDispatchSafetyViewAccess;
+  const canEditSafetyEntities = isSafety || isSafetyManager || isSuperAdmin;
+  const canDeleteSafetyEntities = isSafetyManager || isSuperAdmin;
+  const canEditAssignments =
+    isSafety || isSafetyManager || isDispatchTeamLeader || isDispatchManager || isSuperAdmin;
+  const canLinkFolders = isSafety || isSafetyManager || isSuperAdmin;
+  const canManageDispatchBoards = isDispatchManager || isSuperAdmin;
+
   return (
     <AuthContext.Provider
       value={{
@@ -196,6 +212,20 @@ export function AuthProvider({ children }) {
         isRecruitingModuleUser,
         shouldShowRecruiting,
         hasRecruitingAccess,
+        isDispatcher,
+        isDispatchTeamLeader,
+        isDispatchManager,
+        isSafety,
+        isSafetyManager,
+        hasDispatchModuleAccess,
+        hasSafetyModuleAccess,
+        hasDispatchSafetyViewAccess,
+        shouldShowSafety,
+        canEditSafetyEntities,
+        canDeleteSafetyEntities,
+        canEditAssignments,
+        canLinkFolders,
+        canManageDispatchBoards,
       }}
     >
       {children}

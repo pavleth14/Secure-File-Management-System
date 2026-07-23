@@ -9,6 +9,11 @@ import { auditLog, buildActorLabel } from '../services/auditLogService.js';
 import { AUDIT_ACTIONS, AUDIT_CATEGORIES, TARGET_TYPES } from '../config/auditConstants.js';
 import { isValidEmail, EMAIL_INVALID_MESSAGE } from '../utils/emailValidation.js';
 import { formatUserResponse } from '../utils/userFormat.js';
+import {
+  syncDispatchUserOnCreate,
+  applyDispatchUserFlags,
+  syncDispatchUserOnUpdate,
+} from '../services/dispatchUserService.js';
 
 const router = Router();
 
@@ -25,6 +30,7 @@ router.get('/', async (req, res, next) => {
     const users = await User.find(filter)
       .select('-passwordHash')
       .populate('groupId', 'name')
+      .populate('dispatchBoardId', 'name boardNumber')
       .sort({ createdAt: -1 });
 
     res.json({ users: users.map(formatUser) });
@@ -35,7 +41,21 @@ router.get('/', async (req, res, next) => {
 
 router.post('/', async (req, res, next) => {
   try {
-    const { name, email, password, role, groupId, isRecruiter, isRecruitingManager } = req.body;
+    const {
+      name,
+      email,
+      password,
+      role,
+      groupId,
+      isRecruiter,
+      isRecruitingManager,
+      isDispatcher,
+      isDispatchTeamLeader,
+      isDispatchManager,
+      isSafety,
+      isSafetyManager,
+      dispatchBoardId,
+    } = req.body;
 
     if (!name || !email || !password) {
       return res.status(400).json({ message: 'Name, email and password required' });
@@ -85,13 +105,29 @@ router.post('/', async (req, res, next) => {
       if (isRecruitingManager !== undefined) {
         createPayload.isRecruitingManager = Boolean(isRecruitingManager);
       }
+      if (isDispatcher !== undefined) createPayload.isDispatcher = Boolean(isDispatcher);
+      if (isDispatchTeamLeader !== undefined) {
+        createPayload.isDispatchTeamLeader = Boolean(isDispatchTeamLeader);
+      }
+      if (isDispatchManager !== undefined) {
+        createPayload.isDispatchManager = Boolean(isDispatchManager);
+      }
+      if (isSafety !== undefined) createPayload.isSafety = Boolean(isSafety);
+      if (isSafetyManager !== undefined) createPayload.isSafetyManager = Boolean(isSafetyManager);
+
+      syncDispatchUserOnCreate(createPayload);
     }
 
     const user = await User.create(createPayload);
 
+    if (req.user.role === ROLES.SUPER_ADMIN) {
+      await applyDispatchUserFlags(user, {}, { dispatchBoardId: dispatchBoardId || null });
+    }
+
     const populated = await User.findById(user._id)
       .select('-passwordHash')
-      .populate('groupId', 'name');
+      .populate('groupId', 'name')
+      .populate('dispatchBoardId', 'name boardNumber');
 
     await auditLog({
       user: req.user,
@@ -122,7 +158,22 @@ router.put('/:id', async (req, res, next) => {
       return res.status(403).json({ message: 'Cannot manage this user' });
     }
 
-    const { name, email, password, role, groupId, isRecruiter, isRecruitingManager } = req.body;
+    const {
+      name,
+      email,
+      password,
+      role,
+      groupId,
+      isRecruiter,
+      isRecruitingManager,
+      isDispatcher,
+      isDispatchTeamLeader,
+      isDispatchManager,
+      isSafety,
+      isSafetyManager,
+      dispatchBoardId,
+      replacementTeamLeaderUserId,
+    } = req.body;
     const oldRole = target.role;
     const oldGroupId = target.groupId?.toString() || null;
     const oldValues = {
@@ -175,6 +226,26 @@ router.put('/:id', async (req, res, next) => {
       if (isRecruitingManager !== undefined) {
         target.isRecruitingManager = Boolean(isRecruitingManager);
       }
+      if (isDispatcher !== undefined) target.isDispatcher = Boolean(isDispatcher);
+      if (isDispatchTeamLeader !== undefined) {
+        target.isDispatchTeamLeader = Boolean(isDispatchTeamLeader);
+      }
+      if (isDispatchManager !== undefined) {
+        target.isDispatchManager = Boolean(isDispatchManager);
+      }
+      if (isSafety !== undefined) target.isSafety = Boolean(isSafety);
+      if (isSafetyManager !== undefined) target.isSafetyManager = Boolean(isSafetyManager);
+
+      await syncDispatchUserOnUpdate(target, {
+        isDispatcher,
+        isDispatchTeamLeader,
+        isDispatchManager,
+        isSafety,
+        isSafetyManager,
+        dispatchBoardId,
+        replacementTeamLeaderUserId,
+        name,
+      });
     }
 
     await target.save();
@@ -249,7 +320,8 @@ router.put('/:id', async (req, res, next) => {
 
     const populated = await User.findById(target._id)
       .select('-passwordHash')
-      .populate('groupId', 'name');
+      .populate('groupId', 'name')
+      .populate('dispatchBoardId', 'name boardNumber');
 
     res.json({ user: formatUser(populated) });
   } catch (err) {
