@@ -1,59 +1,125 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import api from '../../api/client';
 import { inputClass } from './SafetyListToolbar';
 
 export default function FolderLinkField({ value, onChange, disabled }) {
+  const [query, setQuery] = useState('');
   const [folders, setFolders] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
+  const [selectedFolder, setSelectedFolder] = useState(null);
+
+  const loadFolders = useCallback(async (searchTerm) => {
+    setLoading(true);
+    try {
+      const { data } = await api.get('/dispatch/folders/linkable', {
+        params: searchTerm ? { search: searchTerm } : undefined,
+      });
+      setFolders(data.folders || []);
+    } catch {
+      setFolders([]);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
-    let cancelled = false;
+    loadFolders('');
+  }, [loadFolders]);
 
-    async function loadFolders() {
-      try {
-        const { data } = await api.get('/folders');
-        if (!cancelled) {
-          setFolders(data.folders || []);
-        }
-      } catch {
-        if (!cancelled) setFolders([]);
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
+  useEffect(() => {
+    const timer = window.setTimeout(() => loadFolders(query.trim()), 250);
+    return () => window.clearTimeout(timer);
+  }, [query, loadFolders]);
+
+  useEffect(() => {
+    if (!value) {
+      setSelectedFolder(null);
+      return;
     }
 
-    loadFolders();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+    const match = folders.find((folder) => (folder.id || folder._id)?.toString() === value.toString());
+    if (match) {
+      setSelectedFolder(match);
+    }
+  }, [value, folders]);
+
+  const options = useMemo(() => {
+    if (!value || !selectedFolder) return folders;
+    const selectedId = selectedFolder.id || selectedFolder._id;
+    if (folders.some((folder) => (folder.id || folder._id)?.toString() === selectedId?.toString())) {
+      return folders;
+    }
+    return [selectedFolder, ...folders];
+  }, [folders, selectedFolder, value]);
+
+  const handleChange = (event) => {
+    const nextValue = event.target.value || null;
+    const folder = options.find(
+      (item) => (item.id || item._id)?.toString() === nextValue?.toString()
+    );
+    setSelectedFolder(folder || null);
+    onChange(nextValue);
+  };
 
   return (
     <div>
       <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">
         Linked folder
       </label>
+      <input
+        type="search"
+        value={query}
+        onChange={(event) => setQuery(event.target.value)}
+        disabled={disabled}
+        placeholder="Search folders by name or path..."
+        className={`${inputClass} mb-2`}
+      />
       <select
         value={value || ''}
-        onChange={(event) => onChange(event.target.value || null)}
+        onChange={handleChange}
         disabled={disabled || loading}
         className={inputClass}
       >
         <option value="">No folder linked</option>
-        {folders.map((folder) => (
-          <option key={folder.id || folder._id} value={folder.id || folder._id}>
-            {folder.relativePath || folder.name}
-          </option>
-        ))}
+        {options.map((folder) => {
+          const folderId = folder.id || folder._id;
+          return (
+            <option key={folderId} value={folderId}>
+              {folder.relativePath || folder.name}
+            </option>
+          );
+        })}
       </select>
+      {loading && (
+        <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">Searching folders...</p>
+      )}
+      {(selectedFolder?.relativePath || selectedFolder?.name) && value && (
+        <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+          Selected: {selectedFolder.relativePath || selectedFolder.name}
+        </p>
+      )}
       {value && (
-        <Link
-          to={`/folders/${value}/files`}
-          className="mt-2 inline-block text-sm text-brand-600 hover:underline dark:text-brand-400"
-        >
-          View files
-        </Link>
+        <div className="mt-2 flex flex-wrap gap-3">
+          <Link
+            to={`/folders/${value}/files`}
+            className="text-sm text-brand-600 hover:underline dark:text-brand-400"
+          >
+            View files
+          </Link>
+          {!disabled && (
+            <button
+              type="button"
+              onClick={() => {
+                setSelectedFolder(null);
+                onChange(null);
+              }}
+              className="text-sm text-red-600 hover:underline dark:text-red-400"
+            >
+              Unlink folder
+            </button>
+          )}
+        </div>
       )}
     </div>
   );

@@ -11,6 +11,8 @@ const COLORS = {
   folders: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300',
   auth: 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200',
   system: 'bg-slate-700 text-slate-100 dark:bg-slate-600 dark:text-slate-100',
+  recruiting: 'bg-pink-100 text-pink-800 dark:bg-pink-900/40 dark:text-pink-300',
+  dispatch: 'bg-amber-100 text-amber-900 dark:bg-amber-900/40 dark:text-amber-300',
 };
 
 const LABELS = {
@@ -26,6 +28,8 @@ const LABELS = {
   folders: 'Folders',
   auth: 'Auth',
   system: 'System',
+  recruiting: 'Recruiting',
+  dispatch: 'Dispatch & Safety',
 };
 
 export default function CategoryBadge({ category }) {

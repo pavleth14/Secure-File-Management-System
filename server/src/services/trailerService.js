@@ -55,7 +55,7 @@ function validateTrailerPayload(payload, { isUpdate = false } = {}) {
 
 export async function listTrailers({ search, status, user } = {}) {
   let trailers = await Trailer.find()
-    .populate('linkedFolderId', 'name')
+    .populate('linkedFolderId', 'name relativePath')
     .sort({ trailerNumber: 1 });
 
   trailers = trailers.map((t) => t.toObject());
@@ -73,7 +73,7 @@ export async function listTrailers({ search, status, user } = {}) {
 }
 
 export async function getTrailerById(id) {
-  const trailer = await Trailer.findById(id).populate('linkedFolderId', 'name');
+  const trailer = await Trailer.findById(id).populate('linkedFolderId', 'name relativePath');
   if (!trailer) {
     const err = new Error('Trailer not found');
     err.status = 404;
@@ -82,9 +82,9 @@ export async function getTrailerById(id) {
   return trailer;
 }
 
-export async function createTrailer(payload, userId) {
+export async function createTrailer(payload, userId, user) {
   const data = validateTrailerPayload(payload);
-  await assertFolderExists(data.linkedFolderId);
+  await assertFolderExists(data.linkedFolderId, user);
 
   const exists = await Trailer.findOne({ trailerNumber: data.trailerNumber });
   if (exists) {
@@ -101,7 +101,7 @@ export async function createTrailer(payload, userId) {
   return getTrailerById(trailer._id);
 }
 
-export async function updateTrailer(id, payload) {
+export async function updateTrailer(id, payload, user) {
   const trailer = await getTrailerById(id);
   const data = validateTrailerPayload({ ...trailer.toObject(), ...payload }, { isUpdate: true });
 
@@ -119,7 +119,7 @@ export async function updateTrailer(id, payload) {
   }
 
   if (payload.linkedFolderId !== undefined) {
-    await assertFolderExists(payload.linkedFolderId);
+    await assertFolderExists(payload.linkedFolderId, user);
     trailer.linkedFolderId = payload.linkedFolderId || null;
   }
 
@@ -154,4 +154,18 @@ export async function deleteTrailer(id) {
 
 export function formatTrailerResponse(trailer) {
   return formatTrailer(trailer);
+}
+
+export async function linkTrailerFolder(id, linkedFolderId, user, req) {
+  const { linkEntityFolder, ENTITY_FOLDER_TYPES } = await import('./entityFolderLinkService.js');
+  const trailer = await linkEntityFolder({
+    getEntityById: getTrailerById,
+    entityId: id,
+    linkedFolderId,
+    user,
+    req,
+    entityType: ENTITY_FOLDER_TYPES.trailer,
+    getEntityName: (entity) => `Trailer ${entity.trailerNumber}`,
+  });
+  return trailer;
 }

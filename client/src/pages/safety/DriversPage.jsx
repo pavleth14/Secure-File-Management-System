@@ -4,6 +4,7 @@ import { useAuth } from '../../context/AuthContext';
 import ContextMenu from '../../components/ContextMenu';
 import SafetyListToolbar from '../../components/dispatch-safety/SafetyListToolbar';
 import DriverFormModal from '../../components/dispatch-safety/DriverFormModal';
+import LinkedFolderCell, { buildViewFilesMenuItem } from '../../components/dispatch-safety/LinkedFolderCell';
 
 export default function DriversPage() {
   const { canEditSafetyEntities, canDeleteSafetyEntities, canLinkFolders } = useAuth();
@@ -81,6 +82,9 @@ export default function DriversPage() {
       },
     ];
 
+    const viewFilesItem = buildViewFilesMenuItem(driver);
+    if (viewFilesItem) items.push(viewFilesItem);
+
     if (canDeleteSafetyEntities) {
       items.push({
         id: 'delete',
@@ -122,7 +126,7 @@ export default function DriversPage() {
         <table className="min-w-full divide-y divide-slate-200 dark:divide-slate-700">
           <thead className="bg-slate-50 dark:bg-slate-700/50">
             <tr>
-              {['Name', 'Type', 'Status', 'Phone', 'Email', 'CDL#', 'CDL State'].map((label) => (
+              {['Name', 'Type', 'Status', 'Phone', 'Email', 'CDL#', 'CDL State', 'Folder'].map((label) => (
                 <th
                   key={label}
                   className="px-4 py-3 text-left text-xs font-medium uppercase text-slate-500 dark:text-slate-400"
@@ -135,13 +139,13 @@ export default function DriversPage() {
           <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
             {loading ? (
               <tr>
-                <td colSpan={7} className="px-4 py-8 text-center text-sm text-slate-500">
+                <td colSpan={8} className="px-4 py-8 text-center text-sm text-slate-500">
                   Loading...
                 </td>
               </tr>
             ) : drivers.length === 0 ? (
               <tr>
-                <td colSpan={7} className="px-4 py-8 text-center text-sm text-slate-500">
+                <td colSpan={8} className="px-4 py-8 text-center text-sm text-slate-500">
                   No drivers found.
                 </td>
               </tr>
@@ -162,6 +166,13 @@ export default function DriversPage() {
                   <td className="px-4 py-3 text-sm">{driver.email || '—'}</td>
                   <td className="px-4 py-3 text-sm">{driver.cdlNumber || '—'}</td>
                   <td className="px-4 py-3 text-sm">{driver.cdlState || '—'}</td>
+                  <td className="max-w-[220px] truncate px-4 py-3 text-sm">
+                    <LinkedFolderCell
+                      linkedFolderId={driver.linkedFolderId}
+                      linkedFolderPath={driver.linkedFolderPath}
+                      linkedFolderName={driver.linkedFolderName}
+                    />
+                  </td>
                 </tr>
               ))
             )}

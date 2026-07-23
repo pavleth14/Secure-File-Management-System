@@ -29,8 +29,13 @@ export function parseDateInput(value) {
   return date;
 }
 
-export async function assertFolderExists(folderId) {
+export async function assertFolderExists(folderId, user) {
   if (!folderId) return null;
+  if (user) {
+    const { assertFolderLinkable } = await import('./folderLinkService.js');
+    return assertFolderLinkable(user, folderId);
+  }
+
   const { Folder } = await import('../models/Folder.js');
   const folder = await Folder.findById(folderId);
   if (!folder) {

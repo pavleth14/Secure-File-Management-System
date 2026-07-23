@@ -5,11 +5,13 @@ import driverRoutes from './driverRoutes.js';
 import assignmentRoutes from './assignmentRoutes.js';
 import dispatchBoardRoutes from './dispatchBoardRoutes.js';
 import loadRoutes from './loadRoutes.js';
+import dispatchFolderRoutes from './dispatchFolderRoutes.js';
 
 const router = Router();
 
 router.use('/boards', dispatchBoardRoutes);
 router.use('/loads', loadRoutes);
+router.use('/folders', dispatchFolderRoutes);
 router.use('/trucks', truckRoutes);
 router.use('/trailers', trailerRoutes);
 router.use('/drivers', driverRoutes);

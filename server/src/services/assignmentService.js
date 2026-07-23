@@ -215,7 +215,59 @@ export async function updateAssignment(truckId, payload, userId) {
   }
 
   await assignment.save();
-  return getAssignmentByTruckId(truckId);
+  return { assignment: await getAssignmentByTruckId(truckId), changes };
+}
+
+export async function listAssignmentHistory({ search, limit = 100 } = {}) {
+  const assignments = await TruckAssignment.find()
+    .populate([
+      { path: 'truckId', select: 'truckNumber status' },
+      { path: 'history.changedBy', select: 'name' },
+      { path: 'history.driverId', select: 'name' },
+      { path: 'history.coDriverId', select: 'name' },
+      { path: 'history.dispatcherId', select: 'name' },
+    ])
+    .sort({ updatedAt: -1 });
+
+  let entries = [];
+
+  for (const assignment of assignments) {
+    const truckNumber = assignment.truckId?.truckNumber || null;
+    const truckId = assignment.truckId?._id || assignment.truckId || null;
+
+    for (const entry of assignment.history || []) {
+      entries.push({
+        id: entry._id,
+        assignmentId: assignment._id,
+        truckId,
+        truckNumber,
+        action: entry.action,
+        driverId: entry.driverId?._id || entry.driverId || null,
+        driverName: entry.driverId?.name || null,
+        coDriverId: entry.coDriverId?._id || entry.coDriverId || null,
+        coDriverName: entry.coDriverId?.name || null,
+        dispatcherId: entry.dispatcherId?._id || entry.dispatcherId || null,
+        dispatcherName: entry.dispatcherId?.name || null,
+        changedBy: entry.changedBy?._id || entry.changedBy || null,
+        changedByName: entry.changedBy?.name || null,
+        note: entry.note || '',
+        createdAt: entry.createdAt,
+      });
+    }
+  }
+
+  entries.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+
+  entries = filterBySearch(entries, search, (entry) => [
+    entry.truckNumber,
+    entry.driverName,
+    entry.coDriverName,
+    entry.dispatcherName,
+    entry.changedByName,
+    entry.action,
+  ]);
+
+  return entries.slice(0, limit);
 }
 
 export function formatAssignmentResponse(assignment) {

@@ -5,6 +5,7 @@ import { useAuth } from '../../context/AuthContext';
 import ContextMenu from '../../components/ContextMenu';
 import SafetyListToolbar from '../../components/dispatch-safety/SafetyListToolbar';
 import TruckFormModal from '../../components/dispatch-safety/TruckFormModal';
+import LinkedFolderCell, { buildViewFilesMenuItem } from '../../components/dispatch-safety/LinkedFolderCell';
 
 export default function TrucksPage() {
   const navigate = useNavigate();
@@ -83,6 +84,9 @@ export default function TrucksPage() {
       },
     ];
 
+    const viewFilesItem = buildViewFilesMenuItem(truck);
+    if (viewFilesItem) items.push(viewFilesItem);
+
     if (canDeleteSafetyEntities) {
       items.push({
         id: 'delete',
@@ -124,7 +128,7 @@ export default function TrucksPage() {
         <table className="min-w-full divide-y divide-slate-200 dark:divide-slate-700">
           <thead className="bg-slate-50 dark:bg-slate-700/50">
             <tr>
-              {['Truck#', 'Type', 'Status', 'Make', 'Model', 'Year', 'Plate#'].map((label) => (
+              {['Truck#', 'Type', 'Status', 'Make', 'Model', 'Year', 'Plate#', 'Folder'].map((label) => (
                 <th
                   key={label}
                   className="px-4 py-3 text-left text-xs font-medium uppercase text-slate-500 dark:text-slate-400"
@@ -137,13 +141,13 @@ export default function TrucksPage() {
           <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
             {loading ? (
               <tr>
-                <td colSpan={7} className="px-4 py-8 text-center text-sm text-slate-500">
+                <td colSpan={8} className="px-4 py-8 text-center text-sm text-slate-500">
                   Loading...
                 </td>
               </tr>
             ) : trucks.length === 0 ? (
               <tr>
-                <td colSpan={7} className="px-4 py-8 text-center text-sm text-slate-500">
+                <td colSpan={8} className="px-4 py-8 text-center text-sm text-slate-500">
                   No trucks found.
                 </td>
               </tr>
@@ -164,6 +168,13 @@ export default function TrucksPage() {
                   <td className="px-4 py-3 text-sm">{truck.model || '—'}</td>
                   <td className="px-4 py-3 text-sm">{truck.year || '—'}</td>
                   <td className="px-4 py-3 text-sm">{truck.plateNumber || '—'}</td>
+                  <td className="max-w-[220px] truncate px-4 py-3 text-sm">
+                    <LinkedFolderCell
+                      linkedFolderId={truck.linkedFolderId}
+                      linkedFolderPath={truck.linkedFolderPath}
+                      linkedFolderName={truck.linkedFolderName}
+                    />
+                  </td>
                 </tr>
               ))
             )}

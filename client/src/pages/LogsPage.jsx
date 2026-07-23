@@ -18,6 +18,8 @@ const CATEGORIES = [
   { value: 'folders', label: 'Folders' },
   { value: 'auth', label: 'Auth' },
   { value: 'system', label: 'System' },
+  { value: 'recruiting', label: 'Recruiting' },
+  { value: 'dispatch', label: 'Dispatch & Safety' },
 ];
 
 const ALL_ROLE_FILTERS = [

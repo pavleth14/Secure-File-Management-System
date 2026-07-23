@@ -54,7 +54,7 @@ function validateTruckPayload(payload, { isUpdate = false } = {}) {
 
 export async function listTrucks({ search, status, user } = {}) {
   let trucks = await Truck.find()
-    .populate('linkedFolderId', 'name')
+    .populate('linkedFolderId', 'name relativePath')
     .sort({ truckNumber: 1 });
 
   trucks = trucks.map((t) => t.toObject());
@@ -72,7 +72,7 @@ export async function listTrucks({ search, status, user } = {}) {
 }
 
 export async function getTruckById(id) {
-  const truck = await Truck.findById(id).populate('linkedFolderId', 'name');
+  const truck = await Truck.findById(id).populate('linkedFolderId', 'name relativePath');
   if (!truck) {
     const err = new Error('Truck not found');
     err.status = 404;
@@ -81,9 +81,9 @@ export async function getTruckById(id) {
   return truck;
 }
 
-export async function createTruck(payload, userId) {
+export async function createTruck(payload, userId, user) {
   const data = validateTruckPayload(payload);
-  await assertFolderExists(data.linkedFolderId);
+  await assertFolderExists(data.linkedFolderId, user);
 
   const exists = await Truck.findOne({ truckNumber: data.truckNumber });
   if (exists) {
@@ -104,7 +104,7 @@ export async function createTruck(payload, userId) {
   return getTruckById(truck._id);
 }
 
-export async function updateTruck(id, payload) {
+export async function updateTruck(id, payload, user) {
   const truck = await getTruckById(id);
   const data = validateTruckPayload({ ...truck.toObject(), ...payload }, { isUpdate: true });
 
@@ -119,7 +119,7 @@ export async function updateTruck(id, payload) {
   }
 
   if (payload.linkedFolderId !== undefined) {
-    await assertFolderExists(payload.linkedFolderId);
+    await assertFolderExists(payload.linkedFolderId, user);
     truck.linkedFolderId = payload.linkedFolderId || null;
   }
 
@@ -168,4 +168,18 @@ export async function deleteTruck(id) {
 
 export function formatTruckResponse(truck, options) {
   return formatTruck(truck, options);
+}
+
+export async function linkTruckFolder(id, linkedFolderId, user, req) {
+  const { linkEntityFolder, ENTITY_FOLDER_TYPES } = await import('./entityFolderLinkService.js');
+  const truck = await linkEntityFolder({
+    getEntityById: getTruckById,
+    entityId: id,
+    linkedFolderId,
+    user,
+    req,
+    entityType: ENTITY_FOLDER_TYPES.truck,
+    getEntityName: (entity) => `Truck ${entity.truckNumber}`,
+  });
+  return truck;
 }

@@ -28,6 +28,7 @@ export function formatTruck(truck, { maskSensitive = false } = {}) {
     notes: obj.notes || '',
     linkedFolderId: obj.linkedFolderId?._id || obj.linkedFolderId || null,
     linkedFolderName: obj.linkedFolderId?.name || null,
+    linkedFolderPath: obj.linkedFolderId?.relativePath || null,
     createdAt: obj.createdAt,
     updatedAt: obj.updatedAt,
   };
@@ -51,6 +52,7 @@ export function formatTrailer(trailer) {
     notes: obj.notes || '',
     linkedFolderId: obj.linkedFolderId?._id || obj.linkedFolderId || null,
     linkedFolderName: obj.linkedFolderId?.name || null,
+    linkedFolderPath: obj.linkedFolderId?.relativePath || null,
     createdAt: obj.createdAt,
     updatedAt: obj.updatedAt,
   };
@@ -74,6 +76,7 @@ export function formatDriver(driver, { includeSsn = false } = {}) {
     cdlExpiration: formatDate(obj.cdlExpiration),
     linkedFolderId: obj.linkedFolderId?._id || obj.linkedFolderId || null,
     linkedFolderName: obj.linkedFolderId?.name || null,
+    linkedFolderPath: obj.linkedFolderId?.relativePath || null,
     createdAt: obj.createdAt,
     updatedAt: obj.updatedAt,
   };

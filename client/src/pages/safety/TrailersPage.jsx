@@ -4,6 +4,7 @@ import { useAuth } from '../../context/AuthContext';
 import ContextMenu from '../../components/ContextMenu';
 import SafetyListToolbar from '../../components/dispatch-safety/SafetyListToolbar';
 import TrailerFormModal from '../../components/dispatch-safety/TrailerFormModal';
+import LinkedFolderCell, { buildViewFilesMenuItem } from '../../components/dispatch-safety/LinkedFolderCell';
 
 export default function TrailersPage() {
   const { canEditSafetyEntities, canDeleteSafetyEntities, canLinkFolders } = useAuth();
@@ -76,6 +77,9 @@ export default function TrailersPage() {
       },
     ];
 
+    const viewFilesItem = buildViewFilesMenuItem(trailer);
+    if (viewFilesItem) items.push(viewFilesItem);
+
     if (canDeleteSafetyEntities) {
       items.push({
         id: 'delete',
@@ -117,7 +121,7 @@ export default function TrailersPage() {
         <table className="min-w-full divide-y divide-slate-200 dark:divide-slate-700">
           <thead className="bg-slate-50 dark:bg-slate-700/50">
             <tr>
-              {['Trailer#', 'Type', 'Status', 'Size', 'Make', 'Model', 'Plate#'].map((label) => (
+              {['Trailer#', 'Type', 'Status', 'Size', 'Make', 'Model', 'Plate#', 'Folder'].map((label) => (
                 <th
                   key={label}
                   className="px-4 py-3 text-left text-xs font-medium uppercase text-slate-500 dark:text-slate-400"
@@ -130,13 +134,13 @@ export default function TrailersPage() {
           <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
             {loading ? (
               <tr>
-                <td colSpan={7} className="px-4 py-8 text-center text-sm text-slate-500">
+                <td colSpan={8} className="px-4 py-8 text-center text-sm text-slate-500">
                   Loading...
                 </td>
               </tr>
             ) : trailers.length === 0 ? (
               <tr>
-                <td colSpan={7} className="px-4 py-8 text-center text-sm text-slate-500">
+                <td colSpan={8} className="px-4 py-8 text-center text-sm text-slate-500">
                   No trailers found.
                 </td>
               </tr>
@@ -157,6 +161,13 @@ export default function TrailersPage() {
                   <td className="px-4 py-3 text-sm">{trailer.make || '—'}</td>
                   <td className="px-4 py-3 text-sm">{trailer.model || '—'}</td>
                   <td className="px-4 py-3 text-sm">{trailer.plateNumber || '—'}</td>
+                  <td className="max-w-[220px] truncate px-4 py-3 text-sm">
+                    <LinkedFolderCell
+                      linkedFolderId={trailer.linkedFolderId}
+                      linkedFolderPath={trailer.linkedFolderPath}
+                      linkedFolderName={trailer.linkedFolderName}
+                    />
+                  </td>
                 </tr>
               ))
             )}

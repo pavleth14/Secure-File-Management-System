@@ -60,7 +60,7 @@ function validateDriverPayload(payload, { isUpdate = false } = {}) {
 
 export async function listDrivers({ search, status, user } = {}) {
   let drivers = await Driver.find()
-    .populate('linkedFolderId', 'name')
+    .populate('linkedFolderId', 'name relativePath')
     .sort({ name: 1 });
 
   drivers = drivers.map((d) => d.toObject());
@@ -78,7 +78,7 @@ export async function listDrivers({ search, status, user } = {}) {
 }
 
 export async function getDriverById(id) {
-  const driver = await Driver.findById(id).populate('linkedFolderId', 'name');
+  const driver = await Driver.findById(id).populate('linkedFolderId', 'name relativePath');
   if (!driver) {
     const err = new Error('Driver not found');
     err.status = 404;
@@ -87,9 +87,9 @@ export async function getDriverById(id) {
   return driver;
 }
 
-export async function createDriver(payload, userId) {
+export async function createDriver(payload, userId, user) {
   const data = validateDriverPayload(payload);
-  await assertFolderExists(data.linkedFolderId);
+  await assertFolderExists(data.linkedFolderId, user);
 
   const driver = await Driver.create({
     ...data,
@@ -99,12 +99,12 @@ export async function createDriver(payload, userId) {
   return getDriverById(driver._id);
 }
 
-export async function updateDriver(id, payload) {
+export async function updateDriver(id, payload, user) {
   const driver = await getDriverById(id);
   const data = validateDriverPayload({ ...driver.toObject(), ...payload }, { isUpdate: true });
 
   if (payload.linkedFolderId !== undefined) {
-    await assertFolderExists(payload.linkedFolderId);
+    await assertFolderExists(payload.linkedFolderId, user);
     driver.linkedFolderId = payload.linkedFolderId || null;
   }
 
@@ -149,4 +149,18 @@ export async function deleteDriver(id) {
 
 export function formatDriverResponse(driver, options) {
   return formatDriver(driver, options);
+}
+
+export async function linkDriverFolder(id, linkedFolderId, user, req) {
+  const { linkEntityFolder, ENTITY_FOLDER_TYPES } = await import('./entityFolderLinkService.js');
+  const driver = await linkEntityFolder({
+    getEntityById: getDriverById,
+    entityId: id,
+    linkedFolderId,
+    user,
+    req,
+    entityType: ENTITY_FOLDER_TYPES.driver,
+    getEntityName: (entity) => entity.name,
+  });
+  return driver;
 }
