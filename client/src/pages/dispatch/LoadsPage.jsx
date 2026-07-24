@@ -11,7 +11,6 @@ export default function LoadsPage() {
     canCreateOrEditLoads,
     canArchiveLoads,
     canCommentOnLoads,
-    user,
   } = useAuth();
   const [loads, setLoads] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -107,11 +106,18 @@ export default function LoadsPage() {
     }
   };
 
-  const canMarkStatusForLoad = (load) => {
-    if (!canCreateOrEditLoads || load.archived || load.status === 'delivered') return false;
-    if (user?.isDispatchManager || user?.role === 'SUPER_ADMIN') return true;
-    return true;
+  const handleMarkOpen = async (load) => {
+    try {
+      await api.post(`/dispatch/loads/${load.id}/mark-open`);
+      await openLoad(load.id);
+      await loadLoads();
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to mark load open');
+    }
   };
+
+  const canMarkStatusForLoad = (load) =>
+    canCreateOrEditLoads && Boolean(load?.id) && !load.archived;
 
   const menuItems = useMemo(() => {
     if (!menu?.load) return [];
@@ -250,6 +256,7 @@ export default function LoadsPage() {
         onSave={handleSave}
         onArchive={handleArchive}
         onMarkActive={handleMarkActive}
+        onMarkOpen={handleMarkOpen}
         onMarkDelivered={handleMarkDelivered}
         canEdit={canCreateOrEditLoads}
         canArchive={canArchiveLoads}

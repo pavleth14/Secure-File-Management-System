@@ -105,6 +105,16 @@ export default function DispatchBoardPage() {
     }
   };
 
+  const handleMarkOpen = async (load) => {
+    try {
+      await api.post(`/dispatch/loads/${load.id}/mark-open`);
+      await openLoad(load.id);
+      await loadGrid();
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to mark load open');
+    }
+  };
+
   const handleMarkDelivered = async (load) => {
     try {
       await api.post(`/dispatch/loads/${load.id}/mark-delivered`);
@@ -198,6 +208,7 @@ export default function DispatchBoardPage() {
         onSave={handleSave}
         onArchive={handleArchive}
         onMarkActive={handleMarkActive}
+        onMarkOpen={handleMarkOpen}
         onMarkDelivered={handleMarkDelivered}
         canEdit={canCreateOrEditLoads}
         canArchive={canArchiveLoads}

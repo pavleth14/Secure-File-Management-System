@@ -538,8 +538,8 @@ export async function markLoadActive(id, user) {
     throw err;
   }
 
-  if (load.archived || load.status === 'delivered') {
-    const err = new Error('Delivered or archived loads cannot be marked active');
+  if (load.archived) {
+    const err = new Error('Archived loads cannot be marked active');
     err.status = 400;
     throw err;
   }
@@ -556,6 +556,34 @@ export async function markLoadActive(id, user) {
 
   load.isActive = true;
   load.status = 'active';
+  load.deliveredAt = null;
+  await load.save();
+  return getLoadById(load._id);
+}
+
+export async function markLoadOpen(id, user) {
+  const load = await getLoadById(id);
+  if (!(await canMarkLoadActiveOrDone(user, load))) {
+    const err = new Error('You cannot change this load status');
+    err.status = 403;
+    throw err;
+  }
+
+  if (load.archived) {
+    const err = new Error('Archived loads cannot be updated');
+    err.status = 400;
+    throw err;
+  }
+
+  if (!load.isActive && load.status === 'open') {
+    const err = new Error('Load is already open');
+    err.status = 400;
+    throw err;
+  }
+
+  load.isActive = false;
+  load.status = 'open';
+  load.deliveredAt = null;
   await load.save();
   return getLoadById(load._id);
 }

@@ -15,6 +15,7 @@ import {
   updateLoad,
   archiveLoad,
   markLoadActive,
+  markLoadOpen,
   markLoadDelivered,
   addLoadComment,
   editLoadComment,
@@ -26,6 +27,7 @@ import {
   auditLoadUpdated,
   auditLoadArchived,
   auditLoadMarkedActive,
+  auditLoadMarkedOpen,
   auditLoadMarkedDelivered,
   auditLoadCommentAdded,
   auditLoadCommentEdited,
@@ -133,6 +135,16 @@ router.post('/:id/mark-active', requireLoadEditAccess, async (req, res, next) =>
   try {
     const load = await markLoadActive(req.params.id, req.user);
     await auditLoadMarkedActive({ user: req.user, load, req });
+    res.json({ load: formatLoad(load, { user: req.user }) });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post('/:id/mark-open', requireLoadEditAccess, async (req, res, next) => {
+  try {
+    const load = await markLoadOpen(req.params.id, req.user);
+    await auditLoadMarkedOpen({ user: req.user, load, req });
     res.json({ load: formatLoad(load, { user: req.user }) });
   } catch (err) {
     next(err);

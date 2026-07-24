@@ -11,6 +11,7 @@ export default function LoadFormModal({
   onSave,
   onArchive,
   onMarkActive,
+  onMarkOpen,
   onMarkDelivered,
   canEdit,
   canArchive,
@@ -136,19 +137,51 @@ export default function LoadFormModal({
               <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{load.boardLabel}</p>
             )}
           </div>
-          {load && (
+          {load && canMarkStatus && !load.archived && (
             <div className="flex flex-wrap gap-2">
-              {canMarkStatus && load.status !== 'delivered' && !load.archived && (
+              {load.status === 'delivered' ? (
                 <>
-                  {!load.isActive && (
-                    <button
-                      type="button"
-                      onClick={() => onMarkActive?.(load)}
-                      className="rounded-lg border border-green-300 px-3 py-1.5 text-xs font-medium text-green-700 hover:bg-green-50 dark:border-green-700 dark:text-green-300 dark:hover:bg-green-900/20"
-                    >
-                      Mark Active
-                    </button>
-                  )}
+                  <button
+                    type="button"
+                    onClick={() => onMarkActive?.(load)}
+                    className="rounded-lg border border-green-300 px-3 py-1.5 text-xs font-medium text-green-700 hover:bg-green-50 dark:border-green-700 dark:text-green-300 dark:hover:bg-green-900/20"
+                  >
+                    Mark Active
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => onMarkOpen?.(load)}
+                    className="rounded-lg border border-yellow-300 px-3 py-1.5 text-xs font-medium text-yellow-800 hover:bg-yellow-50 dark:border-yellow-700 dark:text-yellow-300 dark:hover:bg-yellow-900/20"
+                  >
+                    Mark Open
+                  </button>
+                </>
+              ) : load.isActive ? (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => onMarkOpen?.(load)}
+                    className="rounded-lg border border-yellow-300 px-3 py-1.5 text-xs font-medium text-yellow-800 hover:bg-yellow-50 dark:border-yellow-700 dark:text-yellow-300 dark:hover:bg-yellow-900/20"
+                  >
+                    Mark Open
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => onMarkDelivered?.(load)}
+                    className="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-700"
+                  >
+                    Mark Delivered
+                  </button>
+                </>
+              ) : (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => onMarkActive?.(load)}
+                    className="rounded-lg border border-green-300 px-3 py-1.5 text-xs font-medium text-green-700 hover:bg-green-50 dark:border-green-700 dark:text-green-300 dark:hover:bg-green-900/20"
+                  >
+                    Mark Active
+                  </button>
                   <button
                     type="button"
                     onClick={() => onMarkDelivered?.(load)}
@@ -158,7 +191,7 @@ export default function LoadFormModal({
                   </button>
                 </>
               )}
-              {canArchive && !load.archived && (
+              {canArchive && (
                 <button
                   type="button"
                   onClick={() => onArchive?.(load)}

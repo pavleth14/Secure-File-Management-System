@@ -249,6 +249,19 @@ export async function auditLoadMarkedActive({ user, load, req }) {
   });
 }
 
+export async function auditLoadMarkedOpen({ user, load, req }) {
+  await auditLog({
+    user,
+    action: AUDIT_ACTIONS.LOAD_MARK_OPEN,
+    category: AUDIT_CATEGORIES.DISPATCH,
+    targetType: TARGET_TYPES.LOAD,
+    targetId: load._id,
+    targetName: loadLabel(load),
+    details: `${buildActorLabel(user)} marked ${loadLabel(load)} as open`,
+    req,
+  });
+}
+
 export async function auditLoadMarkedDelivered({ user, load, req }) {
   await auditLog({
     user,

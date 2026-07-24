@@ -171,12 +171,12 @@ export function computeLoadBarPosition(load, weekDays, handoffDays, allLoads) {
   let endOffset = 1;
 
   if (startCol === -1) startCol = 0;
-  else if (handoffDays.has(range.startKey) && hasLoadStartingOnDay(allLoads, load._id, range.startKey)) {
+  else if (handoffDays.has(range.startKey) && hasLoadEndingOnDay(allLoads, load._id, range.startKey)) {
     startOffset = 0.5;
   }
 
   if (endCol === -1) endCol = 6;
-  else if (handoffDays.has(range.endKey) && hasLoadEndingOnDay(allLoads, load._id, range.endKey)) {
+  else if (handoffDays.has(range.endKey) && hasLoadStartingOnDay(allLoads, load._id, range.endKey)) {
     endOffset = 0.5;
   }
 
