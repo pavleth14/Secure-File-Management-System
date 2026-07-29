@@ -15,6 +15,7 @@ import { recruiterBoardLabel } from '../utils/userFormat.js';
 import leadRoutes from './leadRoutes.js';
 import importRoutes from './importRoutes.js';
 import sourceRoutes from './sourceRoutes.js';
+import oldLeadRoutes from './oldLeadRoutes.js';
 
 const router = Router();
 
@@ -138,6 +139,7 @@ router.get('/boards/:userId', requireRecruitingAccess, async (req, res, next) =>
 
 router.use('/leads', leadRoutes);
 router.use('/import', importRoutes);
+router.use('/old-leads', oldLeadRoutes);
 router.use('/sources', sourceRoutes);
 
 export default router;

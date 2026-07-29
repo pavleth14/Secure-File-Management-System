@@ -7,6 +7,9 @@ export default function AssignLeadModal({
   onConfirm,
   onCancel,
   submitting = false,
+  title = 'Assign Lead To Recruiter',
+  description,
+  confirmLabel = 'Confirm assignment',
 }) {
   const [recruiterId, setRecruiterId] = useState('');
 
@@ -16,7 +19,11 @@ export default function AssignLeadModal({
     }
   }, [open, lead?.id]);
 
-  if (!open || !lead) return null;
+  if (!open) return null;
+
+  const subtitle =
+    description ||
+    (lead ? `${lead.firstName} ${lead.lastName}` : 'Select a recruiter for the selected leads.');
 
   const handleSubmit = (event) => {
     event.preventDefault();
@@ -42,11 +49,9 @@ export default function AssignLeadModal({
             id="assign-lead-title"
             className="text-lg font-semibold text-slate-900 dark:text-slate-100"
           >
-            Assign Lead To Recruiter
+            {title}
           </h2>
-          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-            {lead.firstName} {lead.lastName}
-          </p>
+          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{subtitle}</p>
         </div>
 
         <div className="px-5 py-4">
@@ -83,7 +88,7 @@ export default function AssignLeadModal({
             disabled={submitting || !recruiterId}
             className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-50"
           >
-            {submitting ? 'Assigning...' : 'Confirm assignment'}
+            {submitting ? 'Assigning...' : confirmLabel}
           </button>
         </div>
       </form>

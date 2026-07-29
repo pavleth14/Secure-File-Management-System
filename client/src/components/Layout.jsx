@@ -335,7 +335,8 @@ function RecruitingDropdown({ boards, showImportLeads, location, currentUserId, 
       location.pathname.startsWith('/recruiting/boards') ||
       location.pathname.startsWith('/recruiting/import') ||
       location.pathname.startsWith('/recruiting/archive') ||
-      location.pathname.startsWith('/recruiting/sources'),
+      location.pathname.startsWith('/recruiting/sources') ||
+      location.pathname.startsWith('/recruiting/old-leads'),
     [location.pathname]
   );
 
@@ -447,6 +448,16 @@ function RecruitingDropdown({ boards, showImportLeads, location, currentUserId, 
                 }
               >
                 Lead Sources
+              </Link>
+              <Link
+                to="/recruiting/old-leads"
+                className={dropdownLinkClass()}
+                onClick={close}
+                aria-current={
+                  location.pathname.startsWith('/recruiting/old-leads') ? 'page' : undefined
+                }
+              >
+                Old Leads
               </Link>
             </>
           )}

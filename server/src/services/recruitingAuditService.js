@@ -121,3 +121,48 @@ export async function auditLeadSourceCreated({ user, sourceName, req }) {
     req,
   });
 }
+
+function oldLeadLabel(oldLead) {
+  if (!oldLead) return 'Old Lead';
+  return `${oldLead.firstName || ''} ${oldLead.lastName || ''}`.trim() || 'Old Lead';
+}
+
+export async function auditOldLeadImported({ user, summary, req }) {
+  await auditLog({
+    user,
+    action: AUDIT_ACTIONS.OLD_LEAD_IMPORT,
+    category: AUDIT_CATEGORIES.RECRUITING,
+    targetType: TARGET_TYPES.OLD_LEAD,
+    targetName: 'Old Leads CSV Import',
+    details: `${buildActorLabel(user)} imported ${summary.imported} old leads (${summary.skippedDuplicates} duplicates skipped, ${summary.invalidRows} invalid)`,
+    newValues: summary,
+    req,
+  });
+}
+
+export async function auditOldLeadAssigned({ user, oldLead, recruiterName, req }) {
+  await auditLog({
+    user,
+    action: AUDIT_ACTIONS.OLD_LEAD_ASSIGN,
+    category: AUDIT_CATEGORIES.RECRUITING,
+    targetType: TARGET_TYPES.OLD_LEAD,
+    targetId: oldLead.id || oldLead._id,
+    targetName: oldLeadLabel(oldLead),
+    details: `${buildActorLabel(user)} assigned old lead ${oldLeadLabel(oldLead)} to ${recruiterName}`,
+    newValues: { recruiterName, leadId: oldLead.assignment?.leadId },
+    req,
+  });
+}
+
+export async function auditOldLeadsRoundRobinAssigned({ user, summary, req }) {
+  await auditLog({
+    user,
+    action: AUDIT_ACTIONS.OLD_LEAD_ROUND_ROBIN_ASSIGN,
+    category: AUDIT_CATEGORIES.RECRUITING,
+    targetType: TARGET_TYPES.OLD_LEAD,
+    targetName: 'Round Robin Assignment',
+    details: `${buildActorLabel(user)} round-robin assigned ${summary.assigned} old leads (${summary.failed} failed)`,
+    newValues: summary,
+    req,
+  });
+}

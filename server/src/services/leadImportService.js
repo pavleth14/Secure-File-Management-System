@@ -383,7 +383,7 @@ async function getActiveRecruiters() {
   return User.find({ isRecruiter: true }).sort({ name: 1 }).select('_id name');
 }
 
-async function getRoundRobinAssignments(count) {
+export async function getRoundRobinAssignments(count) {
   const recruiters = await getActiveRecruiters();
   if (!recruiters.length) {
     const err = new Error('No active recruiters available for assignment');
@@ -589,3 +589,10 @@ export async function confirmLeadImport(manager, previewId, selectedRowNumbers =
     totalSelected: selectedRows.length,
   };
 }
+
+export {
+  parseCsvBuffer,
+  mapCsvRow,
+  validateMappedRow,
+  applyDuplicateChecks,
+};
