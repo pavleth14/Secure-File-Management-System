@@ -5,7 +5,7 @@ export async function ensureDefaultLeadStatuses() {
   for (const name of DEFAULT_STATUSES) {
     await LeadStatus.updateOne(
       { name },
-      { $setOnInsert: { name, isDefault: true }, $set: { isDefault: true } },
+      { $setOnInsert: { name, isDefault: true } },
       { upsert: true }
     );
   }

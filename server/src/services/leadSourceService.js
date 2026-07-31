@@ -5,7 +5,7 @@ export async function ensureDefaultLeadSources() {
   for (const name of DEFAULT_SOURCES) {
     await LeadSource.updateOne(
       { name },
-      { $setOnInsert: { name, isDefault: true }, $set: { isDefault: true } },
+      { $setOnInsert: { name, isDefault: true } },
       { upsert: true }
     );
   }
