@@ -4,7 +4,7 @@ import api from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import { LEAD_BOARD_PAGE_SIZES } from '../constants/recruitingConstants';
 import { getLeadDateRange, isRecruiterBoardReadOnly } from '../utils/leadPermissions';
-import { useLeadSources, useRecruiters } from '../hooks/useRecruitingData';
+import { useLeadSources, useLeadStatuses, useRecruiters } from '../hooks/useRecruitingData';
 import LeadBoardToolbar from '../components/recruiting/LeadBoardToolbar';
 import LeadBoardTable from '../components/recruiting/LeadBoardTable';
 import LeadViewModal from '../components/recruiting/LeadViewModal';
@@ -48,7 +48,8 @@ export default function RecruiterBoardPage() {
     isRecruitingManager,
     isOwnBoard,
   });
-  const { sources } = useLeadSources();
+  const { sourceNames } = useLeadSources();
+  const { statusNames } = useLeadStatuses();
   const { recruiters } = useRecruiters();
 
   const [boardLabel, setBoardLabel] = useState('');
@@ -269,7 +270,8 @@ export default function RecruiterBoardPage() {
         filters={filters}
         onFilterChange={updateFilter}
         pageSizes={LEAD_BOARD_PAGE_SIZES}
-        sources={sources}
+        sources={sourceNames}
+        statuses={statusNames}
       />
 
       <LeadBoardTable

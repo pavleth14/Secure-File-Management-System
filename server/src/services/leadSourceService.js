@@ -5,7 +5,7 @@ export async function ensureDefaultLeadSources() {
   for (const name of DEFAULT_SOURCES) {
     await LeadSource.updateOne(
       { name },
-      { $setOnInsert: { name, isDefault: true } },
+      { $setOnInsert: { name, isDefault: true }, $set: { isDefault: true } },
       { upsert: true }
     );
   }
@@ -54,5 +54,25 @@ export async function addLeadSource(name, userId) {
     createdBy: userId,
   });
 
+  return source;
+}
+
+export async function deleteLeadSource(sourceId) {
+  await ensureDefaultLeadSources();
+
+  const source = await LeadSource.findById(sourceId);
+  if (!source) {
+    const err = new Error('Source not found');
+    err.status = 404;
+    throw err;
+  }
+
+  if (source.isDefault || DEFAULT_SOURCES.includes(source.name)) {
+    const err = new Error('System lead sources cannot be deleted');
+    err.status = 403;
+    throw err;
+  }
+
+  await LeadSource.deleteOne({ _id: source._id });
   return source;
 }

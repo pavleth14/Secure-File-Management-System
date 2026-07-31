@@ -14,6 +14,7 @@ export default function LeadBoardToolbar({
   onFilterChange,
   pageSizes,
   sources = [],
+  statuses = LEAD_STATUSES,
   recruiters = [],
   showRecruiterFilter = false,
 }) {
@@ -34,7 +35,7 @@ export default function LeadBoardToolbar({
           className={selectClass}
         >
           <option value="">All statuses</option>
-          {LEAD_STATUSES.map((status) => (
+          {statuses.map((status) => (
             <option key={status} value={status}>
               {status}
             </option>

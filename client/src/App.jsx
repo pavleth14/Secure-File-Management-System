@@ -16,6 +16,7 @@ import RecruiterBoardPage from './pages/RecruiterBoardPage';
 import ImportLeadsPage from './pages/ImportLeadsPage';
 import ArchiveLeadsPage from './pages/ArchiveLeadsPage';
 import LeadSourcesPage from './pages/LeadSourcesPage';
+import LeadStatusesPage from './pages/LeadStatusesPage';
 import OldLeadsPage from './pages/OldLeadsPage';
 import TrucksPage from './pages/safety/TrucksPage';
 import TrailersPage from './pages/safety/TrailersPage';
@@ -162,6 +163,16 @@ export default function App() {
             <RecruitingAccessGuard>
               <RecruitingManagerGuard>
                 <LeadSourcesPage />
+              </RecruitingManagerGuard>
+            </RecruitingAccessGuard>
+          }
+        />
+        <Route
+          path="/recruiting/statuses"
+          element={
+            <RecruitingAccessGuard>
+              <RecruitingManagerGuard>
+                <LeadStatusesPage />
               </RecruitingManagerGuard>
             </RecruitingAccessGuard>
           }

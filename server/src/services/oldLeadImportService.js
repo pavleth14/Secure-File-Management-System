@@ -8,6 +8,7 @@ import {
   applyDuplicateChecks,
 } from './leadImportService.js';
 import { getLeadSourceNames } from './leadSourceService.js';
+import { getLeadStatusNames } from './leadStatusService.js';
 
 async function loadExistingOldLeadContactKeys(rows) {
   const emails = rows.map((row) => row.normalizedEmail).filter(Boolean);
@@ -40,9 +41,10 @@ export async function previewOldLeadImport(manager, fileBuffer, fileName = '') {
 
   const importDate = new Date();
   const allowedSources = await getLeadSourceNames();
+  const allowedStatuses = await getLeadStatusNames();
   const validatedRows = rawRows.map((rawRow, index) => {
     const mapped = mapCsvRow(rawRow);
-    const validation = validateMappedRow(mapped, importDate, allowedSources);
+    const validation = validateMappedRow(mapped, importDate, allowedSources, allowedStatuses);
 
     return {
       rowNumber: index + 1,

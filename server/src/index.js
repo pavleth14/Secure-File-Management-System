@@ -21,6 +21,7 @@ import dashboardRoutes from './routes/dashboardRoutes.js';
 import recruitingRoutes from './routes/recruitingRoutes.js';
 import dispatchRoutes from './routes/dispatchRoutes.js';
 import { ensureDefaultLeadSources } from './services/leadSourceService.js';
+import { ensureDefaultLeadStatuses } from './services/leadStatusService.js';
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -92,6 +93,7 @@ async function start() {
   await connectDB();
   await seedDatabase();
   await ensureDefaultLeadSources();
+  await ensureDefaultLeadStatuses();
   const server = app.listen(PORT, '0.0.0.0', () => {
     console.log(`Server running on http://0.0.0.0:${PORT}`);
   });

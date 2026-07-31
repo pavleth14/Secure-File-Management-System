@@ -321,6 +321,10 @@ function BoardsDropdown({ boards, location, showArchivedLoads }) {
   );
 }
 
+function formatBoardDropdownLabel(label) {
+  return label.replace(/ Board(?= \(|$)/, '');
+}
+
 function RecruitingDropdown({ boards, showImportLeads, location, currentUserId, isRecruiter }) {
   const [open, setOpen] = useState(false);
   const containerRef = useRef(null);
@@ -336,6 +340,7 @@ function RecruitingDropdown({ boards, showImportLeads, location, currentUserId, 
       location.pathname.startsWith('/recruiting/import') ||
       location.pathname.startsWith('/recruiting/archive') ||
       location.pathname.startsWith('/recruiting/sources') ||
+      location.pathname.startsWith('/recruiting/statuses') ||
       location.pathname.startsWith('/recruiting/old-leads'),
     [location.pathname]
   );
@@ -406,7 +411,7 @@ function RecruitingDropdown({ boards, showImportLeads, location, currentUserId, 
                     : undefined
                 }
               >
-                {board.label}
+                {formatBoardDropdownLabel(board.label)}
               </Link>
               {showOwnBoardDivider && index === 0 && (
                 <div
@@ -419,6 +424,11 @@ function RecruitingDropdown({ boards, showImportLeads, location, currentUserId, 
           ))}
           {showImportLeads && (
             <>
+              <div
+                className="my-1 border-t border-slate-200 dark:border-slate-600"
+                role="separator"
+                aria-hidden
+              />
               <Link
                 to="/recruiting/import"
                 className={dropdownLinkClass()}
@@ -448,6 +458,16 @@ function RecruitingDropdown({ boards, showImportLeads, location, currentUserId, 
                 }
               >
                 Lead Sources
+              </Link>
+              <Link
+                to="/recruiting/statuses"
+                className={dropdownLinkClass()}
+                onClick={close}
+                aria-current={
+                  location.pathname.startsWith('/recruiting/statuses') ? 'page' : undefined
+                }
+              >
+                Lead Statuses
               </Link>
               <Link
                 to="/recruiting/old-leads"

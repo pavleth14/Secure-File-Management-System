@@ -15,6 +15,7 @@ import { recruiterBoardLabel } from '../utils/userFormat.js';
 import leadRoutes from './leadRoutes.js';
 import importRoutes from './importRoutes.js';
 import sourceRoutes from './sourceRoutes.js';
+import statusRoutes from './statusRoutes.js';
 import oldLeadRoutes from './oldLeadRoutes.js';
 
 const router = Router();
@@ -141,5 +142,6 @@ router.use('/leads', leadRoutes);
 router.use('/import', importRoutes);
 router.use('/old-leads', oldLeadRoutes);
 router.use('/sources', sourceRoutes);
+router.use('/statuses', statusRoutes);
 
 export default router;

@@ -122,6 +122,45 @@ export async function auditLeadSourceCreated({ user, sourceName, req }) {
   });
 }
 
+export async function auditLeadSourceDeleted({ user, sourceName, req }) {
+  await auditLog({
+    user,
+    action: AUDIT_ACTIONS.LEAD_SOURCE_DELETE,
+    category: AUDIT_CATEGORIES.RECRUITING,
+    targetType: TARGET_TYPES.LEAD_SOURCE,
+    targetName: sourceName,
+    details: `${buildActorLabel(user)} deleted lead source "${sourceName}"`,
+    oldValues: { name: sourceName },
+    req,
+  });
+}
+
+export async function auditLeadStatusCreated({ user, statusName, req }) {
+  await auditLog({
+    user,
+    action: AUDIT_ACTIONS.LEAD_STATUS_CREATE,
+    category: AUDIT_CATEGORIES.RECRUITING,
+    targetType: TARGET_TYPES.LEAD_STATUS,
+    targetName: statusName,
+    details: `${buildActorLabel(user)} added lead status "${statusName}"`,
+    newValues: { name: statusName },
+    req,
+  });
+}
+
+export async function auditLeadStatusDeleted({ user, statusName, req }) {
+  await auditLog({
+    user,
+    action: AUDIT_ACTIONS.LEAD_STATUS_DELETE,
+    category: AUDIT_CATEGORIES.RECRUITING,
+    targetType: TARGET_TYPES.LEAD_STATUS,
+    targetName: statusName,
+    details: `${buildActorLabel(user)} deleted lead status "${statusName}"`,
+    oldValues: { name: statusName },
+    req,
+  });
+}
+
 function oldLeadLabel(oldLead) {
   if (!oldLead) return 'Old Lead';
   return `${oldLead.firstName || ''} ${oldLead.lastName || ''}`.trim() || 'Old Lead';

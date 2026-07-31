@@ -6,12 +6,12 @@ import { User } from '../models/User.js';
 import { RecruitingState } from '../models/RecruitingState.js';
 import { LeadImportPreview } from '../models/LeadImportPreview.js';
 import {
-  LEAD_STATUSES,
   DRIVER_TYPES,
   DEFAULT_LEAD_STATUS,
 } from '../config/recruitingConstants.js';
 import { handleLeadDuplicateError } from './leadService.js';
 import { getLeadSourceNames } from './leadSourceService.js';
+import { getLeadStatusNames } from './leadStatusService.js';
 
 const IMPORT_COMMENT_AUTHOR_LABEL = 'Importing Recruiting Manager';
 
@@ -130,7 +130,7 @@ function parseLeadDate(value, fallbackDate) {
   return parsed;
 }
 
-function validateMappedRow(row, importDate, allowedSources) {
+function validateMappedRow(row, importDate, allowedSources, allowedStatuses) {
   const errors = [];
   const warnings = [];
 
@@ -145,7 +145,7 @@ function validateMappedRow(row, importDate, allowedSources) {
     errors.push('Invalid email format');
   }
 
-  if (row.status && !LEAD_STATUSES.includes(row.status)) {
+  if (row.status && !allowedStatuses.includes(row.status)) {
     errors.push(`Invalid status: ${row.status}`);
   }
 
@@ -173,7 +173,7 @@ function validateMappedRow(row, importDate, allowedSources) {
     parsedCreatedAt,
     normalizedEmail: row.email ? normalizeEmail(row.email) : '',
     normalizedPhone: row.phone ? normalizePhone(row.phone) : '',
-    status: row.status && LEAD_STATUSES.includes(row.status) ? row.status : DEFAULT_LEAD_STATUS,
+    status: row.status && allowedStatuses.includes(row.status) ? row.status : DEFAULT_LEAD_STATUS,
     driverType: row.driverType,
     source: row.source,
   };
@@ -270,9 +270,10 @@ export async function previewLeadImport(
 
   const importDate = new Date();
   const allowedSources = await getLeadSourceNames();
+  const allowedStatuses = await getLeadStatusNames();
   const validatedRows = rawRows.map((rawRow, index) => {
     const mapped = mapCsvRow(rawRow);
-    const validation = validateMappedRow(mapped, importDate, allowedSources);
+    const validation = validateMappedRow(mapped, importDate, allowedSources, allowedStatuses);
 
     return {
       rowNumber: index + 1,

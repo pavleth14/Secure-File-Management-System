@@ -13,6 +13,7 @@ import {
   REJECTION_REASONS,
   REJECTION_REASON_CUSTOM,
 } from '../../constants/recruitingConstants';
+import { useLeadStatuses } from '../../hooks/useRecruitingData';
 
 const EDITABLE_FIELDS = [
   'status',
@@ -94,6 +95,8 @@ export default function LeadViewModal({
   isOwnBoard = false,
   readOnly = false,
 }) {
+  const { statusNames } = useLeadStatuses();
+  const statusOptions = statusNames.length ? statusNames : LEAD_STATUSES;
   const [fullLead, setFullLead] = useState(lead);
   const [draft, setDraft] = useState(() => buildDraft(lead));
   const [editingFields, setEditingFields] = useState({});
@@ -278,7 +281,7 @@ export default function LeadViewModal({
                 onEdit={() => startEditing('status')}
                 onChange={(value) => updateDraft('status', value)}
                 type="select"
-                options={LEAD_STATUSES}
+                options={statusOptions}
               />
               <EditableDetailField
                 label="Type of Driver"

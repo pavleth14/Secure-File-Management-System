@@ -2,13 +2,13 @@ import validator from 'validator';
 import { Lead } from '../models/Lead.js';
 import { User } from '../models/User.js';
 import {
-  LEAD_STATUSES,
   DRIVER_TYPES,
   LEAD_PERSONAL_INFO_EDIT_WINDOW_MS,
   LEAD_COMMENT_EDIT_WINDOW_MS,
   DEFAULT_LEAD_STATUS,
 } from '../config/recruitingConstants.js';
 import { assertValidLeadSource } from './leadSourceService.js';
+import { assertValidLeadStatus } from './leadStatusService.js';
 import { isRecruitingModuleUser, canMutateLead, canViewLeadOnRecruiterBoard } from '../utils/recruitingPermissions.js';
 
 const PERSONAL_INFO_FIELDS = ['firstName', 'lastName', 'phone', 'email', 'stateCity'];
@@ -373,7 +373,7 @@ export async function createLead(user, payload) {
   await assertValidLeadSource(source);
 
   if (status !== undefined) {
-    assertEnumValue(status, LEAD_STATUSES, 'status');
+    await assertValidLeadStatus(status);
   }
 
   let assignedRecruiter = user._id;
@@ -413,7 +413,7 @@ export async function createLead(user, payload) {
   return getLeadById(lead._id);
 }
 
-function validateLeadUpdate(user, lead, updates) {
+async function validateLeadUpdate(user, lead, updates) {
   if (!canMutateLead(user, lead)) {
     const err = new Error('Access denied to modify this lead');
     err.status = 403;
@@ -474,7 +474,7 @@ function validateLeadUpdate(user, lead, updates) {
   }
 
   if (updates.status !== undefined) {
-    assertEnumValue(updates.status, LEAD_STATUSES, 'status');
+    await assertValidLeadStatus(updates.status);
   }
 
   if (updates.driverType !== undefined) {
@@ -504,7 +504,7 @@ function validateLeadUpdate(user, lead, updates) {
 }
 
 export async function updateLead(user, lead, updates) {
-  validateLeadUpdate(user, lead, updates);
+  await validateLeadUpdate(user, lead, updates);
 
   const nextEmail =
     updates.email !== undefined ? normalizeEmail(updates.email) : lead.email;

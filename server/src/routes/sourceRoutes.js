@@ -7,8 +7,9 @@ import {
 import {
   listLeadSources,
   addLeadSource,
+  deleteLeadSource,
 } from '../services/leadSourceService.js';
-import { auditLeadSourceCreated } from '../services/recruitingAuditService.js';
+import { auditLeadSourceCreated, auditLeadSourceDeleted } from '../services/recruitingAuditService.js';
 
 const router = Router();
 
@@ -44,6 +45,16 @@ router.post('/', requireRecruitingManager, async (req, res, next) => {
         createdAt: source.createdAt,
       },
     });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.delete('/:id', requireRecruitingManager, async (req, res, next) => {
+  try {
+    const source = await deleteLeadSource(req.params.id);
+    await auditLeadSourceDeleted({ user: req.user, sourceName: source.name, req });
+    res.json({ message: 'Source deleted', source: { id: source._id, name: source.name } });
   } catch (err) {
     next(err);
   }

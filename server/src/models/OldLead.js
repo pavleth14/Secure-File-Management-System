@@ -1,6 +1,5 @@
 import mongoose from 'mongoose';
 import {
-  LEAD_STATUSES,
   DRIVER_TYPES,
   DEFAULT_LEAD_STATUS,
 } from '../config/recruitingConstants.js';
@@ -41,7 +40,6 @@ const oldLeadSchema = new mongoose.Schema(
     stateCity: { type: String, trim: true, default: '' },
     status: {
       type: String,
-      enum: LEAD_STATUSES,
       default: DEFAULT_LEAD_STATUS,
     },
     driverType: {

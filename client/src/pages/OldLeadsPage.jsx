@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import api from '../api/client';
 import { LEAD_BOARD_PAGE_SIZES } from '../constants/recruitingConstants';
 import { getLeadDateRange } from '../utils/leadPermissions';
-import { useLeadSources, useRecruiters } from '../hooks/useRecruitingData';
+import { useLeadSources, useLeadStatuses, useRecruiters } from '../hooks/useRecruitingData';
 import LeadBoardToolbar from '../components/recruiting/LeadBoardToolbar';
 import OldLeadsTable from '../components/recruiting/OldLeadsTable';
 import ImportPreviewTable from '../components/recruiting/ImportPreviewTable';
@@ -36,7 +36,8 @@ function buildQueryParams(filters) {
 }
 
 export default function OldLeadsPage() {
-  const { sources } = useLeadSources();
+  const { sourceNames } = useLeadSources();
+  const { statusNames } = useLeadStatuses();
   const { recruiters } = useRecruiters();
   const fileInputRef = useRef(null);
 
@@ -383,7 +384,8 @@ export default function OldLeadsPage() {
         filters={filters}
         onFilterChange={updateFilter}
         pageSizes={LEAD_BOARD_PAGE_SIZES}
-        sources={sources}
+        sources={sourceNames}
+        statuses={statusNames}
       />
 
       <OldLeadsTable
