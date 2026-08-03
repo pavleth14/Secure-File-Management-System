@@ -6,12 +6,13 @@ import { LEAD_BOARD_PAGE_SIZES } from '../constants/recruitingConstants';
 import { getLeadDateRange, isRecruiterBoardReadOnly } from '../utils/leadPermissions';
 import { useLeadSources, useLeadStatuses, useRecruiters } from '../hooks/useRecruitingData';
 import LeadBoardToolbar from '../components/recruiting/LeadBoardToolbar';
+import LeadActivityTabs from '../components/recruiting/LeadActivityTabs';
 import LeadBoardTable from '../components/recruiting/LeadBoardTable';
 import LeadViewModal from '../components/recruiting/LeadViewModal';
 import AddCommentModal from '../components/recruiting/AddCommentModal';
 import AssignLeadModal from '../components/recruiting/AssignLeadModal';
 
-function buildQueryParams(filters, recruiterId) {
+function buildQueryParams(filters, recruiterId, activityGroup) {
   const { dateFrom, dateTo } = getLeadDateRange(
     filters.datePreset,
     filters.customStart,
@@ -32,6 +33,10 @@ function buildQueryParams(filters, recruiterId) {
   if (filters.source) params.source = filters.source;
   if (dateFrom) params.dateFrom = dateFrom;
   if (dateTo) params.dateTo = dateTo;
+
+  if (!filters.status && activityGroup && activityGroup !== 'all') {
+    params.activityGroup = activityGroup;
+  }
 
   return params;
 }
@@ -62,6 +67,7 @@ export default function RecruiterBoardPage() {
   const [leadsLoading, setLeadsLoading] = useState(false);
   const [actionError, setActionError] = useState('');
 
+  const [activityGroup, setActivityGroup] = useState('active');
   const [searchInput, setSearchInput] = useState('');
   const [filters, setFilters] = useState({
     search: '',
@@ -114,14 +120,19 @@ export default function RecruiterBoardPage() {
 
   useEffect(() => {
     setFilters((prev) => ({ ...prev, page: 1 }));
+    setActivityGroup('active');
   }, [userId]);
+
+  useEffect(() => {
+    setFilters((prev) => ({ ...prev, page: 1 }));
+  }, [activityGroup]);
 
   const loadLeads = useCallback(async () => {
     setLeadsLoading(true);
     setActionError('');
     try {
       const { data } = await api.get('/recruiting/leads', {
-        params: buildQueryParams(filters, userId),
+        params: buildQueryParams(filters, userId, activityGroup),
       });
       setLeads(data.leads || []);
       setTotalCount(data.totalCount || 0);
@@ -131,7 +142,7 @@ export default function RecruiterBoardPage() {
     } finally {
       setLeadsLoading(false);
     }
-  }, [filters, userId]);
+  }, [filters, userId, activityGroup]);
 
   useEffect(() => {
     if (boardError) return;
@@ -277,6 +288,8 @@ export default function RecruiterBoardPage() {
         sources={sourceNames}
         statuses={statusNames}
       />
+
+      <LeadActivityTabs value={activityGroup} onChange={setActivityGroup} />
 
       <LeadBoardTable
         leads={leads}

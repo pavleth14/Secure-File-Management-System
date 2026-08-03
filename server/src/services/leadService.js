@@ -8,7 +8,11 @@ import {
   DEFAULT_LEAD_STATUS,
 } from '../config/recruitingConstants.js';
 import { assertValidLeadSource } from './leadSourceService.js';
-import { assertValidLeadStatus } from './leadStatusService.js';
+import {
+  assertValidLeadStatus,
+  getActiveLeadStatusNames,
+  getInactiveLeadStatusNames,
+} from './leadStatusService.js';
 import { isRecruitingModuleUser, canMutateLead, canViewLeadOnRecruiterBoard } from '../utils/recruitingPermissions.js';
 
 const PERSONAL_INFO_FIELDS = ['firstName', 'lastName', 'phone', 'email', 'stateCity'];
@@ -213,6 +217,7 @@ function applyLeadListFilters(filter, options) {
   const {
     search = '',
     status,
+    statusIn,
     driverType,
     source,
     dateFrom,
@@ -232,7 +237,13 @@ function applyLeadListFilters(filter, options) {
     ];
   }
 
-  if (status) filter.status = status;
+  if (status) {
+    filter.status = status;
+  } else if (Array.isArray(statusIn) && statusIn.length) {
+    filter.status = { $in: statusIn };
+  } else if (Array.isArray(statusIn)) {
+    filter.status = { $in: ['__no_matching_status__'] };
+  }
   if (driverType) filter.driverType = driverType;
   if (source) filter.source = source;
 
@@ -290,6 +301,7 @@ export async function listActiveLeads(user, options = {}) {
     dateTo,
     sortBy = 'createdAt',
     sortDir = 'desc',
+    activityGroup,
   } = options;
 
   const filter = { archived: false };
@@ -314,7 +326,14 @@ export async function listActiveLeads(user, options = {}) {
     throw err;
   }
 
-  applyLeadListFilters(filter, options);
+  let statusIn;
+  if (!status && activityGroup === 'active') {
+    statusIn = await getActiveLeadStatusNames();
+  } else if (!status && activityGroup === 'non-active') {
+    statusIn = await getInactiveLeadStatusNames();
+  }
+
+  applyLeadListFilters(filter, { ...options, statusIn });
 
   return queryLeadList(filter, { ...options, listMode: true });
 }

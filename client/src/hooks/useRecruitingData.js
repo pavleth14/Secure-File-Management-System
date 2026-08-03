@@ -6,6 +6,7 @@ function mapOptionItems(items = []) {
     id: item.id,
     name: item.name,
     isDefault: Boolean(item.isDefault),
+    isActive: Boolean(item.isActive),
   }));
 }
 

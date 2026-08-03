@@ -135,15 +135,29 @@ export async function auditLeadSourceDeleted({ user, sourceName, req }) {
   });
 }
 
-export async function auditLeadStatusCreated({ user, statusName, req }) {
+export async function auditLeadStatusCreated({ user, statusName, isActive, req }) {
   await auditLog({
     user,
     action: AUDIT_ACTIONS.LEAD_STATUS_CREATE,
     category: AUDIT_CATEGORIES.RECRUITING,
     targetType: TARGET_TYPES.LEAD_STATUS,
     targetName: statusName,
-    details: `${buildActorLabel(user)} added lead status "${statusName}"`,
-    newValues: { name: statusName },
+    details: `${buildActorLabel(user)} added lead status "${statusName}" (${isActive ? 'Active' : 'Non-active'})`,
+    newValues: { name: statusName, isActive },
+    req,
+  });
+}
+
+export async function auditLeadStatusUpdated({ user, statusName, oldValues, newValues, req }) {
+  await auditLog({
+    user,
+    action: AUDIT_ACTIONS.LEAD_STATUS_UPDATE,
+    category: AUDIT_CATEGORIES.RECRUITING,
+    targetType: TARGET_TYPES.LEAD_STATUS,
+    targetName: statusName,
+    details: `${buildActorLabel(user)} updated lead status "${statusName}"`,
+    oldValues,
+    newValues,
     req,
   });
 }

@@ -8,8 +8,14 @@ import {
   listLeadStatuses,
   addLeadStatus,
   deleteLeadStatus,
+  updateLeadStatus,
+  formatStatusRecord,
 } from '../services/leadStatusService.js';
-import { auditLeadStatusCreated, auditLeadStatusDeleted } from '../services/recruitingAuditService.js';
+import {
+  auditLeadStatusCreated,
+  auditLeadStatusDeleted,
+  auditLeadStatusUpdated,
+} from '../services/recruitingAuditService.js';
 
 const router = Router();
 
@@ -20,12 +26,7 @@ router.get('/', async (_req, res, next) => {
   try {
     const statuses = await listLeadStatuses();
     res.json({
-      statuses: statuses.map((status) => ({
-        id: status._id,
-        name: status.name,
-        isDefault: status.isDefault,
-        createdAt: status.createdAt,
-      })),
+      statuses: statuses.map(formatStatusRecord),
     });
   } catch (err) {
     next(err);
@@ -34,17 +35,32 @@ router.get('/', async (_req, res, next) => {
 
 router.post('/', requireRecruitingManager, async (req, res, next) => {
   try {
-    const { name } = req.body;
-    const status = await addLeadStatus(name, req.user._id);
-    await auditLeadStatusCreated({ user: req.user, statusName: status.name, req });
-    res.status(201).json({
-      status: {
-        id: status._id,
-        name: status.name,
-        isDefault: status.isDefault,
-        createdAt: status.createdAt,
-      },
+    const { name, isActive } = req.body;
+    const status = await addLeadStatus(name, req.user._id, isActive);
+    await auditLeadStatusCreated({
+      user: req.user,
+      statusName: status.name,
+      isActive: status.isActive,
+      req,
     });
+    res.status(201).json({ status: formatStatusRecord(status) });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.patch('/:id', requireRecruitingManager, async (req, res, next) => {
+  try {
+    const { isActive } = req.body;
+    const { status, previousIsActive } = await updateLeadStatus(req.params.id, { isActive });
+    await auditLeadStatusUpdated({
+      user: req.user,
+      statusName: status.name,
+      oldValues: { isActive: previousIsActive },
+      newValues: { isActive: status.isActive },
+      req,
+    });
+    res.json({ status: formatStatusRecord(status) });
   } catch (err) {
     next(err);
   }

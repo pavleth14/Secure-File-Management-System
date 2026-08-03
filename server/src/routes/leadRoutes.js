@@ -60,6 +60,7 @@ router.get('/', async (req, res, next) => {
       dateTo,
       sortBy,
       sortDir,
+      activityGroup,
     } = req.query;
 
     const result = await listActiveLeads(req.user, {
@@ -74,6 +75,7 @@ router.get('/', async (req, res, next) => {
       dateTo,
       sortBy,
       sortDir,
+      activityGroup,
     });
 
     res.json({
