@@ -112,6 +112,10 @@ export default function RecruiterBoardPage() {
     };
   }, [userId]);
 
+  useEffect(() => {
+    setFilters((prev) => ({ ...prev, page: 1 }));
+  }, [userId]);
+
   const loadLeads = useCallback(async () => {
     setLeadsLoading(true);
     setActionError('');
