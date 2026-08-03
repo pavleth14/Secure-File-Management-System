@@ -84,7 +84,7 @@ router.post('/assign', async (req, res, next) => {
       return res.status(400).json({ message: 'recruiterId is required' });
     }
 
-    const result = await assignOldLeadsToRecruiter(req.user, oldLeadIds, recruiterId);
+    const result = await assignOldLeadsToRecruiter(req.user, oldLeadIds, recruiterId, req);
 
     for (const assignment of result.assignments) {
       await auditOldLeadAssigned({
@@ -104,7 +104,7 @@ router.post('/assign', async (req, res, next) => {
 router.post('/assign/round-robin', async (req, res, next) => {
   try {
     const { oldLeadIds } = req.body;
-    const result = await assignOldLeadsRoundRobin(req.user, oldLeadIds);
+    const result = await assignOldLeadsRoundRobin(req.user, oldLeadIds, req);
 
     await auditOldLeadsRoundRobinAssigned({
       user: req.user,

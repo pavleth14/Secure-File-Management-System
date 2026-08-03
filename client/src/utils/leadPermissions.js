@@ -29,7 +29,8 @@ export function isWithinCommentEditWindow(comment) {
 }
 
 export function canEditComment(comment, currentUserId) {
-  if (!comment || !currentUserId) return false;
+  if (!comment || comment.isSystem) return false;
+  if (!currentUserId) return false;
   const authorId = comment.authorId?.toString?.() || comment.authorId;
   if (authorId && authorId !== currentUserId.toString()) return false;
   return isWithinCommentEditWindow(comment);

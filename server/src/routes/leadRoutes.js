@@ -138,7 +138,7 @@ router.get('/:id', loadLeadForView, async (req, res) => {
 
 router.post('/', async (req, res, next) => {
   try {
-    const lead = await createLead(req.user, req.body);
+    const lead = await createLead(req.user, req.body, { req });
     await auditLeadCreated({ user: req.user, lead, req });
     res.status(201).json({ lead: formatLead(lead) });
   } catch (err) {
@@ -151,7 +151,7 @@ router.put('/:id', loadLeadForUser, async (req, res, next) => {
   try {
     const leadDoc = await Lead.findById(req.lead._id);
     const oldValues = pickLeadSnapshot(leadDoc);
-    const lead = await updateLead(req.user, leadDoc, req.body);
+    const lead = await updateLead(req.user, leadDoc, req.body, { req });
     await auditLeadUpdated({
       user: req.user,
       lead: leadDoc,
@@ -170,7 +170,7 @@ router.patch('/:id', loadLeadForUser, async (req, res, next) => {
   try {
     const leadDoc = await Lead.findById(req.lead._id);
     const oldValues = pickLeadSnapshot(leadDoc);
-    const lead = await updateLead(req.user, leadDoc, req.body);
+    const lead = await updateLead(req.user, leadDoc, req.body, { req });
     await auditLeadUpdated({
       user: req.user,
       lead: leadDoc,

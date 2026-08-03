@@ -13,6 +13,8 @@ import {
   getActiveLeadStatusNames,
   getInactiveLeadStatusNames,
 } from './leadStatusService.js';
+import { appendStatusChangeComment } from './leadStatusChangeService.js';
+import { auditLeadStatusChanged } from './recruitingAuditService.js';
 import { isRecruitingModuleUser, canMutateLead, canViewLeadOnRecruiterBoard } from '../utils/recruitingPermissions.js';
 
 const PERSONAL_INFO_FIELDS = ['firstName', 'lastName', 'phone', 'email', 'stateCity'];
@@ -70,6 +72,7 @@ function formatComment(comment) {
     text: comment.text,
     author: comment.authorLabel || authorName,
     authorId: authorDoc?._id || authorDoc,
+    isSystem: Boolean(comment.isSystem),
     createdAt: comment.createdAt,
     updatedAt: comment.updatedAt,
   };
@@ -368,7 +371,7 @@ export async function listArchivedLeads(user, options = {}) {
   });
 }
 
-export async function createLead(user, payload) {
+export async function createLead(user, payload, { req } = {}) {
   const {
     firstName,
     lastName,
@@ -417,17 +420,37 @@ export async function createLead(user, payload) {
 
   await assertNoDuplicateLead(normalizedEmail, normalizedPhone);
 
-  const lead = await Lead.create({
+  const initialStatus = status || DEFAULT_LEAD_STATUS;
+  const leadDoc = {
     firstName: firstName.trim(),
     lastName: lastName.trim(),
     phone: normalizedPhone,
     email: normalizedEmail,
     stateCity: stateCity?.trim() || '',
-    status: status || DEFAULT_LEAD_STATUS,
+    status: initialStatus,
     driverType,
     source,
     assignedRecruiter,
+    comments: [],
+  };
+
+  appendStatusChangeComment(leadDoc, {
+    userId: user._id,
+    oldStatus: null,
+    newStatus: initialStatus,
   });
+
+  const lead = await Lead.create(leadDoc);
+
+  if (req) {
+    await auditLeadStatusChanged({
+      user,
+      lead,
+      req,
+      oldStatus: null,
+      newStatus: initialStatus,
+    });
+  }
 
   return getLeadById(lead._id);
 }
@@ -522,8 +545,10 @@ async function validateLeadUpdate(user, lead, updates) {
   }
 }
 
-export async function updateLead(user, lead, updates) {
+export async function updateLead(user, lead, updates, { req } = {}) {
   await validateLeadUpdate(user, lead, updates);
+
+  const oldStatus = lead.status;
 
   const nextEmail =
     updates.email !== undefined ? normalizeEmail(updates.email) : lead.email;
@@ -540,8 +565,36 @@ export async function updateLead(user, lead, updates) {
   if (updates.email !== undefined) lead.email = nextEmail;
   if (updates.stateCity !== undefined) lead.stateCity = updates.stateCity.trim();
   if (updates.status !== undefined) {
-    lead.status = updates.status;
-    if (updates.status !== 'Rejected') {
+    const nextStatus = updates.status;
+    if (nextStatus !== oldStatus) {
+      const rejectionReasonForComment =
+        nextStatus === 'Rejected'
+          ? updates.rejectionReason !== undefined
+            ? updates.rejectionReason
+            : lead.rejectionReason
+          : null;
+
+      appendStatusChangeComment(lead, {
+        userId: user._id,
+        oldStatus,
+        newStatus: nextStatus,
+        rejectionReason: rejectionReasonForComment,
+      });
+
+      if (req) {
+        await auditLeadStatusChanged({
+          user,
+          lead,
+          req,
+          oldStatus,
+          newStatus: nextStatus,
+          rejectionReason: rejectionReasonForComment,
+        });
+      }
+    }
+
+    lead.status = nextStatus;
+    if (nextStatus !== 'Rejected') {
       lead.rejectionReason = null;
     }
   }
@@ -607,6 +660,12 @@ export async function editComment(user, lead, commentId, text) {
   if (!comment) {
     const err = new Error('Comment not found');
     err.status = 404;
+    throw err;
+  }
+
+  if (comment.isSystem) {
+    const err = new Error('System comments cannot be edited');
+    err.status = 403;
     throw err;
   }
 

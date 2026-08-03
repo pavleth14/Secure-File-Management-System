@@ -4,6 +4,8 @@ import { User } from '../models/User.js';
 import { DEFAULT_LEAD_STATUS } from '../config/recruitingConstants.js';
 import { getRoundRobinAssignments } from './leadImportService.js';
 import { handleLeadDuplicateError } from './leadService.js';
+import { prependStatusCommentsToLeadData } from './leadStatusChangeService.js';
+import { auditLeadStatusChanged } from './recruitingAuditService.js';
 
 const OLD_LEAD_SOURCE = 'Old Leads';
 
@@ -158,7 +160,7 @@ async function assertRecruiterUser(recruiterId) {
   return recruiter;
 }
 
-async function assignSingleOldLead(user, oldLeadId, recruiterId) {
+async function assignSingleOldLead(user, oldLeadId, recruiterId, req = null) {
   const oldLead = await OldLead.findById(oldLeadId);
   if (!oldLead) {
     const err = new Error('Old lead not found');
@@ -184,14 +186,15 @@ async function assignSingleOldLead(user, oldLeadId, recruiterId) {
 
   const recruiter = await assertRecruiterUser(recruiterId);
   const assignedAt = new Date();
+  const initialStatus = oldLead.status || DEFAULT_LEAD_STATUS;
 
-  const leadData = {
+  let leadData = {
     firstName: oldLead.firstName,
     lastName: oldLead.lastName,
     phone: oldLead.phone,
     email: oldLead.email,
     stateCity: oldLead.stateCity || '',
-    status: oldLead.status || DEFAULT_LEAD_STATUS,
+    status: initialStatus,
     driverType: oldLead.driverType,
     source: OLD_LEAD_SOURCE,
     date: oldLead.date || '',
@@ -213,6 +216,13 @@ async function assignSingleOldLead(user, oldLeadId, recruiterId) {
     ];
   }
 
+  leadData = prependStatusCommentsToLeadData(leadData, {
+    userId: user._id,
+    oldStatus: null,
+    newStatus: initialStatus,
+    timestamp: assignedAt,
+  });
+
   let lead;
   try {
     lead = await Lead.create(leadData);
@@ -220,6 +230,16 @@ async function assignSingleOldLead(user, oldLeadId, recruiterId) {
     const duplicateErr = handleLeadDuplicateError(err);
     if (duplicateErr) throw duplicateErr;
     throw err;
+  }
+
+  if (req) {
+    await auditLeadStatusChanged({
+      user,
+      lead,
+      req,
+      oldStatus: null,
+      newStatus: initialStatus,
+    });
   }
 
   oldLead.assignment = {
@@ -242,7 +262,7 @@ async function assignSingleOldLead(user, oldLeadId, recruiterId) {
   };
 }
 
-export async function assignOldLeadsToRecruiter(user, oldLeadIds, recruiterId) {
+export async function assignOldLeadsToRecruiter(user, oldLeadIds, recruiterId, req = null) {
   if (!Array.isArray(oldLeadIds) || !oldLeadIds.length) {
     const err = new Error('At least one old lead must be selected');
     err.status = 400;
@@ -260,7 +280,7 @@ export async function assignOldLeadsToRecruiter(user, oldLeadIds, recruiterId) {
 
   for (const oldLeadId of oldLeadIds) {
     try {
-      const result = await assignSingleOldLead(user, oldLeadId, recruiterId);
+      const result = await assignSingleOldLead(user, oldLeadId, recruiterId, req);
       results.assigned += 1;
       results.assignments.push(result);
     } catch (err) {
@@ -282,7 +302,7 @@ export async function assignOldLeadsToRecruiter(user, oldLeadIds, recruiterId) {
   return results;
 }
 
-export async function assignOldLeadsRoundRobin(user, oldLeadIds) {
+export async function assignOldLeadsRoundRobin(user, oldLeadIds, req = null) {
   if (!Array.isArray(oldLeadIds) || !oldLeadIds.length) {
     const err = new Error('At least one old lead must be selected');
     err.status = 400;
@@ -303,7 +323,7 @@ export async function assignOldLeadsRoundRobin(user, oldLeadIds) {
     const recruiterId = recruiterAssignments[index];
 
     try {
-      const result = await assignSingleOldLead(user, oldLeadId, recruiterId);
+      const result = await assignSingleOldLead(user, oldLeadId, recruiterId, req);
       results.assigned += 1;
       results.assignments.push(result);
     } catch (err) {

@@ -80,6 +80,11 @@ function CommentItem({ comment, currentUserId, onEditComment, readOnly }) {
           <div className="mt-1 flex items-center justify-between gap-2">
             <p className="text-xs text-slate-500 dark:text-slate-400">
               {comment.author || 'Unknown'} · {formatDate(comment.createdAt)}
+              {comment.isSystem && (
+                <span className="ml-2 rounded-full bg-slate-200 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-slate-600 dark:bg-slate-700 dark:text-slate-300">
+                  System
+                </span>
+              )}
             </p>
             {editable && (
               <button

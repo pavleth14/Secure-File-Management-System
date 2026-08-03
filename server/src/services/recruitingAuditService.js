@@ -52,6 +52,36 @@ export async function auditLeadUpdated({ user, lead, req, oldValues, newValues }
   });
 }
 
+export async function auditLeadStatusChanged({
+  user,
+  lead,
+  req,
+  oldStatus,
+  newStatus,
+  rejectionReason = null,
+}) {
+  const trimmedReason = rejectionReason ? String(rejectionReason).trim() : '';
+  const details = oldStatus
+    ? `${buildActorLabel(user)} changed status from ${oldStatus} to ${newStatus} for ${leadLabel(lead)}`
+    : `${buildActorLabel(user)} set status to ${newStatus} for ${leadLabel(lead)}`;
+
+  await auditLog({
+    user,
+    action: AUDIT_ACTIONS.LEAD_STATUS_CHANGE,
+    category: AUDIT_CATEGORIES.RECRUITING,
+    targetType: TARGET_TYPES.LEAD,
+    targetId: lead._id || lead.id,
+    targetName: leadLabel(lead),
+    details: trimmedReason ? `${details} (Reason: ${trimmedReason})` : details,
+    oldValues: oldStatus ? { status: oldStatus } : {},
+    newValues: {
+      status: newStatus,
+      ...(trimmedReason ? { rejectionReason: trimmedReason } : {}),
+    },
+    req,
+  });
+}
+
 export async function auditLeadReassigned({ user, lead, req, oldRecruiterId, newRecruiterId }) {
   await auditLog({
     user,

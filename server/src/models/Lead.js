@@ -13,6 +13,7 @@ const commentSchema = new mongoose.Schema(
       required: true,
     },
     authorLabel: { type: String, default: null },
+    isSystem: { type: Boolean, default: false },
   },
   { timestamps: { createdAt: true, updatedAt: true } }
 );

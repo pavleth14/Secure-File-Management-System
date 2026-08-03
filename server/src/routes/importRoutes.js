@@ -40,7 +40,7 @@ router.post('/confirm', async (req, res, next) => {
       return res.status(400).json({ message: 'previewId is required' });
     }
 
-    const result = await confirmLeadImport(req.user, previewId, selectedRowNumbers);
+    const result = await confirmLeadImport(req.user, previewId, selectedRowNumbers, req);
     if (result.imported > 0) {
       await auditLeadImported({ user: req.user, summary: result, req });
     }

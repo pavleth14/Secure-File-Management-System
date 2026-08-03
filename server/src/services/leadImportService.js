@@ -12,6 +12,8 @@ import {
 import { handleLeadDuplicateError } from './leadService.js';
 import { getLeadSourceNames } from './leadSourceService.js';
 import { getLeadStatusNames } from './leadStatusService.js';
+import { prependStatusCommentsToLeadData } from './leadStatusChangeService.js';
+import { auditLeadStatusChanged } from './recruitingAuditService.js';
 
 const IMPORT_COMMENT_AUTHOR_LABEL = 'Importing Recruiting Manager';
 
@@ -448,7 +450,7 @@ async function revalidateRowForImport(row) {
   };
 }
 
-export async function confirmLeadImport(manager, previewId, selectedRowNumbers = []) {
+export async function confirmLeadImport(manager, previewId, selectedRowNumbers = [], req = null) {
   const preview = await LeadImportPreview.findOne({
     previewId,
     manager: manager._id,
@@ -537,7 +539,7 @@ export async function confirmLeadImport(manager, previewId, selectedRowNumbers =
       });
     }
 
-    const leadData = {
+    let leadData = {
       firstName: payload.firstName,
       lastName: payload.lastName,
       phone: payload.phone,
@@ -568,9 +570,25 @@ export async function confirmLeadImport(manager, previewId, selectedRowNumbers =
       ];
     }
 
+    leadData = prependStatusCommentsToLeadData(leadData, {
+      userId: manager._id,
+      oldStatus: null,
+      newStatus: payload.status,
+      timestamp: importTimestamp,
+    });
+
     try {
-      await Lead.create(leadData);
+      const createdLead = await Lead.create(leadData);
       importedCount += 1;
+      if (req) {
+        await auditLeadStatusChanged({
+          user: manager,
+          lead: createdLead,
+          req,
+          oldStatus: null,
+          newStatus: payload.status,
+        });
+      }
     } catch (err) {
       const duplicateErr = handleLeadDuplicateError(err);
       if (duplicateErr) {
