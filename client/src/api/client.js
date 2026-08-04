@@ -34,6 +34,9 @@ api.interceptors.response.use(
       !original.url?.includes('/auth/logout')
     ) {
       original._retry = true;
+      // #region agent log
+      fetch('http://127.0.0.1:7879/ingest/afe47dc1-7518-4b22-8821-40057cec5169',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'a0e42e'},body:JSON.stringify({sessionId:'a0e42e',location:'client.js:interceptor:401',message:'401 intercepted — attempting refresh',data:{url:original.url,code,hasRefreshPromise:Boolean(refreshPromise)},timestamp:Date.now(),hypothesisId:'H2',runId:'pre-fix'})}).catch(()=>{});
+      // #endregion
 
       if (!refreshPromise) {
         refreshPromise = api
@@ -48,8 +51,14 @@ api.interceptors.response.use(
 
       try {
         await refreshPromise;
+        // #region agent log
+        fetch('http://127.0.0.1:7879/ingest/afe47dc1-7518-4b22-8821-40057cec5169',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'a0e42e'},body:JSON.stringify({sessionId:'a0e42e',location:'client.js:interceptor:refresh-ok',message:'refresh succeeded — retrying request',data:{url:original.url},timestamp:Date.now(),hypothesisId:'H2',runId:'pre-fix'})}).catch(()=>{});
+        // #endregion
         return api(original);
-      } catch {
+      } catch (refreshErr) {
+        // #region agent log
+        fetch('http://127.0.0.1:7879/ingest/afe47dc1-7518-4b22-8821-40057cec5169',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'a0e42e'},body:JSON.stringify({sessionId:'a0e42e',location:'client.js:interceptor:refresh-fail',message:'refresh failed — rejecting original',data:{url:original.url,refreshStatus:refreshErr.response?.status,refreshCode:refreshErr.response?.data?.code},timestamp:Date.now(),hypothesisId:'H2',runId:'pre-fix'})}).catch(()=>{});
+        // #endregion
         return Promise.reject(error);
       }
     }

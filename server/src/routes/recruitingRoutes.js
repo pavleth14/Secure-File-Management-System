@@ -57,6 +57,9 @@ async function buildManagerBoards() {
 
 router.get('/boards', requireRecruitingAccess, async (req, res, next) => {
   try {
+    // #region agent log
+    fetch('http://127.0.0.1:7879/ingest/afe47dc1-7518-4b22-8821-40057cec5169',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'a0e42e'},body:JSON.stringify({sessionId:'a0e42e',location:'recruitingRoutes.js:boards:entry',message:'GET /boards handler reached',data:{userId:req.user._id.toString(),role:req.user.role,isRecruiter:Boolean(req.user.isRecruiter),isRecruitingManager:Boolean(req.user.isRecruitingManager)},timestamp:Date.now(),hypothesisId:'H3',runId:'pre-fix'})}).catch(()=>{});
+    // #endregion
     if (
       req.user.isRecruitingManager ||
       req.user.role === 'SUPER_ADMIN' ||

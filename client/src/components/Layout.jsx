@@ -543,12 +543,21 @@ export default function Layout() {
     let cancelled = false;
 
     async function loadBoards() {
+      // #region agent log
+      fetch('http://127.0.0.1:7879/ingest/afe47dc1-7518-4b22-8821-40057cec5169',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'a0e42e'},body:JSON.stringify({sessionId:'a0e42e',location:'Layout.jsx:loadBoards:start',message:'loadBoards started',data:{userId:user?.id,hasRecruitingAccess,isRecruitingManager,isRecruiter,isSuperAdmin},timestamp:Date.now(),hypothesisId:'H3',runId:'pre-fix'})}).catch(()=>{});
+      // #endregion
       try {
         const { data } = await api.get('/recruiting/boards');
         if (!cancelled) {
           setRecruitingBoards(data.boards || []);
         }
-      } catch {
+        // #region agent log
+        fetch('http://127.0.0.1:7879/ingest/afe47dc1-7518-4b22-8821-40057cec5169',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'a0e42e'},body:JSON.stringify({sessionId:'a0e42e',location:'Layout.jsx:loadBoards:success',message:'loadBoards succeeded',data:{boardCount:(data.boards||[]).length,labels:(data.boards||[]).slice(0,5).map((b)=>b.label),cancelled},timestamp:Date.now(),hypothesisId:'H3',runId:'pre-fix'})}).catch(()=>{});
+        // #endregion
+      } catch (err) {
+        // #region agent log
+        fetch('http://127.0.0.1:7879/ingest/afe47dc1-7518-4b22-8821-40057cec5169',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'a0e42e'},body:JSON.stringify({sessionId:'a0e42e',location:'Layout.jsx:loadBoards:fail',message:'loadBoards failed — setting empty boards',data:{status:err.response?.status,code:err.response?.data?.code,message:err.response?.data?.message,cancelled},timestamp:Date.now(),hypothesisId:'H3',runId:'pre-fix'})}).catch(()=>{});
+        // #endregion
         if (!cancelled) {
           setRecruitingBoards([]);
         }

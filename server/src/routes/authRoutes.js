@@ -214,6 +214,9 @@ router.post('/login', async (req, res, next) => {
     notifySessionRevoked(user._id);
 
     await createSession(user, res);
+    // #region agent log
+    fetch('http://127.0.0.1:7879/ingest/afe47dc1-7518-4b22-8821-40057cec5169',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'a0e42e'},body:JSON.stringify({sessionId:'a0e42e',location:'authRoutes.js:login:session',message:'login session created',data:{userId:user._id.toString(),tokenCount:await RefreshToken.countDocuments({userId:user._id})},timestamp:Date.now(),hypothesisId:'H4',runId:'pre-fix'})}).catch(()=>{});
+    // #endregion
 
     const populated = await User.findById(user._id)
       .select('-passwordHash')

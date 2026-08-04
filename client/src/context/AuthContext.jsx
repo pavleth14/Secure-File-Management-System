@@ -36,12 +36,21 @@ export function AuthProvider({ children }) {
   const logoutRef = useRef(null);
 
   const fetchMe = useCallback(async () => {
+    // #region agent log
+    fetch('http://127.0.0.1:7879/ingest/afe47dc1-7518-4b22-8821-40057cec5169',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'a0e42e'},body:JSON.stringify({sessionId:'a0e42e',location:'AuthContext.jsx:fetchMe:start',message:'fetchMe started',data:{},timestamp:Date.now(),hypothesisId:'H1',runId:'pre-fix'})}).catch(()=>{});
+    // #endregion
     try {
       const { data } = await api.get('/auth/me');
+      // #region agent log
+      fetch('http://127.0.0.1:7879/ingest/afe47dc1-7518-4b22-8821-40057cec5169',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'a0e42e'},body:JSON.stringify({sessionId:'a0e42e',location:'AuthContext.jsx:fetchMe:success',message:'fetchMe succeeded',data:{userId:data.user?.id,role:data.user?.role,isRecruiter:Boolean(data.user?.isRecruiter),isRecruitingManager:Boolean(data.user?.isRecruitingManager)},timestamp:Date.now(),hypothesisId:'H1',runId:'pre-fix'})}).catch(()=>{});
+      // #endregion
       setUser(data.user);
       logRecruitingAccess(data.user);
       return data.user;
-    } catch {
+    } catch (err) {
+      // #region agent log
+      fetch('http://127.0.0.1:7879/ingest/afe47dc1-7518-4b22-8821-40057cec5169',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'a0e42e'},body:JSON.stringify({sessionId:'a0e42e',location:'AuthContext.jsx:fetchMe:fail',message:'fetchMe failed — setUser(null)',data:{status:err.response?.status,code:err.response?.data?.code,message:err.response?.data?.message},timestamp:Date.now(),hypothesisId:'H1',runId:'pre-fix'})}).catch(()=>{});
+      // #endregion
       setUser(null);
       return null;
     }
@@ -69,10 +78,23 @@ export function AuthProvider({ children }) {
 
   const login = async (email, password) => {
     setSessionMessage('');
-    const { data } = await api.post('/auth/login', { email, password });
-    setUser(data.user);
-    logRecruitingAccess(data.user);
-    return data.user;
+    // #region agent log
+    fetch('http://127.0.0.1:7879/ingest/afe47dc1-7518-4b22-8821-40057cec5169',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'a0e42e'},body:JSON.stringify({sessionId:'a0e42e',location:'AuthContext.jsx:login:start',message:'login POST started',data:{emailDomain:email.split('@')[1]||''},timestamp:Date.now(),hypothesisId:'H4',runId:'pre-fix'})}).catch(()=>{});
+    // #endregion
+    try {
+      const { data } = await api.post('/auth/login', { email, password });
+      // #region agent log
+      fetch('http://127.0.0.1:7879/ingest/afe47dc1-7518-4b22-8821-40057cec5169',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'a0e42e'},body:JSON.stringify({sessionId:'a0e42e',location:'AuthContext.jsx:login:success',message:'login POST succeeded',data:{userId:data.user?.id,role:data.user?.role,isRecruiter:Boolean(data.user?.isRecruiter),isRecruitingManager:Boolean(data.user?.isRecruitingManager)},timestamp:Date.now(),hypothesisId:'H4',runId:'pre-fix'})}).catch(()=>{});
+      // #endregion
+      setUser(data.user);
+      logRecruitingAccess(data.user);
+      return data.user;
+    } catch (err) {
+      // #region agent log
+      fetch('http://127.0.0.1:7879/ingest/afe47dc1-7518-4b22-8821-40057cec5169',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'a0e42e'},body:JSON.stringify({sessionId:'a0e42e',location:'AuthContext.jsx:login:fail',message:'login POST failed',data:{status:err.response?.status,code:err.response?.data?.code,message:err.response?.data?.message},timestamp:Date.now(),hypothesisId:'H4',runId:'pre-fix'})}).catch(()=>{});
+      // #endregion
+      throw err;
+    }
   };
 
   // Authenticated admins/super-admins create accounts; this does NOT change the
