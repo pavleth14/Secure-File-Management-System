@@ -72,7 +72,6 @@ export default function OldLeadsPage() {
   const [preview, setPreview] = useState(null);
   const [selectedImportRows, setSelectedImportRows] = useState(new Set());
   const [importSummary, setImportSummary] = useState(null);
-  const [showImport, setShowImport] = useState(false);
 
   const loadOldLeads = useCallback(async () => {
     setLoading(true);
@@ -209,7 +208,6 @@ export default function OldLeadsPage() {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
       setPreview(data);
-      setShowImport(true);
       const defaults = new Set(
         (data.rows || []).filter((row) => row.defaultSelected).map((row) => row.rowNumber)
       );
@@ -236,7 +234,6 @@ export default function OldLeadsPage() {
       setImportSummary(data.summary);
       setPreview(null);
       setSelectedImportRows(new Set());
-      setShowImport(false);
       await loadOldLeads();
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to import old leads');
@@ -270,13 +267,6 @@ export default function OldLeadsPage() {
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <button
-            type="button"
-            onClick={() => setShowImport((prev) => !prev)}
-            className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-700"
-          >
-            {showImport ? 'Hide import' : 'Import CSV'}
-          </button>
           <input
             ref={fileInputRef}
             type="file"
@@ -308,7 +298,7 @@ export default function OldLeadsPage() {
         </div>
       )}
 
-      {showImport && preview && (
+      {preview && (
         <div className="mb-6 space-y-4 rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-800">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
