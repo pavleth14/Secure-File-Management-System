@@ -5,6 +5,7 @@ import { DEFAULT_LEAD_STATUS } from '../config/recruitingConstants.js';
 import { getRoundRobinAssignments } from './leadImportService.js';
 import { handleLeadDuplicateError } from './leadService.js';
 import { prependStatusCommentsToLeadData } from './leadStatusChangeService.js';
+import { prependReassignmentCommentToLeadData } from './leadReassignmentService.js';
 import { auditLeadStatusChanged } from './recruitingAuditService.js';
 
 const OLD_LEAD_SOURCE = 'Old Leads';
@@ -220,6 +221,13 @@ async function assignSingleOldLead(user, oldLeadId, recruiterId, req = null) {
     userId: user._id,
     oldStatus: null,
     newStatus: initialStatus,
+    timestamp: assignedAt,
+  });
+
+  leadData = prependReassignmentCommentToLeadData(leadData, {
+    userId: user._id,
+    newRecruiterName: recruiter.name,
+    sourceLabel: OLD_LEAD_SOURCE,
     timestamp: assignedAt,
   });
 

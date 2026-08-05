@@ -14,6 +14,7 @@ import {
   getInactiveLeadStatusNames,
 } from './leadStatusService.js';
 import { appendStatusChangeComment } from './leadStatusChangeService.js';
+import { appendReassignmentComment } from './leadReassignmentService.js';
 import { auditLeadStatusChanged } from './recruitingAuditService.js';
 import { isRecruitingModuleUser, canMutateLead, canViewLeadOnRecruiterBoard } from '../utils/recruitingPermissions.js';
 
@@ -686,6 +687,17 @@ export async function editComment(user, lead, commentId, text) {
   return getLeadById(lead._id);
 }
 
+async function resolveRecruiterName(assignedRecruiter) {
+  if (!assignedRecruiter) return null;
+
+  if (typeof assignedRecruiter === 'object' && assignedRecruiter.name) {
+    return assignedRecruiter.name;
+  }
+
+  const recruiter = await User.findById(assignedRecruiter).select('name');
+  return recruiter?.name || null;
+}
+
 export async function assignLead(user, lead, recruiterId) {
   if (!user.isRecruitingManager && user.role !== 'SUPER_ADMIN') {
     const err = new Error('Recruiting manager access required');
@@ -693,7 +705,15 @@ export async function assignLead(user, lead, recruiterId) {
     throw err;
   }
 
-  await assertRecruiterUser(recruiterId);
+  const newRecruiter = await assertRecruiterUser(recruiterId);
+  const oldRecruiterName = await resolveRecruiterName(lead.assignedRecruiter);
+
+  appendReassignmentComment(lead, {
+    userId: user._id,
+    oldRecruiterName,
+    newRecruiterName: newRecruiter.name,
+  });
+
   lead.assignedRecruiter = recruiterId;
   await lead.save();
   return getLeadById(lead._id);
