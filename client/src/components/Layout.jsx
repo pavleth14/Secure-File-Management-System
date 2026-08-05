@@ -341,7 +341,8 @@ function RecruitingDropdown({ boards, showImportLeads, location, currentUserId, 
       location.pathname.startsWith('/recruiting/archive') ||
       location.pathname.startsWith('/recruiting/sources') ||
       location.pathname.startsWith('/recruiting/statuses') ||
-      location.pathname.startsWith('/recruiting/old-leads'),
+      location.pathname.startsWith('/recruiting/old-leads') ||
+      location.pathname.startsWith('/recruiting/round-robin'),
     [location.pathname]
   );
 
@@ -478,6 +479,16 @@ function RecruitingDropdown({ boards, showImportLeads, location, currentUserId, 
                 }
               >
                 Old Leads
+              </Link>
+              <Link
+                to="/recruiting/round-robin"
+                className={dropdownLinkClass()}
+                onClick={close}
+                aria-current={
+                  location.pathname.startsWith('/recruiting/round-robin') ? 'page' : undefined
+                }
+              >
+                Round Robin
               </Link>
             </>
           )}

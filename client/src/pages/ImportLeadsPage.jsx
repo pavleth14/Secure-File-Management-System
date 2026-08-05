@@ -294,7 +294,7 @@ export default function ImportLeadsPage() {
           <p className="text-sm text-slate-500 dark:text-slate-400">
             {preview.assignedRecruiter
               ? `Duplicates are deselected by default. Invalid rows cannot be imported. Leads will be assigned to ${preview.assignedRecruiter.name} after confirmation.`
-              : 'Duplicates are deselected by default. Invalid rows cannot be imported. Leads will be assigned to recruiters using round robin after confirmation.'}
+              : 'Duplicates are deselected by default. Invalid rows cannot be imported. Leads will be assigned using round robin by driver type after confirmation.'}
           </p>
         </div>
       )}

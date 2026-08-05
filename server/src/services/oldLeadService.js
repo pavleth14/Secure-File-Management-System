@@ -2,7 +2,7 @@ import { OldLead } from '../models/OldLead.js';
 import { Lead } from '../models/Lead.js';
 import { User } from '../models/User.js';
 import { DEFAULT_LEAD_STATUS } from '../config/recruitingConstants.js';
-import { getRoundRobinAssignments } from './leadImportService.js';
+import { getRoundRobinAssignments } from './roundRobinService.js';
 import { handleLeadDuplicateError } from './leadService.js';
 import { prependStatusCommentsToLeadData } from './leadStatusChangeService.js';
 import { prependReassignmentCommentToLeadData } from './leadReassignmentService.js';
@@ -317,7 +317,20 @@ export async function assignOldLeadsRoundRobin(user, oldLeadIds, req = null) {
     throw err;
   }
 
-  const recruiterAssignments = await getRoundRobinAssignments(oldLeadIds.length);
+  const oldLeads = await OldLead.find({ _id: { $in: oldLeadIds } }).select('driverType');
+  const oldLeadById = new Map(oldLeads.map((lead) => [lead._id.toString(), lead]));
+
+  const recruiterAssignments = await getRoundRobinAssignments(
+    oldLeadIds.map((oldLeadId) => {
+      const oldLead = oldLeadById.get(oldLeadId.toString());
+      if (!oldLead) {
+        const err = new Error(`Old lead not found: ${oldLeadId}`);
+        err.status = 404;
+        throw err;
+      }
+      return { driverType: oldLead.driverType };
+    })
+  );
 
   const results = {
     assigned: 0,

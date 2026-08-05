@@ -3,7 +3,6 @@ import validator from 'validator';
 import { randomUUID } from 'crypto';
 import { Lead } from '../models/Lead.js';
 import { User } from '../models/User.js';
-import { RecruitingState } from '../models/RecruitingState.js';
 import { LeadImportPreview } from '../models/LeadImportPreview.js';
 import {
   DRIVER_TYPES,
@@ -14,6 +13,7 @@ import { getLeadSourceNames } from './leadSourceService.js';
 import { getLeadStatusNames } from './leadStatusService.js';
 import { prependStatusCommentsToLeadData } from './leadStatusChangeService.js';
 import { auditLeadStatusChanged } from './recruitingAuditService.js';
+import { getRoundRobinAssignments } from './roundRobinService.js';
 
 const IMPORT_COMMENT_AUTHOR_LABEL = 'Importing Recruiting Manager';
 
@@ -382,39 +382,6 @@ export async function previewLeadImport(
   };
 }
 
-async function getActiveRecruiters() {
-  return User.find({ isRecruiter: true }).sort({ name: 1 }).select('_id name');
-}
-
-export async function getRoundRobinAssignments(count) {
-  const recruiters = await getActiveRecruiters();
-  if (!recruiters.length) {
-    const err = new Error('No active recruiters available for assignment');
-    err.status = 400;
-    throw err;
-  }
-
-  const assignments = [];
-  const state = await RecruitingState.findOneAndUpdate(
-    { key: 'round_robin' },
-    { $setOnInsert: { key: 'round_robin', lastRecruiterIndex: -1 } },
-    { upsert: true, new: true, setDefaultsOnInsert: true }
-  );
-
-  let index = state.lastRecruiterIndex ?? -1;
-  for (let i = 0; i < count; i += 1) {
-    index = (index + 1) % recruiters.length;
-    assignments.push(recruiters[index]._id);
-  }
-
-  await RecruitingState.findOneAndUpdate(
-    { key: 'round_robin' },
-    { $set: { lastRecruiterIndex: index } }
-  );
-
-  return assignments;
-}
-
 async function revalidateRowForImport(row) {
   if (!row.isValid) {
     return { ok: false, errors: row.errors?.length ? row.errors : ['Invalid row'] };
@@ -525,7 +492,9 @@ export async function confirmLeadImport(manager, previewId, selectedRowNumbers =
       importedLeadsCount: rowsToImport.length,
     });
   } else {
-    assignments = await getRoundRobinAssignments(rowsToImport.length);
+    assignments = await getRoundRobinAssignments(
+      rowsToImport.map(({ payload }) => ({ driverType: payload.driverType }))
+    );
   }
 
   for (let index = 0; index < rowsToImport.length; index += 1) {

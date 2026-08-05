@@ -22,6 +22,7 @@ import recruitingRoutes from './routes/recruitingRoutes.js';
 import dispatchRoutes from './routes/dispatchRoutes.js';
 import { ensureDefaultLeadSources } from './services/leadSourceService.js';
 import { ensureDefaultLeadStatuses, migrateObsoleteLeadStatuses } from './services/leadStatusService.js';
+import { ensureRoundRobinDefaults } from './services/roundRobinService.js';
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -97,6 +98,10 @@ async function start() {
   const migration = await migrateObsoleteLeadStatuses();
   if (migration.migratedLeads || migration.migratedOldLeads) {
     console.log('[RECRUITING] Migrated obsolete lead statuses', migration);
+  }
+  const roundRobinMigration = await ensureRoundRobinDefaults();
+  if (roundRobinMigration.modifiedCount) {
+    console.log('[RECRUITING] Applied default round-robin driver types', roundRobinMigration);
   }
   const server = app.listen(PORT, '0.0.0.0', () => {
     console.log(`Server running on http://0.0.0.0:${PORT}`);

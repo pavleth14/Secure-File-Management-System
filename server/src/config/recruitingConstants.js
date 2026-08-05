@@ -37,6 +37,9 @@ export const DEFAULT_SYSTEM_STATUS_ACTIVITY = {
 
 export const DRIVER_TYPES = ['Local', 'Solo', 'Team', 'Owner Operator'];
 
+/** Default round-robin driver types for existing recruiters on first migration. */
+export const DEFAULT_OTR_ROUND_ROBIN_DRIVER_TYPES = ['Solo', 'Team', 'Owner Operator'];
+
 export const LEAD_SOURCES = [
   'Facebook',
   'Indeed',

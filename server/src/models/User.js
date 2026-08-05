@@ -1,5 +1,6 @@
 import mongoose from 'mongoose';
 import { ROLES } from '../config/constants.js';
+import { DRIVER_TYPES } from '../config/recruitingConstants.js';
 
 const userSchema = new mongoose.Schema(
   {
@@ -24,6 +25,11 @@ const userSchema = new mongoose.Schema(
     },
     isRecruiter: { type: Boolean, default: false },
     isRecruitingManager: { type: Boolean, default: false },
+    roundRobinDriverTypes: {
+      type: [String],
+      enum: DRIVER_TYPES,
+      default: undefined,
+    },
     isDispatcher: { type: Boolean, default: false },
     isDispatchTeamLeader: { type: Boolean, default: false },
     isDispatchManager: { type: Boolean, default: false },
