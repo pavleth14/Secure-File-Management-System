@@ -342,7 +342,8 @@ function RecruitingDropdown({ boards, showImportLeads, location, currentUserId, 
       location.pathname.startsWith('/recruiting/sources') ||
       location.pathname.startsWith('/recruiting/statuses') ||
       location.pathname.startsWith('/recruiting/old-leads') ||
-      location.pathname.startsWith('/recruiting/round-robin'),
+      location.pathname.startsWith('/recruiting/round-robin') ||
+      location.pathname.startsWith('/recruiting/analytics'),
     [location.pathname]
   );
 
@@ -423,6 +424,21 @@ function RecruitingDropdown({ boards, showImportLeads, location, currentUserId, 
               )}
             </div>
           ))}
+          <div
+            className="my-1 border-t border-slate-200 dark:border-slate-600"
+            role="separator"
+            aria-hidden
+          />
+          <Link
+            to="/recruiting/analytics"
+            className={dropdownLinkClass()}
+            onClick={close}
+            aria-current={
+              location.pathname.startsWith('/recruiting/analytics') ? 'page' : undefined
+            }
+          >
+            Analytics
+          </Link>
           {showImportLeads && (
             <>
               <div
