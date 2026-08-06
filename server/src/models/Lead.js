@@ -61,6 +61,11 @@ const leadSchema = new mongoose.Schema(
       default: null,
     },
     comments: [commentSchema],
+    extraFields: {
+      type: Map,
+      of: String,
+      default: () => new Map(),
+    },
   },
   { timestamps: { createdAt: true, updatedAt: true } }
 );

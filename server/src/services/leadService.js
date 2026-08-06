@@ -79,6 +79,17 @@ function formatComment(comment) {
   };
 }
 
+function formatExtraFields(extraFields) {
+  if (!extraFields) return {};
+  if (extraFields instanceof Map) {
+    return Object.fromEntries(extraFields.entries());
+  }
+  if (typeof extraFields === 'object') {
+    return { ...extraFields };
+  }
+  return {};
+}
+
 export function formatLead(lead) {
   const recruiter = lead.assignedRecruiter;
   const formatted = {
@@ -106,6 +117,7 @@ export function formatLead(lead) {
         }
       : null,
     comments: (lead.comments || []).map(formatComment),
+    extraFields: formatExtraFields(lead.extraFields),
     createdAt: lead.createdAt,
     importedAt: lead.importedAt,
     updatedAt: lead.updatedAt,

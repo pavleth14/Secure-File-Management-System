@@ -19,8 +19,11 @@ import statusRoutes from './statusRoutes.js';
 import oldLeadRoutes from './oldLeadRoutes.js';
 import roundRobinRoutes from './roundRobinRoutes.js';
 import analyticsRoutes from './analyticsRoutes.js';
+import sheetsIngestRoutes from './sheetsIngestRoutes.js';
 
 const router = Router();
+
+router.use('/sheets', sheetsIngestRoutes);
 
 router.use(authMiddleware);
 
