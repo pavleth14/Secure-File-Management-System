@@ -120,7 +120,7 @@ export default function RecruiterBoardPage() {
 
   useEffect(() => {
     setFilters((prev) => ({ ...prev, page: 1 }));
-    setActivityGroup('active');
+    setActivityGroup('all');
   }, [userId]);
 
   useEffect(() => {

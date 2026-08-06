@@ -7,7 +7,7 @@ export default function LeadActivityTabs({ value, onChange }) {
 
   return (
     <div
-      className="inline-flex rounded-lg border-2 border-slate-300 bg-slate-100 p-1 shadow-sm dark:border-slate-500 dark:bg-slate-800"
+      className="inline-flex gap-1.5 rounded-xl border border-slate-200/80 bg-slate-100/80 p-2 shadow-sm backdrop-blur-sm dark:border-slate-600/60 dark:bg-slate-700/80"
       role="group"
       aria-label="Lead activity filter"
     >
@@ -18,10 +18,10 @@ export default function LeadActivityTabs({ value, onChange }) {
             key={tab.id}
             type="button"
             onClick={() => onChange(tab.id)}
-            className={`min-w-[5.5rem] rounded-md px-4 py-2 text-sm font-semibold transition-all ${
+            className={`min-w-[5.5rem] rounded-lg px-10 py-2 text-sm font-medium transition-all duration-200 ${
               selected
-                ? 'border border-slate-300 bg-white text-brand-700 shadow-sm dark:border-slate-500 dark:bg-slate-900 dark:text-brand-300'
-                : 'border border-transparent text-slate-600 hover:bg-white/70 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-700/70 dark:hover:text-slate-100'
+                ? 'bg-white text-brand-700 shadow-md ring-2 ring-slate-200/70 dark:bg-slate-800 dark:text-brand-500 dark:ring-slate-500/50'
+                : 'text-slate-500 hover:bg-white/90 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-500/50 dark:hover:text-slate-200'
             }`}
             aria-pressed={selected}
           >
