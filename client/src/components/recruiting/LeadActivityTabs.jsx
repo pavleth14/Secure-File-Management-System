@@ -1,12 +1,16 @@
 export default function LeadActivityTabs({ value, onChange }) {
   const tabs = [
+    { id: 'all', label: 'All' },
     { id: 'active', label: 'Active' },
     { id: 'non-active', label: 'Non-active' },
-    { id: 'all', label: 'All' },
   ];
 
   return (
-    <div className="mb-4 flex flex-wrap gap-2">
+    <div
+      className="inline-flex rounded-lg border-2 border-slate-300 bg-slate-100 p-1 shadow-sm dark:border-slate-500 dark:bg-slate-800"
+      role="group"
+      aria-label="Lead activity filter"
+    >
       {tabs.map((tab) => {
         const selected = value === tab.id;
         return (
@@ -14,10 +18,10 @@ export default function LeadActivityTabs({ value, onChange }) {
             key={tab.id}
             type="button"
             onClick={() => onChange(tab.id)}
-            className={`rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
+            className={`min-w-[5.5rem] rounded-md px-4 py-2 text-sm font-semibold transition-all ${
               selected
-                ? 'bg-brand-600 text-white shadow-sm'
-                : 'border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700'
+                ? 'border border-slate-300 bg-white text-brand-700 shadow-sm dark:border-slate-500 dark:bg-slate-900 dark:text-brand-300'
+                : 'border border-transparent text-slate-600 hover:bg-white/70 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-700/70 dark:hover:text-slate-100'
             }`}
             aria-pressed={selected}
           >

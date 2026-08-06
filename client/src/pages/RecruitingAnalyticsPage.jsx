@@ -132,6 +132,8 @@ export default function RecruitingAnalyticsPage() {
             onChange={(event) => setDatePreset(event.target.value)}
             className={selectClass}
           >
+            <option value="today">Today</option>
+            <option value="yesterday">Yesterday</option>
             <option value="7d">Last 7 days</option>
             <option value="30d">Last 30 days</option>
             <option value="90d">Last 90 days</option>

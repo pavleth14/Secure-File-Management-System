@@ -424,21 +424,6 @@ function RecruitingDropdown({ boards, showImportLeads, location, currentUserId, 
               )}
             </div>
           ))}
-          <div
-            className="my-1 border-t border-slate-200 dark:border-slate-600"
-            role="separator"
-            aria-hidden
-          />
-          <Link
-            to="/recruiting/analytics"
-            className={dropdownLinkClass()}
-            onClick={close}
-            aria-current={
-              location.pathname.startsWith('/recruiting/analytics') ? 'page' : undefined
-            }
-          >
-            Analytics
-          </Link>
           {showImportLeads && (
             <>
               <div
@@ -508,6 +493,21 @@ function RecruitingDropdown({ boards, showImportLeads, location, currentUserId, 
               </Link>
             </>
           )}
+          <div
+            className="my-1 border-t border-slate-200 dark:border-slate-600"
+            role="separator"
+            aria-hidden
+          />
+          <Link
+            to="/recruiting/analytics"
+            className={dropdownLinkClass()}
+            onClick={close}
+            aria-current={
+              location.pathname.startsWith('/recruiting/analytics') ? 'page' : undefined
+            }
+          >
+            Analytics
+          </Link>
         </div>
       </div>
     </div>

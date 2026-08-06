@@ -67,7 +67,7 @@ export default function RecruiterBoardPage() {
   const [leadsLoading, setLeadsLoading] = useState(false);
   const [actionError, setActionError] = useState('');
 
-  const [activityGroup, setActivityGroup] = useState('active');
+  const [activityGroup, setActivityGroup] = useState('all');
   const [searchInput, setSearchInput] = useState('');
   const [filters, setFilters] = useState({
     search: '',
@@ -289,7 +289,9 @@ export default function RecruiterBoardPage() {
         statuses={statusNames}
       />
 
-      <LeadActivityTabs value={activityGroup} onChange={setActivityGroup} />
+      <div className="mb-4 flex justify-end">
+        <LeadActivityTabs value={activityGroup} onChange={setActivityGroup} />
+      </div>
 
       <LeadBoardTable
         leads={leads}
