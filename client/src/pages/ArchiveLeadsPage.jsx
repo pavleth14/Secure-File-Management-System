@@ -64,6 +64,7 @@ export default function ArchiveLeadsPage() {
   });
 
   const [viewLead, setViewLead] = useState(null);
+  const [scrollToComments, setScrollToComments] = useState(false);
   const [commentLead, setCommentLead] = useState(null);
   const [assignLead, setAssignLead] = useState(null);
   const [commentSubmitting, setCommentSubmitting] = useState(false);
@@ -162,6 +163,11 @@ export default function ArchiveLeadsPage() {
     }
   };
 
+  const handleViewLead = (lead, options = {}) => {
+    setViewLead(lead);
+    setScrollToComments(Boolean(options.scrollToComments));
+  };
+
   return (
     <div>
       <div className="mb-6">
@@ -196,7 +202,7 @@ export default function ArchiveLeadsPage() {
         sortBy={filters.sortBy}
         sortDir={filters.sortDir}
         onSortChange={handleSortChange}
-        onViewLead={setViewLead}
+        onViewLead={handleViewLead}
         onAddComment={setCommentLead}
         onEditComment={handleEditComment}
         onAssignLead={setAssignLead}
@@ -235,9 +241,13 @@ export default function ArchiveLeadsPage() {
       <LeadViewModal
         open={Boolean(viewLead)}
         lead={viewLead}
-        onClose={() => setViewLead(null)}
+        onClose={() => {
+          setViewLead(null);
+          setScrollToComments(false);
+        }}
         onSave={handleUpdateLead}
         isRecruitingManager
+        scrollToComments={scrollToComments}
       />
 
       <AddCommentModal

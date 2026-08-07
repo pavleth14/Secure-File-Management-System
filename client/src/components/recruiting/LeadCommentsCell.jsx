@@ -7,8 +7,9 @@ import {
   getLatestComment,
   sortCommentsNewestFirst,
 } from '../../utils/leadPermissions';
+import TruncatedCommentText from './TruncatedCommentText';
 
-function CommentItem({ comment, currentUserId, onEditComment, readOnly }) {
+function CommentItem({ comment, currentUserId, onEditComment, readOnly, onViewMore }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(comment.text);
   const [saving, setSaving] = useState(false);
@@ -76,7 +77,7 @@ function CommentItem({ comment, currentUserId, onEditComment, readOnly }) {
         </div>
       ) : (
         <>
-          <p className="text-sm text-slate-900 dark:text-slate-100">{comment.text}</p>
+          <TruncatedCommentText text={comment.text} onViewMore={onViewMore} />
           <div className="mt-1 flex items-center justify-between gap-2">
             <p className="text-xs text-slate-500 dark:text-slate-400">
               {comment.author || 'Unknown'} · {formatDate(comment.createdAt)}
@@ -109,6 +110,7 @@ export default function LeadCommentsCell({
   onClose,
   currentUserId,
   onEditComment,
+  onViewLead,
   readOnly = false,
 }) {
   const cellRef = useRef(null);
@@ -220,6 +222,11 @@ export default function LeadCommentsCell({
     setComments(updatedLead?.comments || []);
   };
 
+  const handleViewMore = () => {
+    onClose();
+    onViewLead?.(lead, { scrollToComments: true });
+  };
+
   return (
     <>
       <td
@@ -273,6 +280,7 @@ export default function LeadCommentsCell({
                       currentUserId={currentUserId}
                       onEditComment={readOnly ? undefined : handleEditComment}
                       readOnly={readOnly}
+                      onViewMore={onViewLead ? handleViewMore : undefined}
                     />
                   ))}
                 </ul>

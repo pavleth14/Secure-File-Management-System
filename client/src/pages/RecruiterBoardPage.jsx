@@ -84,6 +84,7 @@ export default function RecruiterBoardPage() {
   });
 
   const [viewLead, setViewLead] = useState(null);
+  const [scrollToComments, setScrollToComments] = useState(false);
   const [commentLead, setCommentLead] = useState(null);
   const [assignLead, setAssignLead] = useState(null);
   const [commentSubmitting, setCommentSubmitting] = useState(false);
@@ -246,6 +247,11 @@ export default function RecruiterBoardPage() {
     }
   };
 
+  const handleViewLead = (lead, options = {}) => {
+    setViewLead(lead);
+    setScrollToComments(Boolean(options.scrollToComments));
+  };
+
   if (boardLoading) {
     return <div className="text-slate-500 dark:text-slate-400">Loading board...</div>;
   }
@@ -301,7 +307,7 @@ export default function RecruiterBoardPage() {
         sortBy={filters.sortBy}
         sortDir={filters.sortDir}
         onSortChange={handleSortChange}
-        onViewLead={setViewLead}
+        onViewLead={handleViewLead}
         onAddComment={boardReadOnly ? undefined : setCommentLead}
         onEditComment={boardReadOnly ? undefined : handleEditComment}
         onAssignLead={isRecruitingManager ? setAssignLead : undefined}
@@ -337,12 +343,16 @@ export default function RecruiterBoardPage() {
       <LeadViewModal
         open={Boolean(viewLead)}
         lead={viewLead}
-        onClose={() => setViewLead(null)}
+        onClose={() => {
+          setViewLead(null);
+          setScrollToComments(false);
+        }}
         onSave={boardReadOnly ? undefined : handleUpdateLead}
         isRecruitingManager={isRecruitingManager}
         isRecruiter={isRecruiter}
         isOwnBoard={isOwnBoard}
         readOnly={boardReadOnly}
+        scrollToComments={scrollToComments}
       />
 
       <AddCommentModal

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import api from '../../api/client';
 import { formatDate } from '../../utils/format';
 import { formatLeadDisplayDate } from '../../utils/leadDateFormat';
@@ -96,6 +96,7 @@ export default function LeadViewModal({
   isRecruiter = false,
   isOwnBoard = false,
   readOnly = false,
+  scrollToComments = false,
 }) {
   const { statusNames, statusColorMap } = useLeadStatuses();
   const statusOptions = statusNames.length ? statusNames : LEAD_STATUSES;
@@ -105,6 +106,7 @@ export default function LeadViewModal({
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const commentsSectionRef = useRef(null);
 
   const permissionContext = useMemo(
     () => ({ isRecruitingManager, isRecruiter, isOwnBoard, readOnly }),
@@ -169,6 +171,16 @@ export default function LeadViewModal({
       cancelled = true;
     };
   }, [open, lead?.id]);
+
+  useEffect(() => {
+    if (!open || !scrollToComments || loading) return undefined;
+
+    const frameId = requestAnimationFrame(() => {
+      commentsSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+
+    return () => cancelAnimationFrame(frameId);
+  }, [open, scrollToComments, loading, displayLead?.comments?.length]);
 
   if (!open || !lead) return null;
 
@@ -363,7 +375,10 @@ export default function LeadViewModal({
               />
             </div>
 
-            <div className="border-t border-slate-200 px-5 py-4 dark:border-slate-700">
+            <div
+              ref={commentsSectionRef}
+              className="border-t border-slate-200 px-5 py-4 dark:border-slate-700"
+            >
               <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
                 Comments
               </h3>
@@ -376,7 +391,9 @@ export default function LeadViewModal({
                       key={comment.id}
                       className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 dark:border-slate-700 dark:bg-slate-900/50"
                     >
-                      <p className="text-sm text-slate-900 dark:text-slate-100">{comment.text}</p>
+                      <p className="whitespace-pre-wrap break-words text-sm text-slate-900 dark:text-slate-100">
+                        {comment.text}
+                      </p>
                       <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
                         {comment.author || 'Unknown'} · {formatDate(comment.createdAt)}
                         {comment.isSystem && (

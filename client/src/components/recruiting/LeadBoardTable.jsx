@@ -66,6 +66,11 @@ export default function LeadBoardTable({
     }
   };
 
+  const handleViewLead = (lead, options) => {
+    setOpenCommentsLeadId(null);
+    onViewLead?.(lead, options);
+  };
+
   const buildMenuItems = (lead) => {
     const items = [
       {
@@ -220,6 +225,7 @@ export default function LeadBoardTable({
                     onClose={() => setOpenCommentsLeadId(null)}
                     currentUserId={currentUserId}
                     onEditComment={readOnly ? undefined : onEditComment}
+                    onViewLead={onViewLead ? handleViewLead : undefined}
                     readOnly={readOnly}
                   />
                 </tr>
