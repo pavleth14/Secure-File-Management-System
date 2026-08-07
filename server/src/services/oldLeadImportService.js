@@ -9,6 +9,7 @@ import {
 } from './leadImportService.js';
 import { getLeadSourceNames } from './leadSourceService.js';
 import { getLeadStatusNames } from './leadStatusService.js';
+import { formatLeadDateIso } from '../utils/leadDateFormat.js';
 
 async function loadExistingOldLeadContactKeys(rows) {
   const emails = rows.map((row) => row.normalizedEmail).filter(Boolean);
@@ -178,7 +179,7 @@ export async function confirmOldLeadImport(manager, previewId, selectedRowNumber
       status: row.resolvedStatus,
       driverType: row.resolvedDriverType,
       source: row.resolvedSource,
-      date: row.date?.trim() || '',
+      date: formatLeadDateIso(row.date, row.parsedCreatedAt) || '',
       commentsText: row.comments?.trim() || '',
       importedAt: importTimestamp,
       importedBy: manager._id,

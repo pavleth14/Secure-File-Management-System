@@ -1,4 +1,4 @@
-import { formatDate } from '../../utils/format';
+import { formatLeadDisplayDate } from '../../utils/leadDateFormat';
 
 const PREVIEW_COLUMNS = [
   { key: 'status', label: 'Status' },
@@ -79,7 +79,7 @@ export default function ImportPreviewTable({
                 {PREVIEW_COLUMNS.map((column) => (
                   <td key={column.key} className="max-w-[12rem] truncate px-3 py-3">
                     {column.key === 'date'
-                      ? row.date || (row.parsedCreatedAt ? formatDate(row.parsedCreatedAt) : 'Import date')
+                      ? formatLeadDisplayDate(row.date, row.parsedCreatedAt)
                       : row[column.key] || '—'}
                   </td>
                 ))}

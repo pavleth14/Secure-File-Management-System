@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { formatDate } from '../../utils/format';
+import { formatLeadDisplayDate } from '../../utils/leadDateFormat';
 import { useContextMenu } from '../../hooks/useContextMenu';
 import OldLeadAssignmentCell from './OldLeadAssignmentCell';
 
@@ -155,7 +155,7 @@ export default function OldLeadsTable({
                     <td className="px-4 py-3 text-sm">{oldLead.driverType || '—'}</td>
                     <td className="px-4 py-3 text-sm">{oldLead.source || '—'}</td>
                     <td className="whitespace-nowrap px-4 py-3 text-sm">
-                      {oldLead.date || formatDate(oldLead.createdAt)}
+                      {formatLeadDisplayDate(oldLead.date, oldLead.createdAt)}
                     </td>
                     <td className="px-4 py-3 text-sm">{oldLead.firstName || '—'}</td>
                     <td className="px-4 py-3 text-sm">{oldLead.lastName || '—'}</td>

@@ -14,6 +14,7 @@ import { getLeadStatusNames } from './leadStatusService.js';
 import { prependStatusCommentsToLeadData } from './leadStatusChangeService.js';
 import { auditLeadStatusChanged } from './recruitingAuditService.js';
 import { getRoundRobinAssignments } from './roundRobinService.js';
+import { formatLeadDateIso } from '../utils/leadDateFormat.js';
 
 const IMPORT_COMMENT_AUTHOR_LABEL = 'Importing Recruiting Manager';
 
@@ -112,7 +113,7 @@ function mapCsvRow(rawRow) {
     const field = HEADER_TO_FIELD[normalizeHeader(header)];
     if (field) {
       mapped[field] =
-        field === 'date' ? normalizeImportDateValue(value) : String(value ?? '').trim();
+        field === 'date' ? formatLeadDateIso(value) : String(value ?? '').trim();
     }
   }
   // Temporary date import debugging
@@ -410,7 +411,7 @@ async function revalidateRowForImport(row) {
       status: row.resolvedStatus,
       driverType: row.resolvedDriverType,
       source: row.resolvedSource,
-      date: row.date?.trim() || '',
+      date: formatLeadDateIso(row.date, row.parsedCreatedAt) || '',
       createdAt: row.parsedCreatedAt,
       commentsText: row.comments?.trim() || '',
     },
@@ -517,7 +518,7 @@ export async function confirmLeadImport(manager, previewId, selectedRowNumbers =
       status: payload.status,
       driverType: payload.driverType,
       source: payload.source,
-      date: payload.date,
+      date: formatLeadDateIso(payload.date, payload.createdAt) || '',
       assignedRecruiter,
       createdAt: payload.createdAt,
       importedAt: importTimestamp,

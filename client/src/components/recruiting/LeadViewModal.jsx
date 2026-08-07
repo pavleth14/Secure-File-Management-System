@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import api from '../../api/client';
 import { formatDate } from '../../utils/format';
+import { formatLeadDisplayDate } from '../../utils/leadDateFormat';
 import {
   canEditDriverType,
   canEditPersonalInfo,
@@ -310,7 +311,7 @@ export default function LeadViewModal({
               <DetailField label="Source" value={displayLead.source} />
               <DetailField
                 label="Date"
-                value={displayLead.date || formatDate(displayLead.createdAt)}
+                value={formatLeadDisplayDate(displayLead.date, displayLead.createdAt)}
               />
               <EditableDetailField
                 label="First Name"

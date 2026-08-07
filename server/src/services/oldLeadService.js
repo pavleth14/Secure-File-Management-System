@@ -7,6 +7,7 @@ import { handleLeadDuplicateError } from './leadService.js';
 import { prependStatusCommentsToLeadData } from './leadStatusChangeService.js';
 import { prependReassignmentCommentToLeadData } from './leadReassignmentService.js';
 import { auditLeadStatusChanged } from './recruitingAuditService.js';
+import { formatLeadDateIso } from '../utils/leadDateFormat.js';
 
 const OLD_LEAD_SOURCE = 'Old Leads';
 
@@ -81,7 +82,7 @@ export function formatOldLead(oldLead) {
     status: obj.status,
     driverType: obj.driverType,
     source: obj.source,
-    date: obj.date || '',
+    date: formatLeadDateIso(obj.date, obj.createdAt) || '',
     commentsText: obj.commentsText || '',
     importedAt: obj.importedAt,
     isAssigned: Boolean(assignment?.recruiterId),
@@ -198,7 +199,7 @@ async function assignSingleOldLead(user, oldLeadId, recruiterId, req = null) {
     status: initialStatus,
     driverType: oldLead.driverType,
     source: OLD_LEAD_SOURCE,
-    date: oldLead.date || '',
+    date: formatLeadDateIso(oldLead.date, assignedAt) || '',
     assignedRecruiter: recruiter._id,
     createdAt: assignedAt,
     updatedAt: assignedAt,

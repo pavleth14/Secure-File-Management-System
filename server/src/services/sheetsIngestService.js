@@ -12,6 +12,7 @@ import { prependStatusCommentsToLeadData } from './leadStatusChangeService.js';
 import { prependReassignmentCommentToLeadData } from './leadReassignmentService.js';
 import { getRoundRobinAssignment } from './roundRobinService.js';
 import { findDuplicateLead, handleLeadDuplicateError } from './leadService.js';
+import { formatLeadDateIso } from '../utils/leadDateFormat.js';
 
 export const SHEET_NAME_TO_DRIVER_TYPE = {
   tbf_form_company: 'Solo',
@@ -50,10 +51,6 @@ function parseCreatedTime(value) {
   }
 
   return new Date();
-}
-
-function formatLeadDate(timestamp) {
-  return `${timestamp.getMonth() + 1}/${timestamp.getDate()}/${timestamp.getFullYear()}`;
 }
 
 function resolveDriverType(payload) {
@@ -211,7 +208,7 @@ export async function ingestSheetLead(payload) {
     status: DEFAULT_LEAD_STATUS,
     driverType,
     source,
-    date: formatLeadDate(timestamp),
+    date: formatLeadDateIso(columns.created_time, timestamp),
     assignedRecruiter,
     importedAt: timestamp,
     createdAt: timestamp,

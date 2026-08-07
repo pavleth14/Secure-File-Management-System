@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { formatDate } from '../../utils/format';
+import { formatLeadDisplayDate } from '../../utils/leadDateFormat';
 import { useContextMenu } from '../../hooks/useContextMenu';
 import LeadCommentsCell from './LeadCommentsCell';
 
@@ -175,7 +176,7 @@ export default function LeadBoardTable({
                   <td className="px-4 py-3 text-sm">{lead.driverType || '—'}</td>
                   <td className="px-4 py-3 text-sm">{lead.source || '—'}</td>
                   <td className="whitespace-nowrap px-4 py-3 text-sm">
-                    {lead.date || formatDate(lead.createdAt)}
+                    {formatLeadDisplayDate(lead.date, lead.createdAt)}
                   </td>
                   <td className="px-4 py-3 text-sm">{lead.firstName || '—'}</td>
                   <td className="px-4 py-3 text-sm">{lead.lastName || '—'}</td>

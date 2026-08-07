@@ -17,6 +17,7 @@ import { appendStatusChangeComment } from './leadStatusChangeService.js';
 import { appendReassignmentComment } from './leadReassignmentService.js';
 import { auditLeadStatusChanged } from './recruitingAuditService.js';
 import { isRecruitingModuleUser, canMutateLead, canViewLeadOnRecruiterBoard } from '../utils/recruitingPermissions.js';
+import { formatLeadDateIso } from '../utils/leadDateFormat.js';
 
 const PERSONAL_INFO_FIELDS = ['firstName', 'lastName', 'phone', 'email', 'stateCity'];
 const IMMUTABLE_FIELDS = ['source', 'createdAt', 'updatedAt', 'importedAt'];
@@ -103,7 +104,7 @@ export function formatLead(lead) {
     rejectionReason: lead.rejectionReason || null,
     driverType: lead.driverType,
     source: lead.source,
-    date: lead.date || '',
+    date: formatLeadDateIso(lead.date, lead.createdAt) || '',
     assignedRecruiter: {
       id: recruiter?._id || recruiter,
       name: recruiter?.name || null,
@@ -122,13 +123,6 @@ export function formatLead(lead) {
     importedAt: lead.importedAt,
     updatedAt: lead.updatedAt,
   };
-  // Temporary date import debugging
-  if (formatted.date) {
-    console.log('[DATE-IMPORT] formatLead API response', {
-      leadId: formatted.id,
-      date: formatted.date,
-    });
-  }
   return formatted;
 }
 
