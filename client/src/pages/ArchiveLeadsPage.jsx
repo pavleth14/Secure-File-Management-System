@@ -38,7 +38,7 @@ function buildQueryParams(filters) {
 export default function ArchiveLeadsPage() {
   const { user } = useAuth();
   const { sourceNames } = useLeadSources();
-  const { statusNames } = useLeadStatuses();
+  const { statusNames, statusColorMap } = useLeadStatuses();
   const { recruiters } = useRecruiters();
 
   const [leads, setLeads] = useState([]);
@@ -202,6 +202,7 @@ export default function ArchiveLeadsPage() {
         onAssignLead={setAssignLead}
         showRecruiterColumn
         showArchiveColumns
+        statusColorMap={statusColorMap}
         loading={leadsLoading}
         emptyMessage="No archived leads found."
       />

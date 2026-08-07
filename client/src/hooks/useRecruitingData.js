@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import api from '../api/client';
+import { DEFAULT_STATUS_COLOR } from '../utils/leadStatusColors';
 
 function mapOptionItems(items = []) {
   return items.map((item) => ({
@@ -7,6 +8,7 @@ function mapOptionItems(items = []) {
     name: item.name,
     isDefault: Boolean(item.isDefault),
     isActive: Boolean(item.isActive),
+    color: item.color || DEFAULT_STATUS_COLOR,
   }));
 }
 
@@ -63,7 +65,15 @@ export function useLeadStatuses() {
 
   const statusNames = useMemo(() => statuses.map((status) => status.name), [statuses]);
 
-  return { statuses, statusNames, loading, error, reloadStatuses: loadStatuses };
+  const statusColorMap = useMemo(() => {
+    const map = {};
+    for (const status of statuses) {
+      map[status.name] = status.color || DEFAULT_STATUS_COLOR;
+    }
+    return map;
+  }, [statuses]);
+
+  return { statuses, statusNames, statusColorMap, loading, error, reloadStatuses: loadStatuses };
 }
 
 export function useRecruiters() {

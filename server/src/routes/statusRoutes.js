@@ -35,12 +35,13 @@ router.get('/', async (_req, res, next) => {
 
 router.post('/', requireRecruitingManager, async (req, res, next) => {
   try {
-    const { name, isActive } = req.body;
-    const status = await addLeadStatus(name, req.user._id, isActive);
+    const { name, isActive, color } = req.body;
+    const status = await addLeadStatus(name, req.user._id, isActive, color);
     await auditLeadStatusCreated({
       user: req.user,
       statusName: status.name,
       isActive: status.isActive,
+      color: status.color,
       req,
     });
     res.status(201).json({ status: formatStatusRecord(status) });
@@ -51,15 +52,18 @@ router.post('/', requireRecruitingManager, async (req, res, next) => {
 
 router.patch('/:id', requireRecruitingManager, async (req, res, next) => {
   try {
-    const { isActive } = req.body;
-    const { status, previousIsActive } = await updateLeadStatus(req.params.id, { isActive });
-    await auditLeadStatusUpdated({
-      user: req.user,
-      statusName: status.name,
-      oldValues: { isActive: previousIsActive },
-      newValues: { isActive: status.isActive },
-      req,
-    });
+    const { isActive, color } = req.body;
+    const result = await updateLeadStatus(req.params.id, { isActive, color });
+    const { status, changed, oldValues, newValues } = result;
+    if (changed) {
+      await auditLeadStatusUpdated({
+        user: req.user,
+        statusName: status.name,
+        oldValues,
+        newValues,
+        req,
+      });
+    }
     res.json({ status: formatStatusRecord(status) });
   } catch (err) {
     next(err);

@@ -4,6 +4,7 @@ import { formatLeadDisplayDate } from '../../utils/leadDateFormat';
 import { useContextMenu } from '../../hooks/useContextMenu';
 import LeadCommentsCell from './LeadCommentsCell';
 import LeadPhoneCell from './LeadPhoneCell';
+import LeadStatusIndicator from './LeadStatusIndicator';
 
 const COLUMNS = [
   { key: 'status', label: 'Status' },
@@ -50,6 +51,7 @@ export default function LeadBoardTable({
   onArchiveLead,
   showRecruiterColumn = false,
   showArchiveColumns = false,
+  statusColorMap = {},
   loading = false,
   emptyMessage = 'No leads on this board yet.',
 }) {
@@ -173,7 +175,12 @@ export default function LeadBoardTable({
                   className="hover:bg-slate-50 dark:hover:bg-slate-700/50"
                   onContextMenu={(event) => openContextMenu(event, buildMenuItems(lead))}
                 >
-                  <td className="px-4 py-3 text-sm">{lead.status || '—'}</td>
+                  <td className="px-4 py-3 text-sm">
+                    <LeadStatusIndicator
+                      statusName={lead.status}
+                      statusColorMap={statusColorMap}
+                    />
+                  </td>
                   <td className="px-4 py-3 text-sm">{lead.driverType || '—'}</td>
                   <td className="px-4 py-3 text-sm">{lead.source || '—'}</td>
                   <td className="whitespace-nowrap px-4 py-3 text-sm">

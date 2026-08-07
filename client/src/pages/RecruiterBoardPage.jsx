@@ -54,7 +54,7 @@ export default function RecruiterBoardPage() {
     isOwnBoard,
   });
   const { sourceNames } = useLeadSources();
-  const { statusNames } = useLeadStatuses();
+  const { statusNames, statusColorMap } = useLeadStatuses();
   const { recruiters } = useRecruiters();
 
   const [boardLabel, setBoardLabel] = useState('');
@@ -306,6 +306,7 @@ export default function RecruiterBoardPage() {
         onEditComment={boardReadOnly ? undefined : handleEditComment}
         onAssignLead={isRecruitingManager ? setAssignLead : undefined}
         onArchiveLead={isRecruitingManager ? handleArchiveLead : undefined}
+        statusColorMap={statusColorMap}
         loading={leadsLoading}
       />
 

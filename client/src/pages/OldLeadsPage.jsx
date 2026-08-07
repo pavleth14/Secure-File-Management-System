@@ -37,7 +37,7 @@ function buildQueryParams(filters) {
 
 export default function OldLeadsPage() {
   const { sourceNames } = useLeadSources();
-  const { statusNames } = useLeadStatuses();
+  const { statusNames, statusColorMap } = useLeadStatuses();
   const { recruiters } = useRecruiters();
   const fileInputRef = useRef(null);
 
@@ -389,6 +389,7 @@ export default function OldLeadsPage() {
         onTogglePage={handleTogglePage}
         onAssignLead={openAssignModal}
         onRoundRobinAssign={handleRoundRobinAssign}
+        statusColorMap={statusColorMap}
       />
 
       <div className="mt-4 flex flex-wrap items-center justify-between gap-3 text-sm text-slate-600 dark:text-slate-300">

@@ -1,0 +1,1 @@
+export const DEFAULT_STATUS_COLOR = '#94A3B8';

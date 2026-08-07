@@ -15,6 +15,7 @@ import {
   REJECTION_REASON_CUSTOM,
 } from '../../constants/recruitingConstants';
 import { useLeadStatuses } from '../../hooks/useRecruitingData';
+import LeadStatusIndicator from './LeadStatusIndicator';
 
 const EDITABLE_FIELDS = [
   'status',
@@ -96,7 +97,7 @@ export default function LeadViewModal({
   isOwnBoard = false,
   readOnly = false,
 }) {
-  const { statusNames } = useLeadStatuses();
+  const { statusNames, statusColorMap } = useLeadStatuses();
   const statusOptions = statusNames.length ? statusNames : LEAD_STATUSES;
   const [fullLead, setFullLead] = useState(lead);
   const [draft, setDraft] = useState(() => buildDraft(lead));
@@ -283,6 +284,7 @@ export default function LeadViewModal({
                 onChange={(value) => updateDraft('status', value)}
                 type="select"
                 options={statusOptions}
+                statusColorMap={statusColorMap}
               />
               <EditableDetailField
                 label="Type of Driver"
@@ -508,6 +510,7 @@ function EditableDetailField({
   onChange,
   type = 'text',
   options = [],
+  statusColorMap = {},
   className = '',
 }) {
   return (
@@ -554,6 +557,10 @@ function EditableDetailField({
             autoFocus
           />
         )
+      ) : field === 'status' ? (
+        <dd className="mt-1 text-sm text-slate-900 dark:text-slate-100">
+          <LeadStatusIndicator statusName={value} statusColorMap={statusColorMap} />
+        </dd>
       ) : (
         <dd className="mt-1 text-sm text-slate-900 dark:text-slate-100">{value || '—'}</dd>
       )}

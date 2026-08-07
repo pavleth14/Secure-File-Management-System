@@ -5,6 +5,8 @@ import {
   LEAD_STATUSES as DEFAULT_STATUSES,
   REMOVED_LEAD_STATUSES,
   DEFAULT_SYSTEM_STATUS_ACTIVITY,
+  DEFAULT_SYSTEM_STATUS_COLORS,
+  DEFAULT_STATUS_COLOR,
 } from '../config/recruitingConstants.js';
 
 function formatStatusRecord(status) {
@@ -13,6 +15,7 @@ function formatStatusRecord(status) {
     name: status.name,
     isDefault: status.isDefault,
     isActive: Boolean(status.isActive),
+    color: status.color || DEFAULT_STATUS_COLOR,
     createdAt: status.createdAt,
   };
 }
@@ -20,10 +23,11 @@ function formatStatusRecord(status) {
 export async function ensureDefaultLeadStatuses() {
   for (const name of DEFAULT_STATUSES) {
     const isActive = DEFAULT_SYSTEM_STATUS_ACTIVITY[name];
+    const color = DEFAULT_SYSTEM_STATUS_COLORS[name] || DEFAULT_STATUS_COLOR;
 
     await LeadStatus.updateOne(
       { name },
-      { $setOnInsert: { name, isDefault: true, isActive } },
+      { $setOnInsert: { name, isDefault: true, isActive, color } },
       { upsert: true }
     );
 
@@ -31,7 +35,17 @@ export async function ensureDefaultLeadStatuses() {
       { name, isActive: { $exists: false } },
       { $set: { isDefault: true, isActive } }
     );
+
+    await LeadStatus.updateOne(
+      { name, color: { $exists: false } },
+      { $set: { color } }
+    );
   }
+
+  await LeadStatus.updateMany(
+    { color: { $exists: false } },
+    { $set: { color: DEFAULT_STATUS_COLOR } }
+  );
 
   await LeadStatus.deleteMany({ name: { $in: REMOVED_LEAD_STATUSES } });
 }
@@ -40,7 +54,7 @@ export async function listLeadStatuses() {
   await ensureDefaultLeadStatuses();
   const statuses = await LeadStatus.find()
     .sort({ name: 1 })
-    .select('name isDefault isActive createdAt');
+    .select('name isDefault isActive color createdAt');
   return statuses;
 }
 
@@ -75,7 +89,18 @@ function parseIsActive(value) {
   return null;
 }
 
-export async function addLeadStatus(name, userId, isActive) {
+function parseStatusColor(value) {
+  if (value === undefined || value === null) return undefined;
+  const trimmed = String(value).trim();
+  if (!/^#[0-9A-Fa-f]{6}$/.test(trimmed)) {
+    const err = new Error('color must be a hex value like #RRGGBB');
+    err.status = 400;
+    throw err;
+  }
+  return trimmed.toUpperCase();
+}
+
+export async function addLeadStatus(name, userId, isActive, color) {
   await ensureDefaultLeadStatuses();
 
   const trimmed = String(name || '').trim();
@@ -92,6 +117,16 @@ export async function addLeadStatus(name, userId, isActive) {
     throw err;
   }
 
+  let parsedColor = DEFAULT_STATUS_COLOR;
+  if (color !== undefined) {
+    parsedColor = parseStatusColor(color);
+    if (parsedColor === undefined) {
+      const err = new Error('color must be a hex value like #RRGGBB');
+      err.status = 400;
+      throw err;
+    }
+  }
+
   const exists = await LeadStatus.findOne({ name: trimmed });
   if (exists) {
     const err = new Error('Status already exists');
@@ -103,13 +138,14 @@ export async function addLeadStatus(name, userId, isActive) {
     name: trimmed,
     isDefault: false,
     isActive: parsedIsActive,
+    color: parsedColor,
     createdBy: userId,
   });
 
   return status;
 }
 
-export async function updateLeadStatus(statusId, { isActive }) {
+export async function updateLeadStatus(statusId, { isActive, color }) {
   await ensureDefaultLeadStatuses();
 
   const status = await LeadStatus.findById(statusId);
@@ -119,17 +155,54 @@ export async function updateLeadStatus(statusId, { isActive }) {
     throw err;
   }
 
-  const parsedIsActive = parseIsActive(isActive);
-  if (parsedIsActive === null) {
-    const err = new Error('isActive is required (true for Active, false for Non-active)');
+  const hasIsActive = isActive !== undefined;
+  const hasColor = color !== undefined;
+
+  if (!hasIsActive && !hasColor) {
+    const err = new Error('At least one of isActive or color is required');
     err.status = 400;
     throw err;
   }
 
   const previousIsActive = status.isActive;
-  status.isActive = parsedIsActive;
+  const previousColor = status.color || DEFAULT_STATUS_COLOR;
+  const oldValues = {};
+  const newValues = {};
+
+  if (hasIsActive) {
+    const parsedIsActive = parseIsActive(isActive);
+    if (parsedIsActive === null) {
+      const err = new Error('isActive must be true or false');
+      err.status = 400;
+      throw err;
+    }
+    if (parsedIsActive !== previousIsActive) {
+      oldValues.isActive = previousIsActive;
+      newValues.isActive = parsedIsActive;
+      status.isActive = parsedIsActive;
+    }
+  }
+
+  if (hasColor) {
+    const parsedColor = parseStatusColor(color);
+    if (parsedColor === undefined) {
+      const err = new Error('color must be a hex value like #RRGGBB');
+      err.status = 400;
+      throw err;
+    }
+    if (parsedColor !== previousColor) {
+      oldValues.color = previousColor;
+      newValues.color = parsedColor;
+      status.color = parsedColor;
+    }
+  }
+
+  if (Object.keys(newValues).length === 0) {
+    return { status, previousIsActive, previousColor, changed: false };
+  }
+
   await status.save();
-  return { status, previousIsActive };
+  return { status, previousIsActive, previousColor, changed: true, oldValues, newValues };
 }
 
 export async function deleteLeadStatus(statusId) {

@@ -20,6 +20,23 @@ export const REMOVED_LEAD_STATUSES = [
   'Unreachable',
 ];
 
+export const DEFAULT_STATUS_COLOR = '#94A3B8';
+
+/** Default color for system statuses on first insert only (when color is missing). */
+export const DEFAULT_SYSTEM_STATUS_COLORS = {
+  'New Lead': '#3B82F6',
+  Attempting: '#F59E0B',
+  Processing: '#F59E0B',
+  Approved: '#22C55E',
+  Rejected: '#EF4444',
+  Hired: '#14B8A6',
+  Female: '#EC4899',
+  'Invalid Lead': '#64748B',
+  'No Experience': '#64748B',
+  SAP: '#64748B',
+  'Local Driver': '#64748B',
+};
+
 /** Default isActive for system statuses on first insert only. */
 export const DEFAULT_SYSTEM_STATUS_ACTIVITY = {
   'New Lead': true,

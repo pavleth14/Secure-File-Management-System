@@ -3,6 +3,7 @@ import { formatLeadDisplayDate } from '../../utils/leadDateFormat';
 import { useContextMenu } from '../../hooks/useContextMenu';
 import OldLeadAssignmentCell from './OldLeadAssignmentCell';
 import LeadPhoneCell from './LeadPhoneCell';
+import LeadStatusIndicator from './LeadStatusIndicator';
 
 const COLUMNS = [
   { key: 'status', label: 'Status' },
@@ -45,6 +46,7 @@ export default function OldLeadsTable({
   onTogglePage,
   onAssignLead,
   onRoundRobinAssign,
+  statusColorMap = {},
 }) {
   const { openContextMenu, contextMenuNode } = useContextMenu();
   const [openAssignmentId, setOpenAssignmentId] = useState(null);
@@ -152,7 +154,12 @@ export default function OldLeadsTable({
                         className="rounded border-slate-300 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-600"
                       />
                     </td>
-                    <td className="px-4 py-3 text-sm">{oldLead.status || '—'}</td>
+                    <td className="px-4 py-3 text-sm">
+                      <LeadStatusIndicator
+                        statusName={oldLead.status}
+                        statusColorMap={statusColorMap}
+                      />
+                    </td>
                     <td className="px-4 py-3 text-sm">{oldLead.driverType || '—'}</td>
                     <td className="px-4 py-3 text-sm">{oldLead.source || '—'}</td>
                     <td className="whitespace-nowrap px-4 py-3 text-sm">

@@ -165,7 +165,7 @@ export async function auditLeadSourceDeleted({ user, sourceName, req }) {
   });
 }
 
-export async function auditLeadStatusCreated({ user, statusName, isActive, req }) {
+export async function auditLeadStatusCreated({ user, statusName, isActive, color, req }) {
   await auditLog({
     user,
     action: AUDIT_ACTIONS.LEAD_STATUS_CREATE,
@@ -173,7 +173,7 @@ export async function auditLeadStatusCreated({ user, statusName, isActive, req }
     targetType: TARGET_TYPES.LEAD_STATUS,
     targetName: statusName,
     details: `${buildActorLabel(user)} added lead status "${statusName}" (${isActive ? 'Active' : 'Non-active'})`,
-    newValues: { name: statusName, isActive },
+    newValues: { name: statusName, isActive, color },
     req,
   });
 }

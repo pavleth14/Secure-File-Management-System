@@ -1,11 +1,13 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import api from '../api/client';
 import { useLeadStatuses } from '../hooks/useRecruitingData';
+import { DEFAULT_STATUS_COLOR } from '../utils/leadStatusColors';
+import LeadStatusIndicator from '../components/recruiting/LeadStatusIndicator';
 
 const inputClass =
   'rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100';
 
-function ActivityChoice({ value, onChange, name }) {
+function ActivityChoice({ value, onChange, name, disabled = false }) {
   return (
     <div className="flex flex-wrap gap-4">
       <label className="inline-flex items-center gap-2 text-sm text-slate-700 dark:text-slate-300">
@@ -14,6 +16,7 @@ function ActivityChoice({ value, onChange, name }) {
           name={name}
           checked={value === true}
           onChange={() => onChange(true)}
+          disabled={disabled}
           className="border-slate-300 dark:border-slate-600"
         />
         Active
@@ -24,6 +27,7 @@ function ActivityChoice({ value, onChange, name }) {
           name={name}
           checked={value === false}
           onChange={() => onChange(false)}
+          disabled={disabled}
           className="border-slate-300 dark:border-slate-600"
         />
         Non-active
@@ -32,10 +36,78 @@ function ActivityChoice({ value, onChange, name }) {
   );
 }
 
+function ColorPicker({ value, onChange, onCommit, disabled = false, id }) {
+  const commitColor = (next) => {
+    onChange(next);
+    if (onCommit && /^#[0-9A-Fa-f]{6}$/.test(next)) {
+      onCommit(next);
+    }
+  };
+
+  return (
+    <div className="flex items-center gap-2">
+      <input
+        id={id}
+        type="color"
+        value={/^#[0-9A-Fa-f]{6}$/.test(value) ? value : DEFAULT_STATUS_COLOR}
+        onChange={(event) => commitColor(event.target.value.toUpperCase())}
+        disabled={disabled}
+        className="h-9 w-12 cursor-pointer rounded border border-slate-300 bg-white p-1 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-600 dark:bg-slate-900"
+        aria-label="Status color"
+      />
+      <input
+        type="text"
+        value={value}
+        onChange={(event) => {
+          const next = event.target.value.trim();
+          if (/^#[0-9A-Fa-f]{0,6}$/.test(next)) {
+            onChange(next.toUpperCase());
+          }
+        }}
+        onBlur={() => {
+          if (!/^#[0-9A-Fa-f]{6}$/.test(value)) {
+            onChange(DEFAULT_STATUS_COLOR);
+            if (onCommit) onCommit(DEFAULT_STATUS_COLOR);
+            return;
+          }
+          if (onCommit) onCommit(value);
+        }}
+        disabled={disabled}
+        className={`${inputClass} w-28 font-mono uppercase`}
+        maxLength={7}
+        spellCheck={false}
+      />
+    </div>
+  );
+}
+
+function StatusColorField({ status, disabled, onSave }) {
+  const [color, setColor] = useState(status.color);
+
+  useEffect(() => {
+    setColor(status.color);
+  }, [status.color]);
+
+  return (
+    <ColorPicker
+      id={`status-color-${status.id}`}
+      value={color}
+      onChange={setColor}
+      onCommit={(next) => {
+        if (next !== status.color) {
+          onSave(status, next);
+        }
+      }}
+      disabled={disabled}
+    />
+  );
+}
+
 export default function LeadStatusesPage() {
   const { statuses, loading, error, reloadStatuses } = useLeadStatuses();
   const [newStatus, setNewStatus] = useState('');
   const [newIsActive, setNewIsActive] = useState(true);
+  const [newColor, setNewColor] = useState(DEFAULT_STATUS_COLOR);
   const [submitting, setSubmitting] = useState(false);
   const [deletingId, setDeletingId] = useState('');
   const [updatingId, setUpdatingId] = useState('');
@@ -47,14 +119,24 @@ export default function LeadStatusesPage() {
     const trimmed = newStatus.trim();
     if (!trimmed) return;
 
+    if (!/^#[0-9A-Fa-f]{6}$/.test(newColor)) {
+      setActionError('Please choose a valid color.');
+      return;
+    }
+
     setSubmitting(true);
     setActionError('');
     setSuccess('');
 
     try {
-      await api.post('/recruiting/statuses', { name: trimmed, isActive: newIsActive });
+      await api.post('/recruiting/statuses', {
+        name: trimmed,
+        isActive: newIsActive,
+        color: newColor,
+      });
       setNewStatus('');
       setNewIsActive(true);
+      setNewColor(DEFAULT_STATUS_COLOR);
       setSuccess(`Added status "${trimmed}".`);
       await reloadStatuses();
     } catch (err) {
@@ -100,12 +182,32 @@ export default function LeadStatusesPage() {
     }
   };
 
+  const handleUpdateColor = async (status, color) => {
+    if (!/^#[0-9A-Fa-f]{6}$/.test(color) || color === status.color) return;
+
+    setUpdatingId(status.id);
+    setActionError('');
+    setSuccess('');
+
+    try {
+      await api.patch(`/recruiting/statuses/${status.id}`, { color });
+      setSuccess(`Updated color for "${status.name}".`);
+      await reloadStatuses();
+    } catch (err) {
+      setActionError(err.response?.data?.message || 'Failed to update status color');
+    } finally {
+      setUpdatingId('');
+    }
+  };
+
+  const previewColorMap = Object.fromEntries(statuses.map((status) => [status.name, status.color]));
+
   return (
     <div>
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">Lead Statuses</h1>
         <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-          Manage lead statuses and whether they appear in Active or Non-active board views.
+          Manage lead statuses, board category, and color indicators shown on recruiter boards.
         </p>
       </div>
 
@@ -141,6 +243,14 @@ export default function LeadStatusesPage() {
             className={`${inputClass} w-full`}
             required
           />
+          <div>
+            <p className="mb-2 text-sm font-medium text-slate-700 dark:text-slate-300">Color</p>
+            <ColorPicker
+              id="new-status-color"
+              value={newColor}
+              onChange={setNewColor}
+            />
+          </div>
           <ActivityChoice
             name="new-status-activity"
             value={newIsActive}
@@ -164,6 +274,9 @@ export default function LeadStatusesPage() {
                 Status
               </th>
               <th className="px-4 py-3 text-left text-xs font-medium uppercase text-slate-500 dark:text-slate-400">
+                Color
+              </th>
+              <th className="px-4 py-3 text-left text-xs font-medium uppercase text-slate-500 dark:text-slate-400">
                 Board category
               </th>
               <th className="px-4 py-3 text-right text-xs font-medium uppercase text-slate-500 dark:text-slate-400">
@@ -174,13 +287,13 @@ export default function LeadStatusesPage() {
           <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
             {loading ? (
               <tr>
-                <td colSpan={3} className="px-4 py-6 text-sm text-slate-500 dark:text-slate-400">
+                <td colSpan={4} className="px-4 py-6 text-sm text-slate-500 dark:text-slate-400">
                   Loading statuses...
                 </td>
               </tr>
             ) : statuses.length === 0 ? (
               <tr>
-                <td colSpan={3} className="px-4 py-6 text-sm text-slate-500 dark:text-slate-400">
+                <td colSpan={4} className="px-4 py-6 text-sm text-slate-500 dark:text-slate-400">
                   No statuses found.
                 </td>
               </tr>
@@ -188,18 +301,31 @@ export default function LeadStatusesPage() {
               statuses.map((status) => (
                 <tr key={status.id}>
                   <td className="px-4 py-3 text-sm text-slate-900 dark:text-slate-100">
-                    {status.name}
-                    {status.isDefault && (
-                      <span className="ml-2 rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-600 dark:bg-slate-700 dark:text-slate-300">
-                        System
-                      </span>
-                    )}
+                    <div className="inline-flex flex-wrap items-center gap-2">
+                      <LeadStatusIndicator
+                        statusName={status.name}
+                        statusColorMap={previewColorMap}
+                      />
+                      {status.isDefault && (
+                        <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-600 dark:bg-slate-700 dark:text-slate-300">
+                          System
+                        </span>
+                      )}
+                    </div>
+                  </td>
+                  <td className="px-4 py-3">
+                    <StatusColorField
+                      status={status}
+                      disabled={updatingId === status.id}
+                      onSave={handleUpdateColor}
+                    />
                   </td>
                   <td className="px-4 py-3">
                     <ActivityChoice
                       name={`status-activity-${status.id}`}
                       value={status.isActive}
                       onChange={(isActive) => handleUpdateActivity(status, isActive)}
+                      disabled={updatingId === status.id}
                     />
                     {updatingId === status.id && (
                       <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">Saving...</p>
