@@ -125,10 +125,17 @@ export async function listOldLeads(options = {}) {
   const safePage = Math.max(parseInt(page, 10) || 1, 1);
   const skip = (safePage - 1) * safeLimit;
 
+  const sort = {};
+  if (!assignmentStatus) {
+    sort['assignment.recruiterId'] = 1;
+  }
+  sort[sortField] = sortOrder;
+  sort._id = sortOrder;
+
   const [totalCount, oldLeads] = await Promise.all([
     OldLead.countDocuments(filter),
     OldLead.find(filter)
-      .sort({ [sortField]: sortOrder, _id: sortOrder })
+      .sort(sort)
       .skip(skip)
       .limit(safeLimit)
       .populate('assignment.recruiterId', 'name')
