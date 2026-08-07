@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import api from '../api/client';
 import { useLeadStatuses } from '../hooks/useRecruitingData';
 import { DEFAULT_STATUS_COLOR } from '../utils/leadStatusColors';
@@ -36,21 +36,14 @@ function ActivityChoice({ value, onChange, name, disabled = false }) {
   );
 }
 
-function ColorPicker({ value, onChange, onCommit, disabled = false, id }) {
-  const commitColor = (next) => {
-    onChange(next);
-    if (onCommit && /^#[0-9A-Fa-f]{6}$/.test(next)) {
-      onCommit(next);
-    }
-  };
-
+function ColorPicker({ value, onChange, disabled = false, id, fallbackColor = DEFAULT_STATUS_COLOR }) {
   return (
     <div className="flex items-center gap-2">
       <input
         id={id}
         type="color"
-        value={/^#[0-9A-Fa-f]{6}$/.test(value) ? value : DEFAULT_STATUS_COLOR}
-        onChange={(event) => commitColor(event.target.value.toUpperCase())}
+        value={/^#[0-9A-Fa-f]{6}$/.test(value) ? value : fallbackColor}
+        onChange={(event) => onChange(event.target.value.toUpperCase())}
         disabled={disabled}
         className="h-9 w-12 cursor-pointer rounded border border-slate-300 bg-white p-1 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-600 dark:bg-slate-900"
         aria-label="Status color"
@@ -66,11 +59,8 @@ function ColorPicker({ value, onChange, onCommit, disabled = false, id }) {
         }}
         onBlur={() => {
           if (!/^#[0-9A-Fa-f]{6}$/.test(value)) {
-            onChange(DEFAULT_STATUS_COLOR);
-            if (onCommit) onCommit(DEFAULT_STATUS_COLOR);
-            return;
+            onChange(fallbackColor);
           }
-          if (onCommit) onCommit(value);
         }}
         disabled={disabled}
         className={`${inputClass} w-28 font-mono uppercase`}
@@ -81,25 +71,59 @@ function ColorPicker({ value, onChange, onCommit, disabled = false, id }) {
   );
 }
 
-function StatusColorField({ status, disabled, onSave }) {
+function StatusColorField({ status, disabled, onSave, onDraftChange }) {
   const [color, setColor] = useState(status.color);
+  const isDirty = color !== status.color;
+  const isValid = /^#[0-9A-Fa-f]{6}$/.test(color);
 
   useEffect(() => {
     setColor(status.color);
   }, [status.color]);
 
+  useEffect(() => {
+    onDraftChange(status.id, isDirty && isValid ? color : null);
+  }, [status.id, color, isDirty, isValid, onDraftChange]);
+
+  const handleSave = () => {
+    if (isValid && isDirty) {
+      onSave(status, color);
+    }
+  };
+
+  const handleCancel = () => {
+    setColor(status.color);
+  };
+
   return (
-    <ColorPicker
-      id={`status-color-${status.id}`}
-      value={color}
-      onChange={setColor}
-      onCommit={(next) => {
-        if (next !== status.color) {
-          onSave(status, next);
-        }
-      }}
-      disabled={disabled}
-    />
+    <div className="flex flex-wrap items-center gap-2">
+      <ColorPicker
+        id={`status-color-${status.id}`}
+        value={color}
+        onChange={setColor}
+        fallbackColor={status.color}
+        disabled={disabled}
+      />
+      {isDirty && (
+        <>
+          <button
+            type="button"
+            onClick={handleSave}
+            disabled={disabled || !isValid}
+            className="rounded-lg bg-brand-600 px-2.5 py-1.5 text-xs font-medium text-white hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            Save
+          </button>
+          <button
+            type="button"
+            onClick={handleCancel}
+            disabled={disabled}
+            className="rounded-lg border border-slate-300 px-2.5 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-700"
+          >
+            Cancel
+          </button>
+        </>
+      )}
+    </div>
   );
 }
 
@@ -111,6 +135,8 @@ export default function LeadStatusesPage() {
   const [submitting, setSubmitting] = useState(false);
   const [deletingId, setDeletingId] = useState('');
   const [updatingId, setUpdatingId] = useState('');
+  const [colorUpdatingId, setColorUpdatingId] = useState('');
+  const [draftColors, setDraftColors] = useState({});
   const [actionError, setActionError] = useState('');
   const [success, setSuccess] = useState('');
 
@@ -185,7 +211,7 @@ export default function LeadStatusesPage() {
   const handleUpdateColor = async (status, color) => {
     if (!/^#[0-9A-Fa-f]{6}$/.test(color) || color === status.color) return;
 
-    setUpdatingId(status.id);
+    setColorUpdatingId(status.id);
     setActionError('');
     setSuccess('');
 
@@ -196,11 +222,33 @@ export default function LeadStatusesPage() {
     } catch (err) {
       setActionError(err.response?.data?.message || 'Failed to update status color');
     } finally {
-      setUpdatingId('');
+      setColorUpdatingId('');
     }
   };
 
-  const previewColorMap = Object.fromEntries(statuses.map((status) => [status.name, status.color]));
+  const handleDraftColorChange = useCallback((statusId, color) => {
+    setDraftColors((prev) => {
+      if (color === null) {
+        if (!(statusId in prev)) return prev;
+        const next = { ...prev };
+        delete next[statusId];
+        return next;
+      }
+      if (prev[statusId] === color) return prev;
+      return { ...prev, [statusId]: color };
+    });
+  }, []);
+
+  const previewColorMap = useMemo(() => {
+    const map = Object.fromEntries(statuses.map((status) => [status.name, status.color]));
+    for (const status of statuses) {
+      const draft = draftColors[status.id];
+      if (draft) {
+        map[status.name] = draft;
+      }
+    }
+    return map;
+  }, [statuses, draftColors]);
 
   return (
     <div>
@@ -316,8 +364,9 @@ export default function LeadStatusesPage() {
                   <td className="px-4 py-3">
                     <StatusColorField
                       status={status}
-                      disabled={updatingId === status.id}
+                      disabled={colorUpdatingId === status.id}
                       onSave={handleUpdateColor}
+                      onDraftChange={handleDraftColorChange}
                     />
                   </td>
                   <td className="px-4 py-3">
