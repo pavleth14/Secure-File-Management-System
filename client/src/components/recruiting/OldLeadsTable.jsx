@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { formatLeadDisplayDate } from '../../utils/leadDateFormat';
 import { useContextMenu } from '../../hooks/useContextMenu';
 import OldLeadAssignmentCell from './OldLeadAssignmentCell';
+import LeadPhoneCell from './LeadPhoneCell';
 
 const COLUMNS = [
   { key: 'status', label: 'Status' },
@@ -159,7 +160,9 @@ export default function OldLeadsTable({
                     </td>
                     <td className="px-4 py-3 text-sm">{oldLead.firstName || '—'}</td>
                     <td className="px-4 py-3 text-sm">{oldLead.lastName || '—'}</td>
-                    <td className="px-4 py-3 text-sm">{oldLead.phone || '—'}</td>
+                    <td className="px-4 py-3 text-sm">
+                      <LeadPhoneCell phone={oldLead.phone} />
+                    </td>
                     <td className="px-4 py-3 text-sm">{oldLead.stateCity || '—'}</td>
                     <td className="px-4 py-3 text-sm">{oldLead.email || '—'}</td>
                     <OldLeadAssignmentCell

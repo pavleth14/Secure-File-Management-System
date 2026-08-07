@@ -3,6 +3,7 @@ import { formatDate } from '../../utils/format';
 import { formatLeadDisplayDate } from '../../utils/leadDateFormat';
 import { useContextMenu } from '../../hooks/useContextMenu';
 import LeadCommentsCell from './LeadCommentsCell';
+import LeadPhoneCell from './LeadPhoneCell';
 
 const COLUMNS = [
   { key: 'status', label: 'Status' },
@@ -180,7 +181,9 @@ export default function LeadBoardTable({
                   </td>
                   <td className="px-4 py-3 text-sm">{lead.firstName || '—'}</td>
                   <td className="px-4 py-3 text-sm">{lead.lastName || '—'}</td>
-                  <td className="px-4 py-3 text-sm">{lead.phone || '—'}</td>
+                  <td className="px-4 py-3 text-sm">
+                    <LeadPhoneCell phone={lead.phone} />
+                  </td>
                   <td className="px-4 py-3 text-sm">{lead.stateCity || '—'}</td>
                   <td className="px-4 py-3 text-sm">{lead.email || '—'}</td>
 

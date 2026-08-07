@@ -1,4 +1,5 @@
 import { formatLeadDisplayDate } from '../../utils/leadDateFormat';
+import LeadPhoneCell from './LeadPhoneCell';
 
 const PREVIEW_COLUMNS = [
   { key: 'status', label: 'Status' },
@@ -80,7 +81,9 @@ export default function ImportPreviewTable({
                   <td key={column.key} className="max-w-[12rem] truncate px-3 py-3">
                     {column.key === 'date'
                       ? formatLeadDisplayDate(row.date, row.parsedCreatedAt)
-                      : row[column.key] || '—'}
+                      : column.key === 'phone'
+                        ? <LeadPhoneCell phone={row.phone} />
+                        : row[column.key] || '—'}
                   </td>
                 ))}
                 <td className="min-w-[12rem] px-3 py-3">
