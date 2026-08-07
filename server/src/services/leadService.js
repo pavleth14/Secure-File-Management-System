@@ -18,6 +18,7 @@ import { appendReassignmentComment } from './leadReassignmentService.js';
 import { auditLeadStatusChanged } from './recruitingAuditService.js';
 import { isRecruitingModuleUser, canMutateLead, canViewLeadOnRecruiterBoard } from '../utils/recruitingPermissions.js';
 import { formatLeadDateIso } from '../utils/leadDateFormat.js';
+import { buildLeadSearchOrConditions } from '../utils/leadPhoneSearch.js';
 
 const PERSONAL_INFO_FIELDS = ['firstName', 'lastName', 'phone', 'email', 'stateCity'];
 const IMMUTABLE_FIELDS = ['source', 'createdAt', 'updatedAt', 'importedAt'];
@@ -236,15 +237,7 @@ function applyLeadListFilters(filter, options) {
 
   const trimmedSearch = String(search || '').trim();
   if (trimmedSearch) {
-    const regex = new RegExp(escapeRegex(trimmedSearch), 'i');
-    filter.$or = [
-      { firstName: regex },
-      { lastName: regex },
-      { phone: regex },
-      { email: regex },
-      { stateCity: regex },
-      { source: regex },
-    ];
+    filter.$or = buildLeadSearchOrConditions(trimmedSearch, escapeRegex);
   }
 
   if (status) {

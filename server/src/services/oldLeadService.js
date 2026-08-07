@@ -8,6 +8,7 @@ import { prependStatusCommentsToLeadData } from './leadStatusChangeService.js';
 import { prependReassignmentCommentToLeadData } from './leadReassignmentService.js';
 import { auditLeadStatusChanged } from './recruitingAuditService.js';
 import { formatLeadDateIso } from '../utils/leadDateFormat.js';
+import { buildLeadSearchOrConditions } from '../utils/leadPhoneSearch.js';
 
 const OLD_LEAD_SOURCE = 'Old Leads';
 
@@ -35,15 +36,7 @@ function applyOldLeadListFilters(filter, options) {
 
   const trimmedSearch = String(search || '').trim();
   if (trimmedSearch) {
-    const regex = new RegExp(escapeRegex(trimmedSearch), 'i');
-    filter.$or = [
-      { firstName: regex },
-      { lastName: regex },
-      { phone: regex },
-      { email: regex },
-      { stateCity: regex },
-      { source: regex },
-    ];
+    filter.$or = buildLeadSearchOrConditions(trimmedSearch, escapeRegex);
   }
 
   if (status) filter.status = status;
