@@ -3,7 +3,8 @@ import api from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import AnalyticsStatCard from '../components/recruiting/analytics/AnalyticsStatCard';
 import AnalyticsBarChart from '../components/recruiting/analytics/AnalyticsBarChart';
-import { formatPercent, getDatePresetRange } from '../utils/recruitingAnalytics';
+import { formatDurationMs, formatPercent, getDatePresetRange } from '../utils/recruitingAnalytics';
+import { formatLeadPhoneDisplay } from '../utils/leadPhoneFormat';
 
 const TABS = [
   { id: 'overview', label: 'Overview' },
@@ -234,6 +235,96 @@ export default function RecruitingAnalyticsPage() {
                     />
                     <AnalyticsStatCard label="Reassignments" value={data.reassignments ?? 0} />
                   </>
+                )}
+                <AnalyticsStatCard
+                  label="Average response time"
+                  value={formatDurationMs(data.overview.averageResponseTimeMs)}
+                  hint={`New Lead → Attempting (${data.overview.averageResponseTimeCount ?? 0} in period)`}
+                />
+              </div>
+
+              {(data.responseTimeByRecruiter?.length ?? 0) > 0 && (
+                <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-900">
+                  <div className="border-b border-slate-200 px-4 py-3 dark:border-slate-700">
+                    <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-100">
+                      Average response time by recruiter
+                    </h2>
+                    <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                      Time from lead import/creation to first Attempting status (transitions in
+                      selected period).
+                    </p>
+                  </div>
+                  <table className="min-w-full divide-y divide-slate-200 dark:divide-slate-700">
+                    <thead className="bg-slate-50 dark:bg-slate-800/60">
+                      <tr>
+                        <th className={thClass}>Recruiter</th>
+                        <th className={thClass}>Avg response time</th>
+                        <th className={thClass}>Leads counted</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
+                      {data.responseTimeByRecruiter.map((row) => (
+                        <tr key={row.id || row.name}>
+                          <td className={`${tdClass} font-medium`}>{row.name}</td>
+                          <td className={tdClass}>{formatDurationMs(row.averageResponseTimeMs)}</td>
+                          <td className={tdClass}>{row.count}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+
+              <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-900">
+                <div className="border-b border-slate-200 px-4 py-3 dark:border-slate-700">
+                  <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-100">
+                    Longest waiting New Leads
+                  </h2>
+                  <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                    Active leads still in New Lead status, sorted by time waiting.
+                  </p>
+                </div>
+                {(data.longestWaitingNewLeads?.length ?? 0) === 0 ? (
+                  <p className="px-4 py-6 text-sm text-slate-500 dark:text-slate-400">
+                    No leads currently waiting in New Lead status.
+                  </p>
+                ) : (
+                  <table className="min-w-full divide-y divide-slate-200 dark:divide-slate-700">
+                    <thead className="bg-slate-50 dark:bg-slate-800/60">
+                      <tr>
+                        <th className={thClass}>Waiting</th>
+                        <th className={thClass}>Recruiter</th>
+                        <th className={thClass}>Status</th>
+                        <th className={thClass}>Driver type</th>
+                        <th className={thClass}>Source</th>
+                        <th className={thClass}>Date</th>
+                        <th className={thClass}>First name</th>
+                        <th className={thClass}>Last name</th>
+                        <th className={thClass}>Phone</th>
+                        <th className={thClass}>Email</th>
+                        <th className={thClass}>State / City</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
+                      {data.longestWaitingNewLeads.map((lead) => (
+                        <tr key={lead.id}>
+                          <td className={`${tdClass} whitespace-nowrap font-medium`}>
+                            {formatDurationMs(lead.waitingMs)}
+                          </td>
+                          <td className={tdClass}>{lead.recruiterName}</td>
+                          <td className={tdClass}>{lead.status}</td>
+                          <td className={tdClass}>{lead.driverType}</td>
+                          <td className={tdClass}>{lead.source}</td>
+                          <td className={tdClass}>{lead.date || '—'}</td>
+                          <td className={tdClass}>{lead.firstName}</td>
+                          <td className={tdClass}>{lead.lastName}</td>
+                          <td className={tdClass}>{formatLeadPhoneDisplay(lead.phone)}</td>
+                          <td className={tdClass}>{lead.email}</td>
+                          <td className={tdClass}>{lead.stateCity || '—'}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 )}
               </div>
 

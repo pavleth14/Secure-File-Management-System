@@ -8,6 +8,12 @@ import {
   listLeadStatuses,
 } from './leadStatusService.js';
 import { isRecruitingModuleUser } from '../utils/recruitingPermissions.js';
+import { formatLeadDateIso } from '../utils/leadDateFormat.js';
+import {
+  computeResponseTimeMs,
+  getLeadStartTime,
+  isWithinRange,
+} from '../utils/leadResponseTime.js';
 
 const LOCAL_DRIVER_TYPE = 'Local';
 const OTR_DRIVER_TYPES = ['Solo', 'Team', 'Owner Operator'];
@@ -413,6 +419,104 @@ async function getPipeline(baseFilter) {
   }));
 }
 
+async function getResponseTimeAnalytics(baseFilter, dateFrom, dateTo) {
+  const leads = await Lead.find(baseFilter)
+    .select('importedAt createdAt assignedRecruiter comments')
+    .populate('assignedRecruiter', 'name')
+    .lean();
+
+  const durations = [];
+
+  for (const lead of leads) {
+    const result = computeResponseTimeMs(lead);
+    if (!result) continue;
+    if (!isWithinRange(result.attemptingAt, dateFrom, dateTo)) continue;
+
+    const recruiter = lead.assignedRecruiter;
+    durations.push({
+      durationMs: result.durationMs,
+      recruiterId: recruiter?._id?.toString() || null,
+      recruiterName: recruiter?.name || 'Unknown',
+    });
+  }
+
+  const averageResponseTimeMs = durations.length
+    ? Math.round(durations.reduce((sum, row) => sum + row.durationMs, 0) / durations.length)
+    : null;
+
+  const recruiterMap = new Map();
+  for (const row of durations) {
+    const key = row.recruiterId || 'unknown';
+    if (!recruiterMap.has(key)) {
+      recruiterMap.set(key, {
+        id: row.recruiterId,
+        name: row.recruiterName,
+        totalMs: 0,
+        count: 0,
+      });
+    }
+    const bucket = recruiterMap.get(key);
+    bucket.totalMs += row.durationMs;
+    bucket.count += 1;
+  }
+
+  const responseTimeByRecruiter = [...recruiterMap.values()]
+    .map((row) => ({
+      id: row.id,
+      name: row.name,
+      averageResponseTimeMs: Math.round(row.totalMs / row.count),
+      count: row.count,
+    }))
+    .sort((a, b) => a.name.localeCompare(b.name));
+
+  return {
+    averageResponseTimeMs,
+    averageResponseTimeCount: durations.length,
+    responseTimeByRecruiter,
+  };
+}
+
+async function getLongestWaitingNewLeads(baseFilter, limit = 100) {
+  const leads = await Lead.find({
+    ...baseFilter,
+    archived: false,
+    status: 'New Lead',
+  })
+    .select(
+      'firstName lastName phone email stateCity status driverType source date importedAt createdAt assignedRecruiter'
+    )
+    .populate('assignedRecruiter', 'name')
+    .lean();
+
+  const now = Date.now();
+
+  return leads
+    .map((lead) => {
+      const waitingSince = getLeadStartTime(lead);
+      const waitingMs = waitingSince ? Math.max(0, now - waitingSince.getTime()) : 0;
+      const recruiter = lead.assignedRecruiter;
+
+      return {
+        id: lead._id,
+        firstName: lead.firstName,
+        lastName: lead.lastName,
+        phone: lead.phone,
+        email: lead.email,
+        stateCity: lead.stateCity || '',
+        status: lead.status,
+        driverType: lead.driverType,
+        source: lead.source,
+        date: formatLeadDateIso(lead.date, lead.createdAt),
+        recruiterId: recruiter?._id || null,
+        recruiterName: recruiter?.name || 'Unknown',
+        waitingMs,
+        waitingSince: waitingSince ? waitingSince.toISOString() : null,
+      };
+    })
+    .sort((a, b) => b.waitingMs - a.waitingMs)
+    .slice(0, limit);
+}
+
 export async function getRecruitingAnalytics(user, options = {}) {
   const { dateFrom, dateTo } = parseDateRange(options.from, options.to);
   const driverTypeGroup = options.driverTypeGroup || 'all';
@@ -435,10 +539,15 @@ export async function getRecruitingAnalytics(user, options = {}) {
   const rejectionReasons = await getRejectionReasons(baseFilter, periodFilter);
   const roundRobinBalance = await getRoundRobinBalance(baseFilter, periodFilter, viewAll);
   const reassignments = await getReassignments(dateFrom, dateTo, viewAll);
+  const responseTime = await getResponseTimeAnalytics(baseFilter, dateFrom, dateTo);
+  const longestWaitingNewLeads = await getLongestWaitingNewLeads(baseFilter);
 
   if (viewAll && oldLeads) {
     overview.oldLeadsAssigned = oldLeads.assignedInPeriod;
   }
+
+  overview.averageResponseTimeMs = responseTime.averageResponseTimeMs;
+  overview.averageResponseTimeCount = responseTime.averageResponseTimeCount;
 
   return {
     scope: viewAll ? 'all' : 'self',
@@ -460,5 +569,7 @@ export async function getRecruitingAnalytics(user, options = {}) {
     rejectionReasons,
     roundRobinBalance,
     reassignments,
+    responseTimeByRecruiter: responseTime.responseTimeByRecruiter,
+    longestWaitingNewLeads,
   };
 }

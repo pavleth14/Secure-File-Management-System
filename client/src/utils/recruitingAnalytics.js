@@ -2,6 +2,24 @@ export function formatPercent(value) {
   return `${Number(value || 0).toFixed(1)}%`;
 }
 
+export function formatDurationMs(ms) {
+  if (ms == null || Number.isNaN(ms)) return '—';
+
+  const totalMinutes = Math.floor(ms / 60000);
+  if (totalMinutes < 1) return '<1m';
+  if (totalMinutes < 60) return `${totalMinutes}m`;
+
+  const totalHours = Math.floor(totalMinutes / 60);
+  const remMinutes = totalMinutes % 60;
+  if (totalHours < 24) {
+    return remMinutes ? `${totalHours}h ${remMinutes}m` : `${totalHours}h`;
+  }
+
+  const days = Math.floor(totalHours / 24);
+  const remHours = totalHours % 24;
+  return remHours ? `${days}d ${remHours}h` : `${days}d`;
+}
+
 export function getDatePresetRange(preset) {
   const now = new Date();
   const end = new Date(now);
