@@ -13,6 +13,7 @@ import { prependReassignmentCommentToLeadData } from './leadReassignmentService.
 import { getRoundRobinAssignment } from './roundRobinService.js';
 import { findDuplicateLead, handleLeadDuplicateError } from './leadService.js';
 import { formatLeadDateIso } from '../utils/leadDateFormat.js';
+import { notifyNewLeadSlack } from './slackNotificationService.js';
 
 export const SHEET_NAME_TO_DRIVER_TYPE = {
   tbf_form_company: 'Solo',
@@ -254,6 +255,21 @@ export async function ingestSheetLead(payload) {
     if (raceSkip) {
       return raceSkip;
     }
+
+    notifyNewLeadSlack(
+      {
+        firstName,
+        lastName,
+        phone,
+        email,
+        stateCity,
+        status: DEFAULT_LEAD_STATUS,
+        driverType,
+        source,
+        assignedRecruiter: { id: assignedRecruiter, name: recruiter?.name },
+      },
+      { sourceLabel: `Google Sheets (${sheetName})`, recruiterName: recruiter?.name }
+    );
 
     return {
       status: 'created',

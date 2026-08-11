@@ -8,6 +8,7 @@ import { prependStatusCommentsToLeadData } from './leadStatusChangeService.js';
 import { prependReassignmentCommentToLeadData } from './leadReassignmentService.js';
 import { auditLeadStatusChanged } from './recruitingAuditService.js';
 import { formatLeadDateIso } from '../utils/leadDateFormat.js';
+import { notifyNewLeadSlack } from './slackNotificationService.js';
 import { buildLeadSearchOrConditions } from '../utils/leadPhoneSearch.js';
 
 const OLD_LEAD_SOURCE = 'Old Leads';
@@ -240,6 +241,14 @@ async function assignSingleOldLead(user, oldLeadId, recruiterId, req = null) {
     if (duplicateErr) throw duplicateErr;
     throw err;
   }
+
+  notifyNewLeadSlack(
+    {
+      ...leadData,
+      assignedRecruiter: { id: recruiter._id, name: recruiter.name },
+    },
+    { sourceLabel: OLD_LEAD_SOURCE, recruiterName: recruiter.name }
+  );
 
   if (req) {
     await auditLeadStatusChanged({

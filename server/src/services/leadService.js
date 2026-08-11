@@ -18,6 +18,7 @@ import { appendReassignmentComment } from './leadReassignmentService.js';
 import { auditLeadStatusChanged } from './recruitingAuditService.js';
 import { isRecruitingModuleUser, canMutateLead, canViewLeadOnRecruiterBoard } from '../utils/recruitingPermissions.js';
 import { formatLeadDateIso } from '../utils/leadDateFormat.js';
+import { notifyNewLeadSlack } from './slackNotificationService.js';
 import { buildLeadSearchOrConditions } from '../utils/leadPhoneSearch.js';
 
 const PERSONAL_INFO_FIELDS = ['firstName', 'lastName', 'phone', 'email', 'stateCity'];
@@ -452,7 +453,10 @@ export async function createLead(user, payload, { req } = {}) {
     });
   }
 
-  return getLeadById(lead._id);
+  const createdLead = await getLeadById(lead._id);
+  notifyNewLeadSlack(createdLead, { sourceLabel: source });
+
+  return createdLead;
 }
 
 async function validateLeadUpdate(user, lead, updates) {
