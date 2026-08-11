@@ -15,6 +15,7 @@ import { prependStatusCommentsToLeadData } from './leadStatusChangeService.js';
 import { auditLeadStatusChanged } from './recruitingAuditService.js';
 import { getRoundRobinAssignments } from './roundRobinService.js';
 import { formatLeadDateIso } from '../utils/leadDateFormat.js';
+import { notifyCsvImportSlack } from './slackNotificationService.js';
 
 const IMPORT_COMMENT_AUTHOR_LABEL = 'Importing Recruiting Manager';
 
@@ -482,6 +483,7 @@ export async function confirmLeadImport(manager, previewId, selectedRowNumbers =
 
   let assignments;
   let assignedRecruiterDoc = null;
+  const importedLeadsForSlack = [];
 
   if (preview.assignedRecruiterId) {
     assignedRecruiterDoc = await assertAssignedRecruiter(preview.assignedRecruiterId);
@@ -550,6 +552,17 @@ export async function confirmLeadImport(manager, previewId, selectedRowNumbers =
     try {
       const createdLead = await Lead.create(leadData);
       importedCount += 1;
+      importedLeadsForSlack.push({
+        firstName: payload.firstName,
+        lastName: payload.lastName,
+        phone: payload.phone,
+        email: payload.email,
+        stateCity: payload.stateCity,
+        status: payload.status,
+        driverType: payload.driverType,
+        source: payload.source,
+        assignedRecruiter,
+      });
       if (req) {
         await auditLeadStatusChanged({
           user: manager,
@@ -570,6 +583,10 @@ export async function confirmLeadImport(manager, previewId, selectedRowNumbers =
   }
 
   await LeadImportPreview.deleteOne({ _id: preview._id });
+
+  if (importedLeadsForSlack.length > 0) {
+    notifyCsvImportSlack(importedLeadsForSlack, { sourceLabel: 'CSV Import' });
+  }
 
   return {
     imported: importedCount,

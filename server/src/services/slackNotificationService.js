@@ -82,21 +82,10 @@ function buildSlackPayload(lead, { sourceLabel, recruiterName, boardUrl }) {
   };
 }
 
-async function sendNewLeadNotification(lead, options = {}) {
+async function postSlackPayload(payload) {
   if (!isSlackLeadNotificationsEnabled()) return;
 
   const webhookUrl = process.env.SLACK_WEBHOOK_URL.trim();
-  const recruiterName = await resolveRecruiterName(lead, options);
-  const recruiterId = resolveRecruiterId(lead, options);
-  const baseUrl = getFrontendBaseUrl();
-  const boardUrl = baseUrl && recruiterId ? `${baseUrl}/recruiting/boards/${recruiterId}` : null;
-
-  const payload = buildSlackPayload(lead, {
-    sourceLabel: options.sourceLabel,
-    recruiterName,
-    boardUrl,
-  });
-
   const response = await fetch(webhookUrl, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -109,6 +98,105 @@ async function sendNewLeadNotification(lead, options = {}) {
   }
 }
 
+function getCsvImportPerLeadMax() {
+  const parsed = parseInt(process.env.SLACK_CSV_IMPORT_PER_LEAD_MAX || '10', 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : 10;
+}
+
+async function buildRecruiterNameMap(recruiterIds) {
+  const uniqueIds = [...new Set(recruiterIds.filter(Boolean).map(String))];
+  if (!uniqueIds.length) return new Map();
+
+  const users = await User.find({ _id: { $in: uniqueIds } }).select('name').lean();
+  return new Map(users.map((user) => [user._id.toString(), user.name]));
+}
+
+function aggregateRecruiterCounts(importedLeads, nameById) {
+  const counts = new Map();
+
+  for (const lead of importedLeads) {
+    const recruiterId = String(lead.assignedRecruiter);
+    if (!counts.has(recruiterId)) {
+      counts.set(recruiterId, {
+        recruiterId,
+        name: nameById.get(recruiterId) || 'Unknown',
+        count: 0,
+      });
+    }
+    counts.get(recruiterId).count += 1;
+  }
+
+  return [...counts.values()].sort((a, b) => a.name.localeCompare(b.name));
+}
+
+async function sendCsvImportSummaryNotification(importedLeads, options = {}) {
+  const recruiterIds = importedLeads.map((lead) => lead.assignedRecruiter);
+  const nameById = await buildRecruiterNameMap(recruiterIds);
+  const byRecruiter = aggregateRecruiterCounts(importedLeads, nameById);
+  const total = importedLeads.length;
+  const sourceLabel = options.sourceLabel || 'CSV Import';
+
+  const lines = byRecruiter.map((row) => `• *${row.name}:* ${row.count} lead${row.count === 1 ? '' : 's'}`);
+  const blocks = [
+    {
+      type: 'header',
+      text: { type: 'plain_text', text: 'CSV import completed', emoji: true },
+    },
+    {
+      type: 'section',
+      text: {
+        type: 'mrkdwn',
+        text: `*${total}* lead${total === 1 ? '' : 's'} imported via *${sourceLabel}*.\n\n*Assigned by recruiter:*\n${lines.join('\n')}`,
+      },
+    },
+  ];
+
+  await postSlackPayload({
+    text: `CSV import: ${total} leads assigned (${byRecruiter.length} recruiters)`,
+    blocks,
+  });
+}
+
+async function sendNewLeadNotification(lead, options = {}) {
+  if (!isSlackLeadNotificationsEnabled()) return;
+
+  const recruiterName = await resolveRecruiterName(lead, options);
+  const recruiterId = resolveRecruiterId(lead, options);
+  const baseUrl = getFrontendBaseUrl();
+  const boardUrl = baseUrl && recruiterId ? `${baseUrl}/recruiting/boards/${recruiterId}` : null;
+
+  const payload = buildSlackPayload(lead, {
+    sourceLabel: options.sourceLabel,
+    recruiterName,
+    boardUrl,
+  });
+
+  await postSlackPayload(payload);
+}
+
+async function sendCsvImportNotifications(importedLeads, options = {}) {
+  if (!importedLeads.length) return;
+
+  const maxPerLead = getCsvImportPerLeadMax();
+  const sourceLabel = options.sourceLabel || 'CSV Import';
+  const recruiterIds = importedLeads.map((lead) => lead.assignedRecruiter);
+  const nameById = await buildRecruiterNameMap(recruiterIds);
+
+  if (importedLeads.length <= maxPerLead) {
+    for (const lead of importedLeads) {
+      const recruiterId = String(lead.assignedRecruiter);
+      await sendNewLeadNotification(lead, {
+        sourceLabel,
+        recruiterId,
+        recruiterName: nameById.get(recruiterId),
+      });
+    }
+    return;
+  }
+
+  await sendCsvImportSummaryNotification(importedLeads, { sourceLabel });
+}
+
 /**
  * Fire-and-forget Slack notification for a newly created lead.
  */
@@ -118,6 +206,20 @@ export function notifyNewLeadSlack(lead, options = {}) {
   setImmediate(() => {
     sendNewLeadNotification(lead, options).catch((err) => {
       console.error('[slack] New lead notification failed:', err.message);
+    });
+  });
+}
+
+/**
+ * CSV import: per-lead Slack messages up to SLACK_CSV_IMPORT_PER_LEAD_MAX (default 10),
+ * otherwise one summary with lead counts per recruiter.
+ */
+export function notifyCsvImportSlack(importedLeads, options = {}) {
+  if (!isSlackLeadNotificationsEnabled() || !importedLeads?.length) return;
+
+  setImmediate(() => {
+    sendCsvImportNotifications(importedLeads, options).catch((err) => {
+      console.error('[slack] CSV import notification failed:', err.message);
     });
   });
 }
