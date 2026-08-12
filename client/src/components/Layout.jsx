@@ -547,7 +547,7 @@ export default function Layout() {
   }, [user, shouldShowRecruiting]);
 
   const links = [
-    { to: '/dashboard', label: 'Dashboard' },
+    { to: '/db-dashboard', label: 'Dashboard' },
     { to: '/folders', label: 'Folders' },
     { to: '/my-files', label: 'My Files' },
   ];
@@ -614,8 +614,10 @@ export default function Layout() {
     };
   }, [shouldShowBoards, user?.id]);
 
+  const isWelcomePage = location.pathname === '/dashboard';
+
   return (
-    <div className="min-h-screen">
+    <div className={`min-h-screen ${isWelcomePage ? 'flex flex-col' : ''}`}>
       <header className="border-b border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-900">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-4 sm:px-6">
           <div className="flex items-center gap-16">
@@ -682,14 +684,16 @@ export default function Layout() {
       </header>
 
       <main
-        className={`mx-auto w-full px-4 sm:px-6 ${
-          location.pathname.includes('/files') || location.pathname.startsWith('/my-files')
-            ? 'max-w-full py-0'
-            : location.pathname.startsWith('/recruiting/boards') ||
-                location.pathname.startsWith('/recruiting/archive') ||
-                location.pathname.startsWith('/dispatch/boards')
-              ? 'w-[95vw] max-w-[95vw] py-8'
-              : 'max-w-7xl py-8'
+        className={`mx-auto w-full ${
+          isWelcomePage
+            ? 'flex flex-1 flex-col p-0 max-w-full'
+            : location.pathname.includes('/files') || location.pathname.startsWith('/my-files')
+              ? 'max-w-full px-4 py-0 sm:px-6'
+              : location.pathname.startsWith('/recruiting/boards') ||
+                  location.pathname.startsWith('/recruiting/archive') ||
+                  location.pathname.startsWith('/dispatch/boards')
+                ? 'w-[95vw] max-w-[95vw] px-4 py-8 sm:px-6'
+                : 'max-w-7xl px-4 py-8 sm:px-6'
         }`}
       >
         <Outlet />

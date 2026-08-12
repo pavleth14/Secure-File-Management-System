@@ -4,6 +4,7 @@ import Layout from './components/Layout';
 import RoleGuard from './components/RoleGuard';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
+import WelcomePage from './pages/WelcomePage';
 import DashboardPage from './pages/DashboardPage';
 import FoldersPage from './pages/FoldersPage';
 import FolderFilesPage from './pages/FolderFilesPage';
@@ -85,7 +86,8 @@ export default function App() {
           </ProtectedRoute>
         }
       >
-        <Route path="/dashboard" element={<DashboardPage />} />
+        <Route path="/dashboard" element={<WelcomePage />} />
+        <Route path="/db-dashboard" element={<DashboardPage />} />
         <Route
           path="/register"
           element={
