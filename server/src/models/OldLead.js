@@ -54,6 +54,7 @@ const oldLeadSchema = new mongoose.Schema(
     },
     date: { type: String, trim: true, default: '' },
     commentsText: { type: String, trim: true, default: '' },
+    importComments: { type: [String], default: [] },
     importedAt: { type: Date, default: null },
     importedBy: {
       type: mongoose.Schema.Types.ObjectId,

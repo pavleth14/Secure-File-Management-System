@@ -6,6 +6,9 @@ import {
   mapCsvRow,
   validateMappedRow,
   applyDuplicateChecks,
+  collectImportComments,
+  validateImportComments,
+  formatCommentsPreview,
 } from './leadImportService.js';
 import { getLeadSourceNames } from './leadSourceService.js';
 import { getLeadStatusNames } from './leadStatusService.js';
@@ -45,6 +48,8 @@ export async function previewOldLeadImport(manager, fileBuffer, fileName = '') {
   const allowedStatuses = await getLeadStatusNames();
   const validatedRows = rawRows.map((rawRow, index) => {
     const mapped = mapCsvRow(rawRow);
+    const importComments = collectImportComments(rawRow);
+    const commentValidation = validateImportComments(importComments, rawRow);
     const validation = validateMappedRow(mapped, importDate, allowedSources, allowedStatuses);
 
     return {
@@ -58,11 +63,12 @@ export async function previewOldLeadImport(manager, fileBuffer, fileName = '') {
       phone: mapped.phone || '',
       stateCity: mapped.stateCity || '',
       email: mapped.email || '',
-      comments: mapped.comments || '',
+      importComments,
+      comments: formatCommentsPreview(importComments),
       parsedCreatedAt: validation.parsedCreatedAt,
-      errors: validation.errors,
-      warnings: validation.warnings,
-      isValid: validation.errors.length === 0,
+      errors: [...validation.errors, ...commentValidation.errors],
+      warnings: [...validation.warnings, ...commentValidation.warnings],
+      isValid: validation.errors.length === 0 && commentValidation.errors.length === 0,
       normalizedEmail: validation.normalizedEmail,
       normalizedPhone: validation.normalizedPhone,
       resolvedStatus: validation.status,
@@ -100,6 +106,7 @@ export async function previewOldLeadImport(manager, fileBuffer, fileName = '') {
       phone: row.phone,
       stateCity: row.stateCity,
       email: row.email,
+      importComments: row.importComments,
       comments: row.comments,
       parsedCreatedAt: row.parsedCreatedAt,
       errors: row.errors,
@@ -180,7 +187,9 @@ export async function confirmOldLeadImport(manager, previewId, selectedRowNumber
       driverType: row.resolvedDriverType,
       source: row.resolvedSource,
       date: formatLeadDateIso(row.date, row.parsedCreatedAt) || '',
-      commentsText: row.comments?.trim() || '',
+      importComments: row.importComments || [],
+      commentsText:
+        row.importComments?.length > 0 ? row.importComments.join('\n\n') : '',
       importedAt: importTimestamp,
       importedBy: manager._id,
     });

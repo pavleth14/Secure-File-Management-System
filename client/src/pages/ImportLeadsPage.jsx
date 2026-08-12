@@ -172,7 +172,7 @@ export default function ImportLeadsPage() {
             </p>
             <p className="mb-6 text-sm text-slate-500 dark:text-slate-400">
               Expected columns: Status, Type of Driver, Source, Date, First Name, Last Name, Phone,
-              State / City, Email, Comments
+              State / City, Email, Comments, Comment 2, … Comment 10
             </p>
             <input
               ref={fileInputRef}

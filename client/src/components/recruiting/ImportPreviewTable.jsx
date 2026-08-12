@@ -78,11 +78,13 @@ export default function ImportPreviewTable({
                 </td>
                 <td className="whitespace-nowrap px-3 py-3 font-medium">{row.rowNumber}</td>
                 {PREVIEW_COLUMNS.map((column) => (
-                  <td key={column.key} className="max-w-[12rem] truncate px-3 py-3">
+                  <td key={column.key} className="max-w-[12rem] truncate px-3 py-3" title={column.key === 'comments' ? row.comments || '' : undefined}>
                     {column.key === 'date'
                       ? formatLeadDisplayDate(row.date, row.parsedCreatedAt)
                       : column.key === 'phone'
                         ? <LeadPhoneCell phone={row.phone} />
+                        : column.key === 'comments'
+                          ? row.comments || '—'
                         : row[column.key] || '—'}
                   </td>
                 ))}

@@ -13,6 +13,7 @@ const previewRowSchema = new mongoose.Schema(
     phone: String,
     stateCity: String,
     email: String,
+    importComments: [String],
     comments: String,
     resolvedStatus: String,
     resolvedDriverType: String,

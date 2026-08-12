@@ -10,8 +10,20 @@ import { auditLeadStatusChanged } from './recruitingAuditService.js';
 import { formatLeadDateIso } from '../utils/leadDateFormat.js';
 import { notifyNewLeadSlack } from './slackNotificationService.js';
 import { buildLeadSearchOrConditions } from '../utils/leadPhoneSearch.js';
+import { buildImportCommentEntries } from './leadImportService.js';
 
 const OLD_LEAD_SOURCE = 'Old Leads';
+const OLD_LEAD_IMPORT_COMMENT_LABEL = 'Old Leads Import';
+
+function getOldLeadImportComments(oldLead) {
+  if (oldLead.importComments?.length) {
+    return oldLead.importComments.map((text) => String(text || '').trim()).filter(Boolean);
+  }
+  if (oldLead.commentsText?.trim()) {
+    return [oldLead.commentsText.trim()];
+  }
+  return [];
+}
 
 const OLD_LEAD_SORT_FIELDS = {
   status: 'status',
@@ -77,7 +89,8 @@ export function formatOldLead(oldLead) {
     driverType: obj.driverType,
     source: obj.source,
     date: formatLeadDateIso(obj.date, obj.createdAt) || '',
-    commentsText: obj.commentsText || '',
+    importComments: getOldLeadImportComments(obj),
+    commentsText: getOldLeadImportComments(obj).join('\n\n'),
     importedAt: obj.importedAt,
     isAssigned: Boolean(assignment?.recruiterId),
     assignment: assignment
@@ -207,16 +220,13 @@ async function assignSingleOldLead(user, oldLeadId, recruiterId, req = null) {
     importedAt: assignedAt,
   };
 
-  if (oldLead.commentsText) {
-    leadData.comments = [
-      {
-        text: oldLead.commentsText,
-        author: user._id,
-        authorLabel: 'Old Leads Import',
-        createdAt: assignedAt,
-        updatedAt: assignedAt,
-      },
-    ];
+  const importComments = getOldLeadImportComments(oldLead);
+  if (importComments.length) {
+    leadData.comments = buildImportCommentEntries(importComments, {
+      authorId: user._id,
+      authorLabel: OLD_LEAD_IMPORT_COMMENT_LABEL,
+      timestamp: assignedAt,
+    });
   }
 
   leadData = prependStatusCommentsToLeadData(leadData, {

@@ -18,6 +18,8 @@ import { formatLeadDateIso } from '../utils/leadDateFormat.js';
 import { notifyCsvImportSlack } from './slackNotificationService.js';
 
 const IMPORT_COMMENT_AUTHOR_LABEL = 'Importing Recruiting Manager';
+const MAX_IMPORT_COMMENTS = 10;
+const IMPORT_COMMENT_MAX_LENGTH = 2000;
 
 const HEADER_TO_FIELD = {
   status: 'status',
@@ -30,8 +32,92 @@ const HEADER_TO_FIELD = {
   'state / city': 'stateCity',
   'state/city': 'stateCity',
   email: 'email',
-  comments: 'comments',
 };
+
+function getImportCommentColumnOrder(normalizedHeader) {
+  if (normalizedHeader === 'comments' || normalizedHeader === 'comment') {
+    return 1;
+  }
+
+  const match = normalizedHeader.match(/^comment\s+(\d+)$/);
+  if (!match) return null;
+
+  return Number(match[1]);
+}
+
+function collectImportComments(rawRow) {
+  const entries = [];
+
+  for (const [header, value] of Object.entries(rawRow)) {
+    const normalized = normalizeHeader(header);
+    const order = getImportCommentColumnOrder(normalized);
+    if (order === null || order < 1 || order > MAX_IMPORT_COMMENTS) continue;
+
+    const text = String(value ?? '').trim();
+    if (text) {
+      entries.push({ order, text });
+    }
+  }
+
+  entries.sort((a, b) => a.order - b.order);
+
+  const seenOrders = new Set();
+  const comments = [];
+  for (const entry of entries) {
+    if (seenOrders.has(entry.order)) continue;
+    seenOrders.add(entry.order);
+    comments.push(entry.text);
+    if (comments.length >= MAX_IMPORT_COMMENTS) break;
+  }
+
+  return comments;
+}
+
+function validateImportComments(importComments, rawRow) {
+  const errors = [];
+  const warnings = [];
+
+  for (const [header, value] of Object.entries(rawRow)) {
+    const normalized = normalizeHeader(header);
+    const order = getImportCommentColumnOrder(normalized);
+    if (order === null || order <= MAX_IMPORT_COMMENTS) continue;
+
+    if (String(value ?? '').trim()) {
+      warnings.push(
+        `Comment ${order} ignored; maximum ${MAX_IMPORT_COMMENTS} comments per row`
+      );
+    }
+  }
+
+  importComments.forEach((text, index) => {
+    if (text.length > IMPORT_COMMENT_MAX_LENGTH) {
+      errors.push(
+        `Comment ${index + 1} exceeds ${IMPORT_COMMENT_MAX_LENGTH} characters`
+      );
+    }
+  });
+
+  return { errors, warnings };
+}
+
+function formatCommentsPreview(importComments) {
+  if (!importComments?.length) return '';
+  if (importComments.length === 1) return importComments[0];
+  return `${importComments[0]} (+${importComments.length - 1} more)`;
+}
+
+function buildImportCommentEntries(importComments, { authorId, authorLabel, timestamp }) {
+  return (importComments || [])
+    .map((text) => String(text || '').trim())
+    .filter(Boolean)
+    .map((text) => ({
+      text,
+      author: authorId,
+      authorLabel,
+      createdAt: timestamp,
+      updatedAt: timestamp,
+    }));
+}
 
 function normalizeHeader(header) {
   return String(header || '')
@@ -277,6 +363,8 @@ export async function previewLeadImport(
   const allowedStatuses = await getLeadStatusNames();
   const validatedRows = rawRows.map((rawRow, index) => {
     const mapped = mapCsvRow(rawRow);
+    const importComments = collectImportComments(rawRow);
+    const commentValidation = validateImportComments(importComments, rawRow);
     const validation = validateMappedRow(mapped, importDate, allowedSources, allowedStatuses);
 
     return {
@@ -290,11 +378,12 @@ export async function previewLeadImport(
       phone: mapped.phone || '',
       stateCity: mapped.stateCity || '',
       email: mapped.email || '',
-      comments: mapped.comments || '',
+      importComments,
+      comments: formatCommentsPreview(importComments),
       parsedCreatedAt: validation.parsedCreatedAt,
-      errors: validation.errors,
-      warnings: validation.warnings,
-      isValid: validation.errors.length === 0,
+      errors: [...validation.errors, ...commentValidation.errors],
+      warnings: [...validation.warnings, ...commentValidation.warnings],
+      isValid: validation.errors.length === 0 && commentValidation.errors.length === 0,
       normalizedEmail: validation.normalizedEmail,
       normalizedPhone: validation.normalizedPhone,
       resolvedStatus: validation.status,
@@ -333,6 +422,7 @@ export async function previewLeadImport(
       phone: row.phone,
       stateCity: row.stateCity,
       email: row.email,
+      importComments: row.importComments,
       comments: row.comments,
       resolvedStatus: row.resolvedStatus,
       resolvedDriverType: row.resolvedDriverType,
@@ -366,6 +456,7 @@ export async function previewLeadImport(
       phone: row.phone,
       stateCity: row.stateCity,
       email: row.email,
+      importComments: row.importComments,
       comments: row.comments,
       parsedCreatedAt: row.parsedCreatedAt,
       errors: row.errors,
@@ -414,7 +505,7 @@ async function revalidateRowForImport(row) {
       source: row.resolvedSource,
       date: formatLeadDateIso(row.date, row.parsedCreatedAt) || '',
       createdAt: row.parsedCreatedAt,
-      commentsText: row.comments?.trim() || '',
+      importComments: row.importComments || [],
     },
   };
 }
@@ -530,16 +621,12 @@ export async function confirmLeadImport(manager, previewId, selectedRowNumbers =
     // Temporary date import debugging
     console.log('[DATE-IMPORT] before Lead.create', { date: leadData.date, email: leadData.email });
 
-    if (payload.commentsText) {
-      leadData.comments = [
-        {
-          text: payload.commentsText,
-          author: manager._id,
-          authorLabel: IMPORT_COMMENT_AUTHOR_LABEL,
-          createdAt: importTimestamp,
-          updatedAt: importTimestamp,
-        },
-      ];
+    if (payload.importComments?.length) {
+      leadData.comments = buildImportCommentEntries(payload.importComments, {
+        authorId: manager._id,
+        authorLabel: IMPORT_COMMENT_AUTHOR_LABEL,
+        timestamp: importTimestamp,
+      });
     }
 
     leadData = prependStatusCommentsToLeadData(leadData, {
@@ -601,4 +688,9 @@ export {
   mapCsvRow,
   validateMappedRow,
   applyDuplicateChecks,
+  collectImportComments,
+  validateImportComments,
+  formatCommentsPreview,
+  buildImportCommentEntries,
+  MAX_IMPORT_COMMENTS,
 };
