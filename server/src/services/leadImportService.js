@@ -16,6 +16,9 @@ import { auditLeadStatusChanged } from './recruitingAuditService.js';
 import { getRoundRobinAssignments } from './roundRobinService.js';
 import { formatLeadDateIso } from '../utils/leadDateFormat.js';
 import { notifyCsvImportSlack } from './slackNotificationService.js';
+import {
+  generateImportPlaceholderEmail,
+} from '../utils/importPlaceholderEmail.js';
 
 const IMPORT_COMMENT_AUTHOR_LABEL = 'Importing Recruiting Manager';
 const MAX_IMPORT_COMMENTS = 10;
@@ -136,10 +139,6 @@ function normalizeEmail(email) {
 
 function normalizePhone(phone) {
   return String(phone || '').trim();
-}
-
-function generateImportPlaceholderEmail() {
-  return `no-email-${randomUUID()}@import.local`;
 }
 
 function resolveImportEmail(normalizedEmail, emailMissing) {

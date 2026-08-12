@@ -1,4 +1,5 @@
 import { User } from '../models/User.js';
+import { formatImportEmailForDisplay } from '../utils/importPlaceholderEmail.js';
 
 function isSlackLeadNotificationsEnabled() {
   return (
@@ -48,7 +49,7 @@ function buildSlackPayload(lead, { sourceLabel, recruiterName, boardUrl }) {
     { type: 'mrkdwn', text: `*Driver type:*\n${lead.driverType || '—'}` },
     { type: 'mrkdwn', text: `*Source:*\n${source}` },
     { type: 'mrkdwn', text: `*Phone:*\n${lead.phone || '—'}` },
-    { type: 'mrkdwn', text: `*Email:*\n${lead.email || '—'}` },
+    { type: 'mrkdwn', text: `*Email:*\n${formatImportEmailForDisplay(lead.email)}` },
   ];
 
   if (lead.stateCity) {

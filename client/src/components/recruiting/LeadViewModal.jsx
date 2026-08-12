@@ -16,6 +16,10 @@ import {
 } from '../../constants/recruitingConstants';
 import { useLeadStatuses } from '../../hooks/useRecruitingData';
 import LeadStatusIndicator from './LeadStatusIndicator';
+import {
+  formatLeadDisplayEmail,
+  normalizeLeadEmailForEdit,
+} from '../../utils/leadEmailFormat';
 
 const EDITABLE_FIELDS = [
   'status',
@@ -188,6 +192,12 @@ export default function LeadViewModal({
   const hasUnsavedChanges = Object.keys(getDraftChanges(displayLead, draft)).length > 0;
 
   const startEditing = (field) => {
+    if (field === 'email') {
+      setDraft((prev) => ({
+        ...prev,
+        email: normalizeLeadEmailForEdit(prev.email),
+      }));
+    }
     setEditingFields((prev) => ({ ...prev, [field]: true }));
   };
 
@@ -579,7 +589,9 @@ function EditableDetailField({
           <LeadStatusIndicator statusName={value} statusColorMap={statusColorMap} />
         </dd>
       ) : (
-        <dd className="mt-1 text-sm text-slate-900 dark:text-slate-100">{value || '—'}</dd>
+        <dd className="mt-1 text-sm text-slate-900 dark:text-slate-100">
+          {field === 'email' ? formatLeadDisplayEmail(value) : value || '—'}
+        </dd>
       )}
     </div>
   );

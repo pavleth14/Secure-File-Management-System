@@ -5,6 +5,7 @@ import AnalyticsStatCard from '../components/recruiting/analytics/AnalyticsStatC
 import AnalyticsBarChart from '../components/recruiting/analytics/AnalyticsBarChart';
 import { formatDurationMs, formatPercent, getDatePresetRange } from '../utils/recruitingAnalytics';
 import { formatLeadPhoneDisplay } from '../utils/leadPhoneFormat';
+import { formatLeadDisplayEmail } from '../utils/leadEmailFormat';
 
 const TABS = [
   { id: 'overview', label: 'Overview' },
@@ -319,7 +320,7 @@ export default function RecruitingAnalyticsPage() {
                           <td className={tdClass}>{lead.firstName}</td>
                           <td className={tdClass}>{lead.lastName}</td>
                           <td className={tdClass}>{formatLeadPhoneDisplay(lead.phone)}</td>
-                          <td className={tdClass}>{lead.email}</td>
+                          <td className={tdClass}>{formatLeadDisplayEmail(lead.email)}</td>
                           <td className={tdClass}>{lead.stateCity || '—'}</td>
                         </tr>
                       ))}

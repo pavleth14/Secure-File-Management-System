@@ -4,6 +4,7 @@ import { useContextMenu } from '../../hooks/useContextMenu';
 import OldLeadAssignmentCell from './OldLeadAssignmentCell';
 import LeadPhoneCell from './LeadPhoneCell';
 import LeadStatusIndicator from './LeadStatusIndicator';
+import { formatLeadDisplayEmail } from '../../utils/leadEmailFormat';
 
 const COLUMNS = [
   { key: 'status', label: 'Status' },
@@ -171,7 +172,7 @@ export default function OldLeadsTable({
                       <LeadPhoneCell phone={oldLead.phone} />
                     </td>
                     <td className="px-4 py-3 text-sm">{oldLead.stateCity || '—'}</td>
-                    <td className="px-4 py-3 text-sm">{oldLead.email || '—'}</td>
+                    <td className="px-4 py-3 text-sm">{formatLeadDisplayEmail(oldLead.email)}</td>
                     <OldLeadAssignmentCell
                       oldLead={oldLead}
                       open={openAssignmentId === oldLead.id}

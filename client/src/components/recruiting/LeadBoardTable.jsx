@@ -5,6 +5,7 @@ import { useContextMenu } from '../../hooks/useContextMenu';
 import LeadCommentsCell from './LeadCommentsCell';
 import LeadPhoneCell from './LeadPhoneCell';
 import LeadStatusIndicator from './LeadStatusIndicator';
+import { formatLeadDisplayEmail } from '../../utils/leadEmailFormat';
 
 const COLUMNS = [
   { key: 'status', label: 'Status' },
@@ -206,7 +207,7 @@ export default function LeadBoardTable({
                     <LeadPhoneCell phone={lead.phone} />
                   </td>
                   <td className="px-4 py-3 text-sm">{lead.stateCity || '—'}</td>
-                  <td className="px-4 py-3 text-sm">{lead.email || '—'}</td>
+                  <td className="px-4 py-3 text-sm">{formatLeadDisplayEmail(lead.email)}</td>
 
                   {showRecruiterColumn && (
                     <td className="whitespace-nowrap px-4 py-3 text-sm">
