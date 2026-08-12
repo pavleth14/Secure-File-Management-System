@@ -47,6 +47,7 @@ export default function LeadBoardTable({
   onSortChange,
   onViewLead,
   onAddComment,
+  onSubmitComment,
   onEditComment,
   onAssignLead,
   onArchiveLead,
@@ -235,6 +236,11 @@ export default function LeadBoardTable({
                     onClose={() => setOpenCommentsLeadId(null)}
                     currentUserId={currentUserId}
                     onEditComment={readOnly ? undefined : onEditComment}
+                    onSubmitComment={
+                      readOnly || !onSubmitComment
+                        ? undefined
+                        : (text) => onSubmitComment(lead.id, text)
+                    }
                     onViewLead={onViewLead ? handleViewLead : undefined}
                     readOnly={readOnly}
                   />

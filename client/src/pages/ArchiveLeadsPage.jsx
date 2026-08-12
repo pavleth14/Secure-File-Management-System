@@ -128,14 +128,20 @@ export default function ArchiveLeadsPage() {
     }
   };
 
+  const handleSubmitComment = async (leadId, text) => {
+    setActionError('');
+    const { data } = await api.post(`/recruiting/leads/${leadId}/comments`, { text });
+    setLeads((prev) => prev.map((lead) => (lead.id === leadId ? data.lead : lead)));
+    setViewLead((prev) => (prev?.id === leadId ? data.lead : prev));
+    return data.lead;
+  };
+
   const handleAddComment = async (text) => {
     if (!commentLead) return;
     setCommentSubmitting(true);
     setActionError('');
     try {
-      const { data } = await api.post(`/recruiting/leads/${commentLead.id}/comments`, { text });
-      setLeads((prev) => prev.map((lead) => (lead.id === commentLead.id ? data.lead : lead)));
-      setViewLead((prev) => (prev?.id === commentLead.id ? data.lead : prev));
+      await handleSubmitComment(commentLead.id, text);
       setCommentLead(null);
     } catch (err) {
       setActionError(err.response?.data?.message || 'Failed to add comment');
@@ -230,6 +236,7 @@ export default function ArchiveLeadsPage() {
         onSortChange={handleSortChange}
         onViewLead={handleViewLead}
         onAddComment={setCommentLead}
+        onSubmitComment={handleSubmitComment}
         onEditComment={handleEditComment}
         onAssignLead={setAssignLead}
         onRestoreLead={setRestoreLead}

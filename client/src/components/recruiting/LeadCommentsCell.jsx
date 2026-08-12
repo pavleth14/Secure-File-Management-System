@@ -110,16 +110,23 @@ export default function LeadCommentsCell({
   onClose,
   currentUserId,
   onEditComment,
+  onSubmitComment,
   onViewLead,
   readOnly = false,
 }) {
   const cellRef = useRef(null);
   const popoverRef = useRef(null);
   const scrollListRef = useRef(null);
+  const newCommentRef = useRef(null);
   const [position, setPosition] = useState({ top: 0, left: 0, width: 0 });
   const [comments, setComments] = useState(lead.comments || []);
   const [loadingComments, setLoadingComments] = useState(false);
   const [commentsError, setCommentsError] = useState('');
+  const [newCommentText, setNewCommentText] = useState('');
+  const [submittingComment, setSubmittingComment] = useState(false);
+  const [addCommentError, setAddCommentError] = useState('');
+
+  const canAddComment = !readOnly && Boolean(onSubmitComment);
 
   const latestComment = getLatestComment(lead.comments);
   const sortedComments = sortCommentsNewestFirst(comments);
@@ -127,6 +134,21 @@ export default function LeadCommentsCell({
   useEffect(() => {
     setComments(lead.comments || []);
   }, [lead.comments, lead.id]);
+
+  useEffect(() => {
+    if (!open) {
+      setNewCommentText('');
+      setAddCommentError('');
+      setSubmittingComment(false);
+      return undefined;
+    }
+
+    const focusTimer = window.setTimeout(() => {
+      newCommentRef.current?.focus();
+    }, 0);
+
+    return () => window.clearTimeout(focusTimer);
+  }, [open, lead.id]);
 
   useEffect(() => {
     if (!open) return undefined;
@@ -227,6 +249,33 @@ export default function LeadCommentsCell({
     onViewLead?.(lead, { scrollToComments: true });
   };
 
+  const handleSubmitNewComment = async () => {
+    if (!onSubmitComment || submittingComment) return;
+
+    const trimmed = newCommentText.trim();
+    if (!trimmed) return;
+
+    setSubmittingComment(true);
+    setAddCommentError('');
+    try {
+      const updatedLead = await onSubmitComment(trimmed);
+      setComments(updatedLead?.comments || []);
+      setNewCommentText('');
+      newCommentRef.current?.focus();
+    } catch (err) {
+      setAddCommentError(err.response?.data?.message || err.message || 'Failed to add comment');
+    } finally {
+      setSubmittingComment(false);
+    }
+  };
+
+  const handleNewCommentKeyDown = (event) => {
+    if (event.key === 'Enter' && !event.shiftKey) {
+      event.preventDefault();
+      handleSubmitNewComment();
+    }
+  };
+
   return (
     <>
       <td
@@ -259,6 +308,31 @@ export default function LeadCommentsCell({
                 Comment history
               </p>
             </div>
+            {canAddComment && (
+              <div className="border-b border-slate-200 px-3 py-2 dark:border-slate-700">
+                <textarea
+                  ref={newCommentRef}
+                  value={newCommentText}
+                  onChange={(event) => setNewCommentText(event.target.value)}
+                  onKeyDown={handleNewCommentKeyDown}
+                  rows={2}
+                  disabled={submittingComment}
+                  placeholder="Add a comment…"
+                  className="w-full resize-none rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-sm text-slate-900 placeholder:text-slate-400 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20 disabled:opacity-50 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-500"
+                />
+                <div className="mt-1 flex items-center justify-between gap-2">
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                    Enter to save · Shift+Enter for new line
+                  </p>
+                  {submittingComment && (
+                    <span className="text-[11px] text-slate-500 dark:text-slate-400">Saving…</span>
+                  )}
+                </div>
+                {addCommentError && (
+                  <p className="mt-1 text-xs text-red-600 dark:text-red-400">{addCommentError}</p>
+                )}
+              </div>
+            )}
             <div
               ref={scrollListRef}
               className="max-h-72 overflow-y-auto overscroll-y-contain px-3 py-2"
