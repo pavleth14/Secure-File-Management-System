@@ -2,6 +2,7 @@ import { Router } from 'express';
 import bcrypt from 'bcrypt';
 import { User } from '../models/User.js';
 import { Group } from '../models/Group.js';
+import { RefreshToken } from '../models/RefreshToken.js';
 import { ROLES } from '../config/constants.js';
 import { authMiddleware } from '../middleware/authMiddleware.js';
 import { roleMiddleware, canManageTargetUser } from '../middleware/roleMiddleware.js';
@@ -14,6 +15,10 @@ import {
   applyDispatchUserFlags,
   syncDispatchUserOnUpdate,
 } from '../services/dispatchUserService.js';
+import {
+  archiveLeadsForDeletedRecruiter,
+  countActiveLeadsForRecruiter,
+} from '../services/leadService.js';
 
 const router = Router();
 
@@ -329,6 +334,28 @@ router.put('/:id', async (req, res, next) => {
   }
 });
 
+router.get('/:id/deletion-preview', async (req, res, next) => {
+  try {
+    const target = await User.findById(req.params.id);
+    if (!target) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    if (!canManageTargetUser(req.user, target)) {
+      return res.status(403).json({ message: 'Cannot view this user' });
+    }
+
+    const activeLeadCount = await countActiveLeadsForRecruiter(target._id);
+
+    res.json({
+      activeLeadCount,
+      willArchiveLeads: activeLeadCount > 0,
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
 router.delete('/:id', async (req, res, next) => {
   try {
     const target = await User.findById(req.params.id);
@@ -359,8 +386,19 @@ router.delete('/:id', async (req, res, next) => {
       req,
     });
 
+    const archivedLeadsCount = await archiveLeadsForDeletedRecruiter(
+      target._id,
+      req.user,
+      target.name
+    );
+
+    await RefreshToken.deleteMany({ userId: target._id });
     await User.deleteOne({ _id: target._id });
-    res.json({ message: 'User deleted' });
+
+    res.json({
+      message: 'User deleted',
+      archivedLeadsCount,
+    });
   } catch (err) {
     next(err);
   }

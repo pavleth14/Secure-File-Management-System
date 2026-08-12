@@ -740,6 +740,113 @@ export async function archiveLead(user, lead) {
   return getLeadById(lead._id);
 }
 
+async function isActiveRecruiterAssignee(recruiterId) {
+  if (!recruiterId) return false;
+  const recruiter = await User.findById(recruiterId).select('isRecruiter');
+  return Boolean(recruiter?.isRecruiter);
+}
+
+export async function archiveLeadsForDeletedRecruiter(deletedUserId, actorUser, deletedUserName) {
+  const leads = await Lead.find({
+    assignedRecruiter: deletedUserId,
+    archived: false,
+  });
+
+  if (!leads.length) {
+    return 0;
+  }
+
+  const timestamp = new Date();
+  const commentText = `Auto-archived because recruiter ${deletedUserName} was deleted.`;
+
+  for (const lead of leads) {
+    lead.archived = true;
+    lead.archivedAt = timestamp;
+    lead.archivedBy = actorUser._id;
+    lead.comments.push({
+      text: commentText,
+      author: actorUser._id,
+      isSystem: true,
+      createdAt: timestamp,
+      updatedAt: timestamp,
+    });
+    await lead.save();
+  }
+
+  return leads.length;
+}
+
+export async function countActiveLeadsForRecruiter(recruiterId) {
+  return Lead.countDocuments({
+    assignedRecruiter: recruiterId,
+    archived: false,
+  });
+}
+
+export async function unarchiveLead(user, lead) {
+  if (!user.isRecruitingManager && user.role !== 'SUPER_ADMIN') {
+    const err = new Error('Recruiting manager access required');
+    err.status = 403;
+    throw err;
+  }
+
+  if (!lead.archived) {
+    return getLeadById(lead._id);
+  }
+
+  const assigneeId = lead.assignedRecruiter?.toString?.() || lead.assignedRecruiter;
+  const assigneeIsActive = await isActiveRecruiterAssignee(assigneeId);
+  if (!assigneeIsActive) {
+    const err = new Error(
+      'This lead must be reassigned to an active recruiter before it can be restored'
+    );
+    err.status = 400;
+    throw err;
+  }
+
+  lead.archived = false;
+  lead.archivedAt = null;
+  lead.archivedBy = null;
+  await lead.save();
+  return getLeadById(lead._id);
+}
+
+export async function restoreLead(user, lead, recruiterId) {
+  if (!user.isRecruitingManager && user.role !== 'SUPER_ADMIN') {
+    const err = new Error('Recruiting manager access required');
+    err.status = 403;
+    throw err;
+  }
+
+  if (!lead.archived) {
+    return getLeadById(lead._id);
+  }
+
+  const currentAssigneeId =
+    lead.assignedRecruiter?._id?.toString?.() ||
+    lead.assignedRecruiter?.toString?.() ||
+    null;
+  const assigneeIsActive = await isActiveRecruiterAssignee(currentAssigneeId);
+
+  if (!assigneeIsActive) {
+    if (!recruiterId) {
+      const err = new Error('assignedRecruiterId is required to restore this lead');
+      err.status = 400;
+      throw err;
+    }
+    await assignLead(user, lead, recruiterId);
+  } else if (recruiterId && recruiterId.toString() !== currentAssigneeId) {
+    await assignLead(user, lead, recruiterId);
+  }
+
+  const leadDoc = await Lead.findById(lead._id);
+  leadDoc.archived = false;
+  leadDoc.archivedAt = null;
+  leadDoc.archivedBy = null;
+  await leadDoc.save();
+  return getLeadById(leadDoc._id);
+}
+
 export function handleLeadDuplicateError(err) {
   if (err?.code !== 11000) return null;
 

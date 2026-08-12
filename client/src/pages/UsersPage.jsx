@@ -154,10 +154,26 @@ export default function UsersPage() {
     }
   };
 
-  const handleDelete = async (userId) => {
-    if (!confirm('Delete this user?')) return;
+  const handleDelete = async (userId, userName) => {
+    let confirmMessage = `Delete ${userName}?`;
     try {
-      await api.delete(`/users/${userId}`);
+      const { data } = await api.get(`/users/${userId}/deletion-preview`);
+      if (data.activeLeadCount > 0) {
+        confirmMessage = `Delete ${userName}? ${data.activeLeadCount} active lead(s) will be moved to Archive.`;
+      }
+    } catch {
+      // Fall back to generic confirmation if preview fails.
+    }
+
+    if (!confirm(confirmMessage)) return;
+    try {
+      const { data } = await api.delete(`/users/${userId}`);
+      if (data.archivedLeadsCount > 0) {
+        setSuccess(
+          `User deleted. ${data.archivedLeadsCount} active lead(s) moved to Archive.`
+        );
+        setError('');
+      }
       await load();
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to delete');
@@ -548,7 +564,7 @@ export default function UsersPage() {
                   )}
                   <button
                     type="button"
-                    onClick={() => handleDelete(user.id)}
+                    onClick={() => handleDelete(user.id, user.name)}
                     className="text-sm text-red-600 hover:underline dark:text-red-400"
                   >
                     Delete

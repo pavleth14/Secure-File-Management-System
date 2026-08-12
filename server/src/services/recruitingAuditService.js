@@ -110,6 +110,22 @@ export async function auditLeadArchived({ user, lead, req }) {
   });
 }
 
+export async function auditLeadRestored({ user, lead, req, recruiterId = null }) {
+  await auditLog({
+    user,
+    action: AUDIT_ACTIONS.LEAD_RESTORE,
+    category: AUDIT_CATEGORIES.RECRUITING,
+    targetType: TARGET_TYPES.LEAD,
+    targetId: lead._id,
+    targetName: leadLabel(lead),
+    details: recruiterId
+      ? `${buildActorLabel(user)} restored lead ${leadLabel(lead)} to an active board`
+      : `${buildActorLabel(user)} restored lead ${leadLabel(lead)} to an active board`,
+    newValues: recruiterId ? { assignedRecruiter: recruiterId } : {},
+    req,
+  });
+}
+
 export async function auditLeadCommentAdded({ user, lead, req, commentText }) {
   await auditLog({
     user,

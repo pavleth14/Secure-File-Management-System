@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import api from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import { LEAD_BOARD_PAGE_SIZES } from '../constants/recruitingConstants';
@@ -67,8 +67,15 @@ export default function ArchiveLeadsPage() {
   const [scrollToComments, setScrollToComments] = useState(false);
   const [commentLead, setCommentLead] = useState(null);
   const [assignLead, setAssignLead] = useState(null);
+  const [restoreLead, setRestoreLead] = useState(null);
   const [commentSubmitting, setCommentSubmitting] = useState(false);
   const [assignSubmitting, setAssignSubmitting] = useState(false);
+  const [restoreSubmitting, setRestoreSubmitting] = useState(false);
+
+  const activeRecruiters = useMemo(
+    () => recruiters.filter((recruiter) => !recruiter.name.includes('(Inactive)')),
+    [recruiters]
+  );
 
   const loadLeads = useCallback(async () => {
     setLeadsLoading(true);
@@ -163,6 +170,25 @@ export default function ArchiveLeadsPage() {
     }
   };
 
+  const handleRestoreLead = async (recruiterId) => {
+    if (!restoreLead) return;
+    setRestoreSubmitting(true);
+    setActionError('');
+    try {
+      const { data } = await api.post(`/recruiting/leads/${restoreLead.id}/restore`, {
+        assignedRecruiterId: recruiterId,
+      });
+      setLeads((prev) => prev.filter((lead) => lead.id !== restoreLead.id));
+      setViewLead((prev) => (prev?.id === restoreLead.id ? null : prev));
+      setRestoreLead(null);
+      setTotalCount((prev) => Math.max(prev - 1, 0));
+    } catch (err) {
+      setActionError(err.response?.data?.message || 'Failed to restore lead');
+    } finally {
+      setRestoreSubmitting(false);
+    }
+  };
+
   const handleViewLead = (lead, options = {}) => {
     setViewLead(lead);
     setScrollToComments(Boolean(options.scrollToComments));
@@ -206,6 +232,7 @@ export default function ArchiveLeadsPage() {
         onAddComment={setCommentLead}
         onEditComment={handleEditComment}
         onAssignLead={setAssignLead}
+        onRestoreLead={setRestoreLead}
         showRecruiterColumn
         showArchiveColumns
         statusColorMap={statusColorMap}
@@ -261,10 +288,26 @@ export default function ArchiveLeadsPage() {
       <AssignLeadModal
         open={Boolean(assignLead)}
         lead={assignLead}
-        recruiters={recruiters}
+        recruiters={activeRecruiters}
         submitting={assignSubmitting}
         onConfirm={handleAssignLead}
         onCancel={() => setAssignLead(null)}
+      />
+
+      <AssignLeadModal
+        open={Boolean(restoreLead)}
+        lead={restoreLead}
+        recruiters={activeRecruiters}
+        submitting={restoreSubmitting}
+        title="Restore Lead To Board"
+        description={
+          restoreLead
+            ? `${restoreLead.firstName} ${restoreLead.lastName} will return to the selected recruiter's active board.`
+            : 'Select a recruiter for this lead.'
+        }
+        confirmLabel="Restore lead"
+        onConfirm={handleRestoreLead}
+        onCancel={() => setRestoreLead(null)}
       />
     </div>
   );

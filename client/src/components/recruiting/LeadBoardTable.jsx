@@ -49,6 +49,7 @@ export default function LeadBoardTable({
   onEditComment,
   onAssignLead,
   onArchiveLead,
+  onRestoreLead,
   showRecruiterColumn = false,
   showArchiveColumns = false,
   statusColorMap = {},
@@ -101,6 +102,14 @@ export default function LeadBoardTable({
         id: 'archive',
         label: 'Archive lead',
         onClick: () => onArchiveLead(lead),
+      });
+    }
+
+    if (isRecruitingManager && onRestoreLead && showArchiveColumns) {
+      items.push({
+        id: 'restore',
+        label: 'Restore to board',
+        onClick: () => onRestoreLead(lead),
       });
     }
 

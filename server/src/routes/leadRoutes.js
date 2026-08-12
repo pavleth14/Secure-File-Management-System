@@ -15,11 +15,14 @@ import {
   editComment,
   assignLead,
   archiveLead,
+  unarchiveLead,
+  restoreLead,
   formatLead,
   handleLeadDuplicateError,
 } from '../services/leadService.js';
 import {
   auditLeadArchived,
+  auditLeadRestored,
   auditLeadCommentAdded,
   auditLeadCommentEdited,
   auditLeadCreated,
@@ -255,6 +258,55 @@ router.post('/:id/archive', requireRecruitingManager, loadLeadForUser, async (re
     const lead = await archiveLead(req.user, leadDoc);
     if (!wasArchived) {
       await auditLeadArchived({ user: req.user, lead: leadDoc, req });
+    }
+    res.json({ lead: formatLead(lead) });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post('/:id/unarchive', requireRecruitingManager, loadLeadForUser, async (req, res, next) => {
+  try {
+    const leadDoc = await Lead.findById(req.lead._id);
+    const wasArchived = leadDoc.archived;
+    const lead = await unarchiveLead(req.user, leadDoc);
+    if (wasArchived) {
+      await auditLeadRestored({ user: req.user, lead: leadDoc, req });
+    }
+    res.json({ lead: formatLead(lead) });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post('/:id/restore', requireRecruitingManager, loadLeadForUser, async (req, res, next) => {
+  try {
+    const { assignedRecruiterId } = req.body;
+    const leadDoc = await Lead.findById(req.lead._id);
+    const wasArchived = leadDoc.archived;
+    const oldRecruiterId =
+      leadDoc.assignedRecruiter?.toString?.() || leadDoc.assignedRecruiter || null;
+    const lead = await restoreLead(req.user, leadDoc, assignedRecruiterId || null);
+    if (wasArchived) {
+      await auditLeadRestored({
+        user: req.user,
+        lead: leadDoc,
+        req,
+        recruiterId: assignedRecruiterId || null,
+      });
+      if (
+        assignedRecruiterId &&
+        oldRecruiterId &&
+        assignedRecruiterId.toString() !== oldRecruiterId.toString()
+      ) {
+        await auditLeadReassigned({
+          user: req.user,
+          lead: leadDoc,
+          req,
+          oldRecruiterId,
+          newRecruiterId: assignedRecruiterId,
+        });
+      }
     }
     res.json({ lead: formatLead(lead) });
   } catch (err) {
