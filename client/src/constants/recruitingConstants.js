@@ -7,6 +7,7 @@ export const LEAD_STATUSES = [
   'Local Driver',
   'New Lead',
   'No Experience',
+  'Not Interested',
   'Processing',
   'Rejected',
   'SAP',

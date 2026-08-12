@@ -7,6 +7,7 @@ export const LEAD_STATUSES = [
   'Local Driver',
   'New Lead',
   'No Experience',
+  'Not Interested',
   'Processing',
   'Rejected',
   'SAP',
@@ -15,7 +16,6 @@ export const LEAD_STATUSES = [
 export const REMOVED_LEAD_STATUSES = [
   'Considering The Offer',
   'Not Approved',
-  'Not Interested',
   'Pending',
   'Unreachable',
 ];
@@ -29,6 +29,7 @@ export const DEFAULT_SYSTEM_STATUS_COLORS = {
   Processing: '#F59E0B',
   Approved: '#22C55E',
   Rejected: '#EF4444',
+  'Not Interested': '#EF4444',
   Hired: '#14B8A6',
   Female: '#EC4899',
   'Invalid Lead': '#64748B',
@@ -44,6 +45,7 @@ export const DEFAULT_SYSTEM_STATUS_ACTIVITY = {
   Processing: true,
   Approved: true,
   Rejected: false,
+  'Not Interested': false,
   Hired: false,
   Female: false,
   'Invalid Lead': false,
