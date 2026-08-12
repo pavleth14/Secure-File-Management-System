@@ -20,6 +20,8 @@ import { notifyCsvImportSlack } from './slackNotificationService.js';
 const IMPORT_COMMENT_AUTHOR_LABEL = 'Importing Recruiting Manager';
 const MAX_IMPORT_COMMENTS = 10;
 const IMPORT_COMMENT_MAX_LENGTH = 2000;
+const MISSING_EMAIL_IMPORT_WARNING =
+  'Email is missing; a placeholder will be assigned on import';
 
 const HEADER_TO_FIELD = {
   status: 'status',
@@ -136,6 +138,25 @@ function normalizePhone(phone) {
   return String(phone || '').trim();
 }
 
+function generateImportPlaceholderEmail() {
+  return `no-email-${randomUUID()}@import.local`;
+}
+
+function resolveImportEmail(normalizedEmail, emailMissing) {
+  if (emailMissing || !normalizedEmail) {
+    return generateImportPlaceholderEmail();
+  }
+  return normalizedEmail;
+}
+
+function buildImportDuplicateFilter(normalizedEmail, normalizedPhone, emailMissing = false) {
+  const conditions = [{ phone: normalizedPhone }];
+  if (!emailMissing && normalizedEmail) {
+    conditions.unshift({ email: normalizedEmail });
+  }
+  return { $or: conditions };
+}
+
 function parseCsvBuffer(buffer) {
   const workbook = XLSX.read(buffer, { type: 'buffer', raw: true, cellDates: false });
   const sheetName = workbook.SheetNames[0];
@@ -227,9 +248,13 @@ function validateMappedRow(row, importDate, allowedSources, allowedStatuses) {
   if (!row.firstName) errors.push('First Name is required');
   if (!row.lastName) errors.push('Last Name is required');
   if (!row.phone) errors.push('Phone is required');
-  if (!row.email) errors.push('Email is required');
   if (!row.driverType) errors.push('Type of Driver is required');
   if (!row.source) errors.push('Source is required');
+
+  const emailMissing = !String(row.email || '').trim();
+  if (emailMissing) {
+    warnings.push(MISSING_EMAIL_IMPORT_WARNING);
+  }
 
   if (row.email && !validator.isEmail(row.email, { allow_utf8_local_part: false })) {
     errors.push('Invalid email format');
@@ -261,6 +286,7 @@ function validateMappedRow(row, importDate, allowedSources, allowedStatuses) {
     errors,
     warnings,
     parsedCreatedAt,
+    emailMissing,
     normalizedEmail: row.email ? normalizeEmail(row.email) : '',
     normalizedPhone: row.phone ? normalizePhone(row.phone) : '',
     status: row.status && allowedStatuses.includes(row.status) ? row.status : DEFAULT_LEAD_STATUS,
@@ -384,6 +410,7 @@ export async function previewLeadImport(
       errors: [...validation.errors, ...commentValidation.errors],
       warnings: [...validation.warnings, ...commentValidation.warnings],
       isValid: validation.errors.length === 0 && commentValidation.errors.length === 0,
+      emailMissing: validation.emailMissing,
       normalizedEmail: validation.normalizedEmail,
       normalizedPhone: validation.normalizedPhone,
       resolvedStatus: validation.status,
@@ -429,6 +456,7 @@ export async function previewLeadImport(
       resolvedSource: row.resolvedSource,
       normalizedEmail: row.normalizedEmail,
       normalizedPhone: row.normalizedPhone,
+      emailMissing: Boolean(row.emailMissing),
       parsedCreatedAt: row.parsedCreatedAt,
       errors: row.errors,
       warnings: row.warnings,
@@ -480,17 +508,20 @@ async function revalidateRowForImport(row) {
     return { ok: false, errors: row.errors?.length ? row.errors : ['Invalid row'] };
   }
 
-  const duplicate = await Lead.findOne({
-    $or: [{ email: row.normalizedEmail }, { phone: row.normalizedPhone }],
-  }).select('_id email phone');
+  const emailMissing = Boolean(row.emailMissing);
+  const duplicate = await Lead.findOne(
+    buildImportDuplicateFilter(row.normalizedEmail, row.normalizedPhone, emailMissing)
+  ).select('_id email phone');
 
   if (duplicate) {
     const reason =
-      duplicate.email === row.normalizedEmail
+      !emailMissing && duplicate.email === row.normalizedEmail
         ? 'Email already exists'
         : 'Phone already exists';
     return { ok: false, errors: [reason], duplicate: true };
   }
+
+  const resolvedEmail = resolveImportEmail(row.normalizedEmail, emailMissing);
 
   return {
     ok: true,
@@ -498,7 +529,7 @@ async function revalidateRowForImport(row) {
       firstName: row.firstName.trim(),
       lastName: row.lastName.trim(),
       phone: row.normalizedPhone,
-      email: row.normalizedEmail,
+      email: resolvedEmail,
       stateCity: row.stateCity?.trim() || '',
       status: row.resolvedStatus,
       driverType: row.resolvedDriverType,
@@ -692,5 +723,9 @@ export {
   validateImportComments,
   formatCommentsPreview,
   buildImportCommentEntries,
+  resolveImportEmail,
+  generateImportPlaceholderEmail,
+  buildImportDuplicateFilter,
   MAX_IMPORT_COMMENTS,
+  MISSING_EMAIL_IMPORT_WARNING,
 };

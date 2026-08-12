@@ -20,6 +20,7 @@ const previewRowSchema = new mongoose.Schema(
     resolvedSource: String,
     normalizedEmail: String,
     normalizedPhone: String,
+    emailMissing: Boolean,
     parsedCreatedAt: Date,
     errors: [String],
     warnings: [String],

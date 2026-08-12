@@ -263,7 +263,8 @@ export default function OldLeadsPage() {
           <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">Old Leads</h1>
           <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
             Import legacy leads and assign them to recruiters. Assigned rows remain visible but
-            cannot be reassigned. CSV supports Comments plus Comment 2 through Comment 10.
+            cannot be reassigned. CSV supports Comments plus Comment 2 through Comment 10. Email is
+            optional — a placeholder is assigned when empty.
           </p>
         </div>
         <div className="flex flex-wrap gap-2">

@@ -9,6 +9,8 @@ import {
   collectImportComments,
   validateImportComments,
   formatCommentsPreview,
+  resolveImportEmail,
+  buildImportDuplicateFilter,
 } from './leadImportService.js';
 import { getLeadSourceNames } from './leadSourceService.js';
 import { getLeadStatusNames } from './leadStatusService.js';
@@ -69,6 +71,7 @@ export async function previewOldLeadImport(manager, fileBuffer, fileName = '') {
       errors: [...validation.errors, ...commentValidation.errors],
       warnings: [...validation.warnings, ...commentValidation.warnings],
       isValid: validation.errors.length === 0 && commentValidation.errors.length === 0,
+      emailMissing: validation.emailMissing,
       normalizedEmail: validation.normalizedEmail,
       normalizedPhone: validation.normalizedPhone,
       resolvedStatus: validation.status,
@@ -165,23 +168,27 @@ export async function confirmOldLeadImport(manager, previewId, selectedRowNumber
       continue;
     }
 
-    const duplicate = await OldLead.findOne({
-      $or: [{ email: row.normalizedEmail }, { phone: row.normalizedPhone }],
-    }).select('_id');
+    const duplicate = await OldLead.findOne(
+      buildImportDuplicateFilter(row.normalizedEmail, row.normalizedPhone, row.emailMissing)
+    ).select('_id');
 
     if (duplicate) {
       skippedDuplicates += 1;
       continue;
     }
 
-    if (row.normalizedEmail) seenInBatch.emails.add(row.normalizedEmail);
+    if (row.normalizedEmail && !row.emailMissing) {
+      seenInBatch.emails.add(row.normalizedEmail);
+    }
     if (row.normalizedPhone) seenInBatch.phones.add(row.normalizedPhone);
+
+    const resolvedEmail = resolveImportEmail(row.normalizedEmail, row.emailMissing);
 
     await OldLead.create({
       firstName: row.firstName.trim(),
       lastName: row.lastName.trim(),
       phone: row.normalizedPhone,
-      email: row.normalizedEmail,
+      email: resolvedEmail,
       stateCity: row.stateCity?.trim() || '',
       status: row.resolvedStatus,
       driverType: row.resolvedDriverType,
