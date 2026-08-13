@@ -1,13 +1,17 @@
 /**
- * Google Sheets → TBF API sync (append-only).
+ * TBF_LEADS spreadsheet → TBF API sync (Facebook Lead Ads, append-only).
+ *
+ * Spreadsheet: "TBF_LEADS" (not the Apply Now website spreadsheet)
  *
  * Setup:
- * 1. Extensions → Apps Script in the spreadsheet
+ * 1. Extensions → Apps Script in the TBF_LEADS spreadsheet
  * 2. Project Settings → Script properties:
  *    API_URL = https://api.twobrothersfreight.com/api/recruiting/sheets/ingest
  *    API_SECRET = same value as SHEETS_INGEST_SECRET on the server
  * 3. Run authorizeOnce, then syncAllHistoricalRows once
  * 4. Add time trigger for syncNewSheetRows every 5 minutes
+ *
+ * Website leads: see google-sheets-website-apply-now.gs (Apply Now spreadsheet)
  */
 
 const SHEET_CONFIG = [

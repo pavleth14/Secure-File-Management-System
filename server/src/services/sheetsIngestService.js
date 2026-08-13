@@ -20,7 +20,33 @@ export const SHEET_NAME_TO_DRIVER_TYPE = {
   tbf_form_owner: 'Owner Operator',
   tbf_form_team: 'Team',
   tbf_form_local: 'Local',
+  'Leads 2026': 'Solo',
 };
+
+function resolveDriverTypeFromPosition(position) {
+  const value = String(position || '').trim().toLowerCase();
+  if (!value) return null;
+  if (value === 'company' || value.includes('solo')) return 'Solo';
+  if (value.includes('owner')) return 'Owner Operator';
+  if (value.includes('team')) return 'Team';
+  if (value.includes('local')) return 'Local';
+  return null;
+}
+
+function resolveIngestPresentation(payload, sheetName, metaLeadId, rowNumber) {
+  const source = payload.source || process.env.SHEETS_DEFAULT_LEAD_SOURCE || 'Facebook';
+  const isWebsite = source === 'Website';
+
+  return {
+    source,
+    commentText: isWebsite
+      ? `Imported from website (Apply Now / ${sheetName}, metaLeadId: ${metaLeadId}, row ${rowNumber ?? '?'}).`
+      : `Imported from Google Sheets (${sheetName}, metaLeadId: ${metaLeadId}, row ${rowNumber ?? '?'}).`,
+    authorLabel: isWebsite ? 'Website' : 'Google Sheets',
+    reassignmentSourceLabel: isWebsite ? 'Website' : 'Google Sheets',
+    slackSourceLabel: isWebsite ? `Website (${sheetName})` : `Google Sheets (${sheetName})`,
+  };
+}
 
 function normalizeEmail(email) {
   return String(email || '')
@@ -58,6 +84,11 @@ function resolveDriverType(payload) {
   const fromPayload = String(payload.driverType || '').trim();
   if (fromPayload && DRIVER_TYPES.includes(fromPayload)) {
     return fromPayload;
+  }
+
+  const fromPosition = resolveDriverTypeFromPosition(payload.extraFields?.position);
+  if (fromPosition) {
+    return fromPosition;
   }
 
   const fromSheet = SHEET_NAME_TO_DRIVER_TYPE[String(payload.sheetName || '').trim()];
@@ -169,7 +200,14 @@ export async function ingestSheetLead(payload) {
   }
 
   const driverType = resolveDriverType(payload);
-  const source = process.env.SHEETS_DEFAULT_LEAD_SOURCE || payload.source || 'Facebook';
+  const sheetName = String(payload.sheetName || '').trim();
+  const presentation = resolveIngestPresentation(
+    payload,
+    sheetName,
+    metaLeadId,
+    payload.rowNumber
+  );
+  const { source } = presentation;
   await assertValidLeadSource(source);
 
   const duplicate = await findDuplicateLead(email, phone);
@@ -198,7 +236,6 @@ export async function ingestSheetLead(payload) {
   const recruiter = await User.findById(assignedRecruiter).select('name');
   const actorUserId = await getIngestActorUserId();
   const timestamp = parseCreatedTime(columns.created_time);
-  const sheetName = String(payload.sheetName || '').trim();
 
   let leadData = {
     firstName,
@@ -217,9 +254,9 @@ export async function ingestSheetLead(payload) {
     extraFields: mapExtraFields(payload.extraFields),
     comments: [
       {
-        text: `Imported from Google Sheets (${sheetName}, metaLeadId: ${metaLeadId}, row ${payload.rowNumber ?? '?'}).`,
+        text: presentation.commentText,
         author: actorUserId,
-        authorLabel: 'Google Sheets',
+        authorLabel: presentation.authorLabel,
         isSystem: true,
         createdAt: timestamp,
         updatedAt: timestamp,
@@ -237,7 +274,7 @@ export async function ingestSheetLead(payload) {
   leadData = prependReassignmentCommentToLeadData(leadData, {
     userId: actorUserId,
     newRecruiterName: recruiter?.name || 'Recruiter',
-    sourceLabel: 'Google Sheets',
+    sourceLabel: presentation.reassignmentSourceLabel,
     timestamp,
   });
 
@@ -268,7 +305,7 @@ export async function ingestSheetLead(payload) {
         source,
         assignedRecruiter: { id: assignedRecruiter, name: recruiter?.name },
       },
-      { sourceLabel: `Google Sheets (${sheetName})`, recruiterName: recruiter?.name }
+      { sourceLabel: presentation.slackSourceLabel, recruiterName: recruiter?.name }
     );
 
     return {
