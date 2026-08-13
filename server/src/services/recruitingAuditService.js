@@ -37,6 +37,19 @@ export async function auditLeadImported({ user, summary, req }) {
   });
 }
 
+export async function auditLeadExported({ user, summary, req }) {
+  await auditLog({
+    user,
+    action: AUDIT_ACTIONS.LEAD_EXPORT,
+    category: AUDIT_CATEGORIES.RECRUITING,
+    targetType: TARGET_TYPES.LEAD,
+    targetName: 'Lead Export',
+    details: `${buildActorLabel(user)} exported ${summary.rowCount} active leads (${summary.scopeLabel}, ${summary.format})`,
+    newValues: summary,
+    req,
+  });
+}
+
 export async function auditLeadUpdated({ user, lead, req, oldValues, newValues }) {
   await auditLog({
     user,

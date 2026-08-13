@@ -21,6 +21,10 @@ export default function ImportLeadsPage() {
   const [selectedRows, setSelectedRows] = useState(new Set());
   const [importSummary, setImportSummary] = useState(null);
   const [specificRecruiterId, setSpecificRecruiterId] = useState('');
+  const [exportRecruiterId, setExportRecruiterId] = useState('all');
+  const [exportFormat, setExportFormat] = useState('xlsx');
+  const [exporting, setExporting] = useState(false);
+  const [exportMessage, setExportMessage] = useState('');
 
   const selectedCount = selectedRows.size;
 
@@ -127,13 +131,62 @@ export default function ImportLeadsPage() {
     setError('');
   };
 
+  const handleExport = async () => {
+    setExporting(true);
+    setError('');
+    setExportMessage('');
+
+    try {
+      const response = await api.get('/recruiting/leads/export', {
+        params: {
+          format: exportFormat,
+          recruiterId: exportRecruiterId,
+        },
+        responseType: 'blob',
+      });
+
+      const ext = exportFormat === 'csv' ? 'csv' : 'xlsx';
+      const mime =
+        exportFormat === 'csv'
+          ? 'text/csv'
+          : 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+
+      const blob = new Blob([response.data], { type: mime });
+      const disposition = response.headers['content-disposition'];
+      const filenameMatch = disposition?.match(/filename="([^"]+)"/);
+      const downloadName =
+        filenameMatch?.[1] ||
+        `leads-export-${exportRecruiterId === 'all' ? 'all-recruiters' : exportRecruiterId}-${Date.now()}.${ext}`;
+
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = downloadName;
+      link.click();
+      window.URL.revokeObjectURL(url);
+
+      const recruiterLabel =
+        exportRecruiterId === 'all'
+          ? 'all recruiters'
+          : recruiters.find((recruiter) => recruiter.id === exportRecruiterId)?.name ||
+            'selected recruiter';
+      setExportMessage(`Export downloaded for ${recruiterLabel}.`);
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to export leads');
+    } finally {
+      setExporting(false);
+    }
+  };
+
   return (
     <div>
       <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">Import Leads</h1>
+          <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">
+            Import / Export Leads
+          </h1>
           <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-            Upload a CSV, review the preview, select rows, then confirm import.
+            Upload a CSV to import leads, or download active board leads as a backup.
           </p>
         </div>
         {(preview || importSummary) && (
@@ -297,6 +350,74 @@ export default function ImportLeadsPage() {
               : 'Duplicates are deselected by default. Invalid rows cannot be imported. Leads will be assigned using round robin by driver type after confirmation.'}
           </p>
         </div>
+      )}
+
+      {canUseSpecificUserImport && (
+        <section className="mt-10 rounded-xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-700 dark:bg-slate-800">
+          <div className="mb-4">
+            <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
+              Export active leads
+            </h2>
+            <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+              Download a backup of active (non-archived) board leads as CSV or Excel. Choose all
+              recruiters or one board.
+            </p>
+          </div>
+
+          {exportMessage && (
+            <div className="mb-4 rounded-lg bg-green-50 px-4 py-3 text-sm text-green-800 dark:bg-green-900/20 dark:text-green-300">
+              {exportMessage}
+            </div>
+          )}
+
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <label className="block text-sm text-slate-600 dark:text-slate-400">
+              Recruiter scope
+              <select
+                value={exportRecruiterId}
+                onChange={(event) => setExportRecruiterId(event.target.value)}
+                className={`${inputClass} mt-1 w-full`}
+                disabled={exporting}
+              >
+                <option value="all">All recruiters</option>
+                {recruiters.map((recruiter) => (
+                  <option key={recruiter.id} value={recruiter.id}>
+                    {recruiter.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label className="block text-sm text-slate-600 dark:text-slate-400">
+              Format
+              <select
+                value={exportFormat}
+                onChange={(event) => setExportFormat(event.target.value)}
+                className={`${inputClass} mt-1 w-full`}
+                disabled={exporting}
+              >
+                <option value="xlsx">Excel (.xlsx)</option>
+                <option value="csv">CSV (.csv)</option>
+              </select>
+            </label>
+          </div>
+
+          <div className="mt-4 flex flex-wrap gap-2">
+            <button
+              type="button"
+              disabled={exporting}
+              onClick={handleExport}
+              className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {exporting ? 'Preparing export...' : 'Download export'}
+            </button>
+          </div>
+
+          <p className="mt-3 text-xs text-slate-500 dark:text-slate-400">
+            Columns match CSV import format (Status, driver type, source, contact fields, up to 10
+            comments) plus assigned recruiter and lead ID.
+          </p>
+        </section>
       )}
     </div>
   );

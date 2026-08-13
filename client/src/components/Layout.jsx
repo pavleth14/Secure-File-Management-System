@@ -439,7 +439,7 @@ function RecruitingDropdown({ boards, showImportLeads, location, currentUserId, 
                   location.pathname.startsWith('/recruiting/import') ? 'page' : undefined
                 }
               >
-                Import Leads
+                Import / Export Leads
               </Link>
               <Link
                 to="/recruiting/archive"

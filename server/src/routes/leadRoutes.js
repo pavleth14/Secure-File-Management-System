@@ -28,7 +28,9 @@ import {
   auditLeadCreated,
   auditLeadReassigned,
   auditLeadUpdated,
+  auditLeadExported,
 } from '../services/recruitingAuditService.js';
+import { exportActiveLeads } from '../services/leadExportService.js';
 import { Lead } from '../models/Lead.js';
 
 const router = Router();
@@ -88,6 +90,32 @@ router.get('/', async (req, res, next) => {
       totalCount: result.totalCount,
       totalPages: result.totalPages,
     });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.get('/export', requireRecruitingManager, async (req, res, next) => {
+  try {
+    const format = req.query.format || 'csv';
+    const recruiterId = req.query.recruiterId || 'all';
+
+    const result = await exportActiveLeads({ recruiterId, format });
+
+    await auditLeadExported({
+      user: req.user,
+      summary: {
+        rowCount: result.rowCount,
+        scopeLabel: result.scopeLabel,
+        format: format === 'xlsx' || format === 'excel' ? 'xlsx' : 'csv',
+        recruiterId,
+      },
+      req,
+    });
+
+    res.setHeader('Content-Type', result.contentType);
+    res.setHeader('Content-Disposition', `attachment; filename="${result.filename}"`);
+    res.send(result.buffer);
   } catch (err) {
     next(err);
   }
