@@ -15,6 +15,8 @@ const TABS = [
   { id: 'old-leads', label: 'Old Leads' },
 ];
 
+const LONGEST_WAITING_PAGE_SIZE = 10;
+
 const thClass =
   'px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400';
 const tdClass = 'px-4 py-3 text-sm text-slate-900 dark:text-slate-100';
@@ -50,6 +52,7 @@ export default function RecruitingAnalyticsPage() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [longestWaitingPage, setLongestWaitingPage] = useState(1);
 
   const visibleTabs = useMemo(
     () => TABS.filter((tab) => viewAll || tab.id !== 'old-leads'),
@@ -83,6 +86,21 @@ export default function RecruitingAnalyticsPage() {
   useEffect(() => {
     loadAnalytics();
   }, [loadAnalytics]);
+
+  useEffect(() => {
+    setLongestWaitingPage(1);
+  }, [data?.longestWaitingNewLeads, driverTypeGroup, queryRange.from, queryRange.to]);
+
+  const longestWaitingNewLeads = data?.longestWaitingNewLeads ?? [];
+  const longestWaitingTotalPages = Math.max(
+    1,
+    Math.ceil(longestWaitingNewLeads.length / LONGEST_WAITING_PAGE_SIZE)
+  );
+  const longestWaitingPageSafe = Math.min(longestWaitingPage, longestWaitingTotalPages);
+  const paginatedLongestWaitingNewLeads = useMemo(() => {
+    const start = (longestWaitingPageSafe - 1) * LONGEST_WAITING_PAGE_SIZE;
+    return longestWaitingNewLeads.slice(start, start + LONGEST_WAITING_PAGE_SIZE);
+  }, [longestWaitingNewLeads, longestWaitingPageSafe]);
 
   const statusChartItems = useMemo(
     () =>
@@ -285,47 +303,82 @@ export default function RecruitingAnalyticsPage() {
                     Active leads still in New Lead status, sorted by time waiting.
                   </p>
                 </div>
-                {(data.longestWaitingNewLeads?.length ?? 0) === 0 ? (
+                {longestWaitingNewLeads.length === 0 ? (
                   <p className="px-4 py-6 text-sm text-slate-500 dark:text-slate-400">
                     No leads currently waiting in New Lead status.
                   </p>
                 ) : (
-                  <table className="min-w-full divide-y divide-slate-200 dark:divide-slate-700">
-                    <thead className="bg-slate-50 dark:bg-slate-800/60">
-                      <tr>
-                        <th className={thClass}>Waiting</th>
-                        <th className={thClass}>Recruiter</th>
-                        <th className={thClass}>Status</th>
-                        <th className={thClass}>Driver type</th>
-                        <th className={thClass}>Source</th>
-                        <th className={thClass}>Date</th>
-                        <th className={thClass}>First name</th>
-                        <th className={thClass}>Last name</th>
-                        <th className={thClass}>Phone</th>
-                        <th className={thClass}>Email</th>
-                        <th className={thClass}>State / City</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
-                      {data.longestWaitingNewLeads.map((lead) => (
-                        <tr key={lead.id}>
-                          <td className={`${tdClass} whitespace-nowrap font-medium`}>
-                            {formatDurationMs(lead.waitingMs)}
-                          </td>
-                          <td className={tdClass}>{lead.recruiterName}</td>
-                          <td className={tdClass}>{lead.status}</td>
-                          <td className={tdClass}>{lead.driverType}</td>
-                          <td className={tdClass}>{lead.source}</td>
-                          <td className={tdClass}>{lead.date || '—'}</td>
-                          <td className={tdClass}>{lead.firstName}</td>
-                          <td className={tdClass}>{lead.lastName}</td>
-                          <td className={tdClass}>{formatLeadPhoneDisplay(lead.phone)}</td>
-                          <td className={tdClass}>{formatLeadDisplayEmail(lead.email)}</td>
-                          <td className={tdClass}>{lead.stateCity || '—'}</td>
+                  <>
+                    <table className="min-w-full divide-y divide-slate-200 dark:divide-slate-700">
+                      <thead className="bg-slate-50 dark:bg-slate-800/60">
+                        <tr>
+                          <th className={thClass}>Waiting</th>
+                          <th className={thClass}>Recruiter</th>
+                          <th className={thClass}>Status</th>
+                          <th className={thClass}>Driver type</th>
+                          <th className={thClass}>Source</th>
+                          <th className={thClass}>Date</th>
+                          <th className={thClass}>First name</th>
+                          <th className={thClass}>Last name</th>
+                          <th className={thClass}>Phone</th>
+                          <th className={thClass}>Email</th>
+                          <th className={thClass}>State / City</th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                      </thead>
+                      <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
+                        {paginatedLongestWaitingNewLeads.map((lead) => (
+                          <tr key={lead.id}>
+                            <td className={`${tdClass} whitespace-nowrap font-medium`}>
+                              {formatDurationMs(lead.waitingMs)}
+                            </td>
+                            <td className={tdClass}>{lead.recruiterName}</td>
+                            <td className={tdClass}>{lead.status}</td>
+                            <td className={tdClass}>{lead.driverType}</td>
+                            <td className={tdClass}>{lead.source}</td>
+                            <td className={tdClass}>{lead.date || '—'}</td>
+                            <td className={tdClass}>{lead.firstName}</td>
+                            <td className={tdClass}>{lead.lastName}</td>
+                            <td className={tdClass}>{formatLeadPhoneDisplay(lead.phone)}</td>
+                            <td className={tdClass}>{formatLeadDisplayEmail(lead.email)}</td>
+                            <td className={tdClass}>{lead.stateCity || '—'}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                    {longestWaitingNewLeads.length > LONGEST_WAITING_PAGE_SIZE && (
+                      <div className="flex flex-col gap-3 border-t border-slate-200 px-4 py-3 sm:flex-row sm:items-center sm:justify-between dark:border-slate-700">
+                        <p className="text-sm text-slate-500 dark:text-slate-400">
+                          {longestWaitingNewLeads.length} lead
+                          {longestWaitingNewLeads.length !== 1 ? 's' : ''} · Page{' '}
+                          {longestWaitingPageSafe} of {longestWaitingTotalPages}
+                        </p>
+                        <div className="flex gap-2">
+                          <button
+                            type="button"
+                            disabled={longestWaitingPageSafe <= 1}
+                            onClick={() =>
+                              setLongestWaitingPage((page) => Math.max(1, page - 1))
+                            }
+                            className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-700"
+                          >
+                            Previous
+                          </button>
+                          <button
+                            type="button"
+                            disabled={longestWaitingPageSafe >= longestWaitingTotalPages}
+                            onClick={() =>
+                              setLongestWaitingPage((page) =>
+                                Math.min(longestWaitingTotalPages, page + 1)
+                              )
+                            }
+                            className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-700"
+                          >
+                            Next
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </>
                 )}
               </div>
 
