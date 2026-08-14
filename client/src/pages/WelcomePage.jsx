@@ -1,5 +1,5 @@
 import { useAuth } from '../context/AuthContext';
-import Main_1 from '../assets/Main_1.mp4';
+import truckImage from '../assets/truck1.jpg';
 import { useRef, useState, useEffect } from 'react';
 
 export default function WelcomePage() {
@@ -43,16 +43,12 @@ export default function WelcomePage() {
 
   return (
     <div className="relative flex flex-1 items-center justify-center overflow-hidden">
-      {/* Background video */}
-      <video
-        autoPlay
-        muted
-        loop
-        playsInline
+      {/* Background image */}
+      <img
+        src={truckImage}
+        alt=""
         className="absolute inset-0 h-full w-full object-cover"
-      >
-        <source src={Main_1} type="video/mp4" />
-      </video>
+      />
 
       {/* Overlay */}
       <div className="absolute inset-0 bg-black/45" />
