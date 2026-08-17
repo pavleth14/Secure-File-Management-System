@@ -13,9 +13,11 @@ import {
   LEAD_STATUSES,
   REJECTION_REASONS,
   REJECTION_REASON_CUSTOM,
+  PROCESSING_STEP_HIRED_KEY,
 } from '../../constants/recruitingConstants';
 import { useLeadStatuses } from '../../hooks/useRecruitingData';
 import LeadStatusIndicator from './LeadStatusIndicator';
+import ProcessingProgressBar from './ProcessingProgressBar';
 import {
   formatLeadDisplayEmail,
   normalizeLeadEmailForEdit,
@@ -50,6 +52,7 @@ function parseRejectionDraft(lead) {
 function buildDraft(lead) {
   return {
     status: lead?.status || '',
+    processingStep: lead?.processingStep || '',
     driverType: lead?.driverType || '',
     firstName: lead?.firstName || '',
     lastName: lead?.lastName || '',
@@ -86,6 +89,21 @@ function getDraftChanges(original, draft) {
     }
   } else if (originalReason) {
     changes.rejectionReason = null;
+  }
+
+  const originalStep = original.processingStep || '';
+  const draftStep = draft.processingStep || '';
+
+  if (
+    draftStep === PROCESSING_STEP_HIRED_KEY &&
+    draft.status === 'Hired' &&
+    draftStep !== originalStep
+  ) {
+    changes.processingStep = PROCESSING_STEP_HIRED_KEY;
+  } else if (draft.status === 'Processing' && draftStep !== originalStep) {
+    changes.processingStep = draftStep || null;
+  } else if (draft.status !== 'Processing' && original.processingStep) {
+    changes.processingStep = null;
   }
 
   return changes;
@@ -136,6 +154,10 @@ export default function LeadViewModal({
 
   const canSave = Boolean(onSave) && !readOnly;
   const isRejected = draft.status === 'Rejected';
+  const isProcessing = draft.status === 'Processing';
+  const showProcessingEditable =
+    isProcessing && fieldPermissions.status && Boolean(editingFields.status);
+  const showProcessingReadOnly = isProcessing && !showProcessingEditable;
 
   useEffect(() => {
     setFullLead(lead);
@@ -211,6 +233,21 @@ export default function LeadViewModal({
       if (field === 'status' && value !== 'Rejected') {
         next.rejectionReasonPreset = '';
         next.customRejectionReason = '';
+      }
+      if (field === 'status' && value !== 'Processing') {
+        next.processingStep = '';
+      }
+      return next;
+    });
+  };
+
+  const handleProcessingStepChange = (stepKey) => {
+    setDraft((prev) => {
+      const next = { ...prev, processingStep: stepKey };
+      if (stepKey === PROCESSING_STEP_HIRED_KEY) {
+        next.status = 'Hired';
+      } else if (prev.status === 'Hired') {
+        next.status = 'Processing';
       }
       return next;
     });
@@ -308,6 +345,18 @@ export default function LeadViewModal({
                 options={statusOptions}
                 statusColorMap={statusColorMap}
               />
+              {(showProcessingEditable || showProcessingReadOnly) && (
+                <div className="sm:col-span-2">
+                  <dt className="text-xs font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                    Processing progress
+                  </dt>
+                  <ProcessingProgressBar
+                    value={draft.processingStep || null}
+                    onChange={showProcessingEditable ? handleProcessingStepChange : undefined}
+                    readOnly={!showProcessingEditable}
+                  />
+                </div>
+              )}
               <EditableDetailField
                 label="Type of Driver"
                 field="driverType"

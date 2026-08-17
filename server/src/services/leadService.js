@@ -14,8 +14,14 @@ import {
   getInactiveLeadStatusNames,
 } from './leadStatusService.js';
 import { appendStatusChangeComment } from './leadStatusChangeService.js';
+import {
+  appendProcessingStepComment,
+  validateProcessingStepTransition,
+  isValidProcessingStep,
+  PROCESSING_STEP_HIRED_KEY,
+} from './processingStepService.js';
 import { appendReassignmentComment } from './leadReassignmentService.js';
-import { auditLeadStatusChanged } from './recruitingAuditService.js';
+import { auditLeadStatusChanged, auditLeadProcessingStepChanged } from './recruitingAuditService.js';
 import { isRecruitingModuleUser, canMutateLead, canViewLeadOnRecruiterBoard } from '../utils/recruitingPermissions.js';
 import { formatLeadDateIso } from '../utils/leadDateFormat.js';
 import { notifyNewLeadSlack } from './slackNotificationService.js';
@@ -104,6 +110,7 @@ export function formatLead(lead) {
     stateCity: lead.stateCity,
     status: lead.status,
     rejectionReason: lead.rejectionReason || null,
+    processingStep: lead.processingStep || null,
     driverType: lead.driverType,
     source: lead.source,
     date: formatLeadDateIso(lead.date, lead.createdAt) || '',
@@ -547,6 +554,30 @@ async function validateLeadUpdate(user, lead, updates) {
       throw err;
     }
   }
+
+  if (updates.processingStep !== undefined && updates.processingStep !== null) {
+    const step = String(updates.processingStep).trim();
+    if (step && !isValidProcessingStep(step)) {
+      const err = new Error('Invalid processing step');
+      err.status = 400;
+      throw err;
+    }
+    const effectiveProcessingStatus =
+      updates.status !== undefined ? updates.status : lead.status;
+    if (step && effectiveProcessingStatus !== 'Processing' && step !== PROCESSING_STEP_HIRED_KEY) {
+      const err = new Error('Processing steps can only be set while status is Processing');
+      err.status = 400;
+      throw err;
+    }
+    if (
+      step &&
+      !validateProcessingStepTransition(lead.processingStep || null, step)
+    ) {
+      const err = new Error('Processing steps cannot be skipped forward');
+      err.status = 400;
+      throw err;
+    }
+  }
 }
 
 export async function updateLead(user, lead, updates, { req } = {}) {
@@ -568,6 +599,37 @@ export async function updateLead(user, lead, updates, { req } = {}) {
   if (updates.phone !== undefined) lead.phone = nextPhone;
   if (updates.email !== undefined) lead.email = nextEmail;
   if (updates.stateCity !== undefined) lead.stateCity = updates.stateCity.trim();
+
+  if (updates.processingStep !== undefined) {
+    const nextStep = updates.processingStep ? String(updates.processingStep).trim() : null;
+    const previousStep = lead.processingStep || null;
+
+    if (nextStep !== previousStep) {
+      if (nextStep) {
+        appendProcessingStepComment(lead, {
+          userId: user._id,
+          stepKey: nextStep,
+        });
+
+        if (req) {
+          await auditLeadProcessingStepChanged({
+            user,
+            lead,
+            req,
+            oldStep: previousStep,
+            newStep: nextStep,
+          });
+        }
+
+        if (nextStep === PROCESSING_STEP_HIRED_KEY) {
+          updates.status = 'Hired';
+        }
+      }
+
+      lead.processingStep = nextStep === PROCESSING_STEP_HIRED_KEY ? null : nextStep;
+    }
+  }
+
   if (updates.status !== undefined) {
     const nextStatus = updates.status;
     if (nextStatus !== oldStatus) {
@@ -600,6 +662,9 @@ export async function updateLead(user, lead, updates, { req } = {}) {
     lead.status = nextStatus;
     if (nextStatus !== 'Rejected') {
       lead.rejectionReason = null;
+    }
+    if (nextStatus !== 'Processing') {
+      lead.processingStep = null;
     }
   }
   if (updates.rejectionReason !== undefined) {

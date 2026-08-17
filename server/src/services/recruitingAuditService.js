@@ -95,6 +95,30 @@ export async function auditLeadStatusChanged({
   });
 }
 
+export async function auditLeadProcessingStepChanged({
+  user,
+  lead,
+  req,
+  oldStep,
+  newStep,
+}) {
+  const oldLabel = oldStep ? String(oldStep) : 'none';
+  const newLabel = newStep ? String(newStep) : 'none';
+
+  await auditLog({
+    user,
+    action: AUDIT_ACTIONS.LEAD_PROCESSING_STEP_CHANGE,
+    category: AUDIT_CATEGORIES.RECRUITING,
+    targetType: TARGET_TYPES.LEAD,
+    targetId: lead._id || lead.id,
+    targetName: leadLabel(lead),
+    details: `${buildActorLabel(user)} changed processing step from ${oldLabel} to ${newLabel} for ${leadLabel(lead)}`,
+    oldValues: oldStep ? { processingStep: oldStep } : {},
+    newValues: newStep ? { processingStep: newStep } : {},
+    req,
+  });
+}
+
 export async function auditLeadReassigned({ user, lead, req, oldRecruiterId, newRecruiterId }) {
   await auditLog({
     user,

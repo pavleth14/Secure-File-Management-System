@@ -46,6 +46,7 @@ function pickLeadSnapshot(leadDoc) {
     email: leadDoc.email,
     stateCity: leadDoc.stateCity,
     status: leadDoc.status,
+    processingStep: leadDoc.processingStep || null,
     driverType: leadDoc.driverType,
     assignedRecruiter: leadDoc.assignedRecruiter?.toString?.() || leadDoc.assignedRecruiter,
   };

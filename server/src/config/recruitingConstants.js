@@ -91,3 +91,18 @@ export const REJECTION_REASONS = [
 ];
 
 export const REJECTION_REASON_CUSTOM = 'Custom (nothing from above applies)';
+
+export const PROCESSING_STEPS = [
+  { key: 'screening_started', label: 'Screening started (app/docs received)' },
+  { key: 'clearing_house', label: 'Clearing house' },
+  { key: 'criminal_background', label: 'Criminal background' },
+  { key: 'cdl_scan', label: 'CDL scan' },
+  { key: 'safety_processing', label: 'Safety processing (MVR/PSP)' },
+  { key: 'drug_test', label: 'Drug test' },
+  { key: 'orientation', label: 'Orientation' },
+  { key: 'hired', label: 'Hired' },
+];
+
+export const PROCESSING_STEP_KEYS = PROCESSING_STEPS.map((step) => step.key);
+
+export const PROCESSING_STEP_HIRED_KEY = 'hired';
