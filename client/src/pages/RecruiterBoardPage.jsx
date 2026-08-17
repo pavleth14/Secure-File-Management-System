@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import api from '../api/client';
 import { useAuth } from '../context/AuthContext';
@@ -12,7 +12,9 @@ import LeadViewModal from '../components/recruiting/LeadViewModal';
 import AddCommentModal from '../components/recruiting/AddCommentModal';
 import AssignLeadModal from '../components/recruiting/AssignLeadModal';
 
-function buildQueryParams(filters, recruiterId, activityGroup) {
+const GLOBAL_BOARD_USER_ID = 'global';
+
+function buildQueryParams(filters, recruiterId, activityGroup, isGlobalBoard) {
   const { dateFrom, dateTo } = getLeadDateRange(
     filters.datePreset,
     filters.customStart,
@@ -20,12 +22,17 @@ function buildQueryParams(filters, recruiterId, activityGroup) {
   );
 
   const params = {
-    recruiterId,
     page: filters.page,
     limit: filters.limit,
     sortBy: filters.sortBy,
     sortDir: filters.sortDir,
   };
+
+  if (isGlobalBoard) {
+    if (filters.recruiterId) params.recruiterId = filters.recruiterId;
+  } else {
+    params.recruiterId = recruiterId;
+  }
 
   if (filters.search) params.search = filters.search;
   if (filters.status) params.status = filters.status;
@@ -43,16 +50,22 @@ function buildQueryParams(filters, recruiterId, activityGroup) {
 
 export default function RecruiterBoardPage() {
   const { userId } = useParams();
-  const { user, isRecruitingManager, isRecruiter, isRecruitingModuleUser } = useAuth();
+  const { user, isRecruitingManager, isRecruiter, isRecruitingModuleUser, isSuperAdmin } =
+    useAuth();
+  const isGlobalBoard = userId === GLOBAL_BOARD_USER_ID;
+  const canManageLeads = isRecruitingManager || isSuperAdmin;
   const loggedInUserId = user?.id?.toString?.() || user?._id?.toString?.();
   const isOwnBoard = Boolean(
-    loggedInUserId && userId && loggedInUserId === userId.toString()
+    !isGlobalBoard && loggedInUserId && userId && loggedInUserId === userId.toString()
   );
-  const boardReadOnly = isRecruiterBoardReadOnly({
-    isRecruiter,
-    isRecruitingManager,
-    isOwnBoard,
-  });
+  const boardReadOnly =
+    isGlobalBoard
+      ? !canManageLeads
+      : isRecruiterBoardReadOnly({
+          isRecruiter,
+          isRecruitingManager: canManageLeads,
+          isOwnBoard,
+        });
   const { sourceNames } = useLeadSources();
   const { statusNames, statusColorMap } = useLeadStatuses();
   const { recruiters } = useRecruiters();
@@ -74,6 +87,7 @@ export default function RecruiterBoardPage() {
     status: '',
     driverType: '',
     source: '',
+    recruiterId: '',
     datePreset: 'all',
     customStart: '',
     customEnd: '',
@@ -90,10 +104,22 @@ export default function RecruiterBoardPage() {
   const [commentSubmitting, setCommentSubmitting] = useState(false);
   const [assignSubmitting, setAssignSubmitting] = useState(false);
 
+  const activeRecruiters = useMemo(
+    () => recruiters.filter((recruiter) => !recruiter.name.includes('(Inactive)')),
+    [recruiters]
+  );
+
   useEffect(() => {
     let cancelled = false;
 
     async function loadBoard() {
+      if (isGlobalBoard) {
+        setBoardLabel('Global Board');
+        setBoardError('');
+        setBoardLoading(false);
+        return;
+      }
+
       setBoardLoading(true);
       setBoardError('');
       try {
@@ -117,12 +143,16 @@ export default function RecruiterBoardPage() {
     return () => {
       cancelled = true;
     };
-  }, [userId]);
+  }, [userId, isGlobalBoard]);
 
   useEffect(() => {
-    setFilters((prev) => ({ ...prev, page: 1 }));
+    setFilters((prev) => ({
+      ...prev,
+      page: 1,
+      recruiterId: isGlobalBoard ? prev.recruiterId : '',
+    }));
     setActivityGroup('all');
-  }, [userId]);
+  }, [userId, isGlobalBoard]);
 
   useEffect(() => {
     setFilters((prev) => ({ ...prev, page: 1 }));
@@ -133,7 +163,7 @@ export default function RecruiterBoardPage() {
     setActionError('');
     try {
       const { data } = await api.get('/recruiting/leads', {
-        params: buildQueryParams(filters, userId, activityGroup),
+        params: buildQueryParams(filters, userId, activityGroup, isGlobalBoard),
       });
       setLeads(data.leads || []);
       setTotalCount(data.totalCount || 0);
@@ -143,7 +173,7 @@ export default function RecruiterBoardPage() {
     } finally {
       setLeadsLoading(false);
     }
-  }, [filters, userId, activityGroup]);
+  }, [filters, userId, activityGroup, isGlobalBoard]);
 
   useEffect(() => {
     if (boardError) return;
@@ -203,11 +233,6 @@ export default function RecruiterBoardPage() {
   };
 
   const handleEditComment = async (leadId, commentId, text) => {
-    console.log('[COMMENT-UPDATE]', {
-      leadId,
-      commentId,
-      updatePayload: { text },
-    });
     setActionError('');
     const { data } = await api.put(`/recruiting/leads/${leadId}/comments/${commentId}`, { text });
     setLeads((prev) => prev.map((lead) => (lead.id === leadId ? data.lead : lead)));
@@ -237,7 +262,24 @@ export default function RecruiterBoardPage() {
         assignedRecruiterId: recruiterId,
       });
 
-      if (data.lead.assignedRecruiter?.id !== userId) {
+      const assignedRecruiterId = data.lead.assignedRecruiter?.id?.toString?.();
+      const filterRecruiterId = filters.recruiterId?.toString?.();
+      const boardRecruiterId = userId?.toString?.();
+
+      if (
+        isGlobalBoard &&
+        filterRecruiterId &&
+        assignedRecruiterId &&
+        assignedRecruiterId !== filterRecruiterId
+      ) {
+        setLeads((prev) => prev.filter((lead) => lead.id !== assignLead.id));
+        setTotalCount((prev) => Math.max(prev - 1, 0));
+      } else if (
+        !isGlobalBoard &&
+        assignedRecruiterId &&
+        boardRecruiterId &&
+        assignedRecruiterId !== boardRecruiterId
+      ) {
         setLeads((prev) => prev.filter((lead) => lead.id !== assignLead.id));
         setTotalCount((prev) => Math.max(prev - 1, 0));
       } else {
@@ -275,13 +317,15 @@ export default function RecruiterBoardPage() {
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">{boardLabel}</h1>
         <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-          {isRecruitingManager
-            ? 'Viewing recruiter board as recruiting manager.'
-            : boardReadOnly
-              ? 'View-only access to this recruiter board.'
-              : isRecruitingModuleUser
-                ? 'Viewing recruiter board.'
-                : 'Your assigned leads.'}
+          {isGlobalBoard
+            ? 'All active leads across every recruiter board.'
+            : canManageLeads
+              ? 'Viewing recruiter board as recruiting manager.'
+              : boardReadOnly
+                ? 'View-only access to this recruiter board.'
+                : isRecruitingModuleUser
+                  ? 'Viewing recruiter board.'
+                  : 'Your assigned leads.'}
         </p>
       </div>
 
@@ -299,6 +343,8 @@ export default function RecruiterBoardPage() {
         pageSizes={LEAD_BOARD_PAGE_SIZES}
         sources={sourceNames}
         statuses={statusNames}
+        recruiters={activeRecruiters}
+        showRecruiterFilter={isGlobalBoard}
       />
 
       <div className="mb-4 flex justify-end">
@@ -307,7 +353,7 @@ export default function RecruiterBoardPage() {
 
       <LeadBoardTable
         leads={leads}
-        isRecruitingManager={isRecruitingManager}
+        isRecruitingManager={canManageLeads}
         readOnly={boardReadOnly}
         currentUserId={user?.id}
         sortBy={filters.sortBy}
@@ -317,10 +363,13 @@ export default function RecruiterBoardPage() {
         onAddComment={boardReadOnly ? undefined : setCommentLead}
         onSubmitComment={boardReadOnly ? undefined : handleSubmitComment}
         onEditComment={boardReadOnly ? undefined : handleEditComment}
-        onAssignLead={isRecruitingManager ? setAssignLead : undefined}
-        onArchiveLead={isRecruitingManager ? handleArchiveLead : undefined}
+        onAssignLead={canManageLeads ? setAssignLead : undefined}
+        onArchiveLead={canManageLeads ? handleArchiveLead : undefined}
+        showRecruiterColumn={isGlobalBoard}
+        recruiterColumnAfterStatus={isGlobalBoard}
         statusColorMap={statusColorMap}
         loading={leadsLoading}
+        emptyMessage={isGlobalBoard ? 'No leads found.' : 'No leads on this board yet.'}
       />
 
       <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -355,9 +404,9 @@ export default function RecruiterBoardPage() {
           setScrollToComments(false);
         }}
         onSave={boardReadOnly ? undefined : handleUpdateLead}
-        isRecruitingManager={isRecruitingManager}
+        isRecruitingManager={canManageLeads}
         isRecruiter={isRecruiter}
-        isOwnBoard={isOwnBoard}
+        isOwnBoard={isGlobalBoard ? canManageLeads : isOwnBoard}
         readOnly={boardReadOnly}
         scrollToComments={scrollToComments}
       />

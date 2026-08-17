@@ -53,6 +53,7 @@ export default function LeadBoardTable({
   onArchiveLead,
   onRestoreLead,
   showRecruiterColumn = false,
+  recruiterColumnAfterStatus = false,
   showArchiveColumns = false,
   statusColorMap = {},
   loading = false,
@@ -118,8 +119,21 @@ export default function LeadBoardTable({
     return items;
   };
 
+  const showRecruiterAtEnd = showRecruiterColumn && !recruiterColumnAfterStatus;
+  const showRecruiterAfterStatus = showRecruiterColumn && recruiterColumnAfterStatus;
+
   const extraColumns =
     (showRecruiterColumn ? 1 : 0) + (showArchiveColumns ? 2 : 0);
+
+  const recruiterHeader = showRecruiterColumn ? (
+    <SortableHeader
+      columnKey="recruiter"
+      label="Recruiter"
+      sortBy={sortBy}
+      sortDir={sortDir}
+      onSort={handleSort}
+    />
+  ) : null;
 
   return (
     <>
@@ -127,7 +141,15 @@ export default function LeadBoardTable({
         <table className="min-w-full divide-y divide-slate-200 dark:divide-slate-700">
           <thead className="bg-slate-50 dark:bg-slate-700/50">
             <tr>
-              {COLUMNS.map((column) => (
+              <SortableHeader
+                columnKey="status"
+                label="Status"
+                sortBy={sortBy}
+                sortDir={sortDir}
+                onSort={handleSort}
+              />
+              {showRecruiterAfterStatus && recruiterHeader}
+              {COLUMNS.slice(1).map((column) => (
                 <SortableHeader
                   key={column.key}
                   columnKey={column.key}
@@ -137,15 +159,7 @@ export default function LeadBoardTable({
                   onSort={handleSort}
                 />
               ))}
-              {showRecruiterColumn && (
-                <SortableHeader
-                  columnKey="recruiter"
-                  label="Recruiter"
-                  sortBy={sortBy}
-                  sortDir={sortDir}
-                  onSort={handleSort}
-                />
-              )}
+              {showRecruiterAtEnd && recruiterHeader}
               {showArchiveColumns && (
                 <>
                   <SortableHeader
@@ -197,6 +211,11 @@ export default function LeadBoardTable({
                       statusColorMap={statusColorMap}
                     />
                   </td>
+                  {showRecruiterAfterStatus && (
+                    <td className="whitespace-nowrap px-4 py-3 text-sm">
+                      {lead.assignedRecruiter?.name || '—'}
+                    </td>
+                  )}
                   <td className="px-4 py-3 text-sm">{lead.driverType || '—'}</td>
                   <td className="px-4 py-3 text-sm">{lead.source || '—'}</td>
                   <td className="whitespace-nowrap px-4 py-3 text-sm">
@@ -210,7 +229,7 @@ export default function LeadBoardTable({
                   <td className="px-4 py-3 text-sm">{lead.stateCity || '—'}</td>
                   <td className="px-4 py-3 text-sm">{formatLeadDisplayEmail(lead.email)}</td>
 
-                  {showRecruiterColumn && (
+                  {showRecruiterAtEnd && (
                     <td className="whitespace-nowrap px-4 py-3 text-sm">
                       {lead.assignedRecruiter?.name || '—'}
                     </td>

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Link, Outlet, useLocation } from 'react-router-dom';
+import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import api from '../api/client';
 import GlobalSearch from './GlobalSearch';
@@ -325,9 +325,17 @@ function formatBoardDropdownLabel(label) {
   return label.replace(/ Board(?= \(|$)/, '');
 }
 
-function RecruitingDropdown({ boards, showImportLeads, location, currentUserId, isRecruiter }) {
+function RecruitingDropdown({
+  boards,
+  showImportLeads,
+  showGlobalBoard,
+  location,
+  currentUserId,
+  isRecruiter,
+}) {
   const [open, setOpen] = useState(false);
   const containerRef = useRef(null);
+  const navigate = useNavigate();
 
   const showOwnBoardDivider = useMemo(() => {
     if (!isRecruiter || boards.length <= 1 || !currentUserId) return false;
@@ -379,7 +387,14 @@ function RecruitingDropdown({ boards, showImportLeads, location, currentUserId, 
         active={isRecruitingActive || open}
         aria-expanded={open}
         aria-haspopup="true"
-        onClick={() => setOpen((prev) => !prev)}
+        onClick={() => {
+          if (showGlobalBoard) {
+            navigate('/recruiting/boards/global');
+            close();
+            return;
+          }
+          setOpen((prev) => !prev);
+        }}
       >
         Recruiting
         <span
@@ -401,6 +416,27 @@ function RecruitingDropdown({ boards, showImportLeads, location, currentUserId, 
         style={{ transitionDuration: '350ms' }}
       >
         <div className="rounded-xl border border-slate-200 bg-white px-1 py-1.5 shadow-lg dark:border-slate-600 dark:bg-slate-800">
+          {showGlobalBoard && (
+            <>
+              <Link
+                to="/recruiting/boards/global"
+                className={dropdownLinkClass()}
+                onClick={close}
+                aria-current={
+                  location.pathname === '/recruiting/boards/global' ? 'page' : undefined
+                }
+              >
+                Global Board
+              </Link>
+              {boards.length > 0 && (
+                <div
+                  className="my-1 border-t border-slate-200 dark:border-slate-600"
+                  role="separator"
+                  aria-hidden
+                />
+              )}
+            </>
+          )}
           {boards.map((board, index) => (
             <div key={board.userId}>
               <Link
@@ -638,6 +674,7 @@ export default function Layout() {
                   <RecruitingDropdown
                     boards={recruitingBoards}
                     showImportLeads={isRecruitingManager || isSuperAdmin}
+                    showGlobalBoard={isRecruitingManager || isSuperAdmin}
                     location={location}
                     currentUserId={user?.id}
                     isRecruiter={isRecruiter}
