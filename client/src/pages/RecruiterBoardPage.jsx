@@ -188,7 +188,14 @@ export default function RecruiterBoardPage() {
   }, [searchInput]);
 
   const updateFilter = (key, value) => {
-    setFilters((prev) => ({ ...prev, [key]: value, page: 1 }));
+    setFilters((prev) => {
+      const next = { ...prev, [key]: value, page: 1 };
+      if (key === 'status' && value !== 'Processing' && prev.sortBy === 'processingStep') {
+        next.sortBy = 'date';
+        next.sortDir = 'desc';
+      }
+      return next;
+    });
   };
 
   const handleSortChange = (sortBy, sortDir) => {
@@ -368,6 +375,7 @@ export default function RecruiterBoardPage() {
         showRecruiterColumn={isGlobalBoard}
         recruiterColumnAfterStatus={isGlobalBoard}
         statusColorMap={statusColorMap}
+        statusFilter={filters.status}
         loading={leadsLoading}
         emptyMessage={isGlobalBoard ? 'No leads found.' : 'No leads on this board yet.'}
       />

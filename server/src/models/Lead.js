@@ -37,6 +37,7 @@ const leadSchema = new mongoose.Schema(
     },
     rejectionReason: { type: String, trim: true, default: null },
     processingStep: { type: String, trim: true, default: null },
+    processingStepIndex: { type: Number, default: null },
     driverType: {
       type: String,
       enum: DRIVER_TYPES,

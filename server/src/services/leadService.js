@@ -17,7 +17,9 @@ import { appendStatusChangeComment } from './leadStatusChangeService.js';
 import {
   validateProcessingStepTransition,
   isValidProcessingStep,
+  resolveProcessingStepIndex,
   PROCESSING_STEP_HIRED_KEY,
+  PROCESSING_STEP_KEYS,
 } from './processingStepService.js';
 import { appendReassignmentComment } from './leadReassignmentService.js';
 import { auditLeadStatusChanged, auditLeadProcessingStepChanged } from './recruitingAuditService.js';
@@ -110,6 +112,7 @@ export function formatLead(lead) {
     status: lead.status,
     rejectionReason: lead.rejectionReason || null,
     processingStep: lead.processingStep || null,
+    processingStepIndex: lead.processingStepIndex ?? null,
     driverType: lead.driverType,
     source: lead.source,
     date: formatLeadDateIso(lead.date, lead.createdAt) || '',
@@ -228,6 +231,7 @@ const LEAD_SORT_FIELDS = {
   driverType: 'driverType',
   stateCity: 'stateCity',
   recruiter: 'assignedRecruiter',
+  processingStep: 'processingStepIndex',
   archivedAt: 'archivedAt',
 };
 
@@ -269,8 +273,80 @@ function applyLeadListFilters(filter, options) {
   }
 }
 
+function buildProcessingStepSortSwitch() {
+  const branches = [
+    {
+      case: {
+        $or: [{ $eq: ['$processingStep', null] }, { $eq: ['$processingStep', ''] }],
+      },
+      then: 0,
+    },
+  ];
+
+  for (let index = 0; index < PROCESSING_STEP_KEYS.length; index += 1) {
+    branches.push({
+      case: { $eq: ['$processingStep', PROCESSING_STEP_KEYS[index]] },
+      then: index + 1,
+    });
+  }
+
+  return { $switch: { branches, default: 0 } };
+}
+
+async function queryLeadListSortedByProcessingStep(filter, options) {
+  const { page = 1, limit = 25, sortDir = 'asc', listMode = true } = options;
+  const sortOrder = sortDir === 'asc' ? 1 : -1;
+  const safeLimit = Math.min(Math.max(parseInt(limit, 10) || 25, 1), 100);
+  const safePage = Math.max(parseInt(page, 10) || 1, 1);
+  const skip = (safePage - 1) * safeLimit;
+
+  const [totalCount, aggResults] = await Promise.all([
+    Lead.countDocuments(filter),
+    Lead.aggregate([
+      { $match: filter },
+      { $addFields: { _processingStepSort: buildProcessingStepSortSwitch() } },
+      { $sort: { _processingStepSort: sortOrder, _id: sortOrder } },
+      { $skip: skip },
+      { $limit: safeLimit },
+      { $project: { _id: 1 } },
+    ]),
+  ]);
+
+  const ids = aggResults.map((row) => row._id);
+  if (!ids.length) {
+    return {
+      leads: [],
+      page: safePage,
+      limit: safeLimit,
+      totalCount,
+      totalPages: Math.max(Math.ceil(totalCount / safeLimit), 1),
+    };
+  }
+
+  let query = Lead.find({ _id: { $in: ids } });
+  if (listMode) {
+    query = query.select({ comments: { $slice: -1 } });
+  }
+
+  const leads = await populateLead(query);
+  const leadsById = new Map(leads.map((lead) => [lead._id.toString(), lead]));
+  const orderedLeads = ids.map((id) => leadsById.get(id.toString())).filter(Boolean);
+
+  return {
+    leads: orderedLeads,
+    page: safePage,
+    limit: safeLimit,
+    totalCount,
+    totalPages: Math.max(Math.ceil(totalCount / safeLimit), 1),
+  };
+}
+
 async function queryLeadList(filter, options) {
   const { page = 1, limit = 25, sortBy = 'createdAt', sortDir = 'desc', listMode = true } = options;
+
+  if (sortBy === 'processingStep') {
+    return queryLeadListSortedByProcessingStep(filter, options);
+  }
 
   const sortField = LEAD_SORT_FIELDS[sortBy] || 'createdAt';
   const sortOrder = sortDir === 'asc' ? 1 : -1;
@@ -667,6 +743,8 @@ export async function updateLead(user, lead, updates, { req } = {}) {
       : null;
   }
   if (updates.driverType !== undefined) lead.driverType = updates.driverType;
+
+  lead.processingStepIndex = resolveProcessingStepIndex(lead.status, lead.processingStep);
 
   await lead.save();
   return getLeadById(lead._id);

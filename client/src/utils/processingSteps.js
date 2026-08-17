@@ -8,6 +8,14 @@ export function getProcessingStepIndex(stepKey) {
   return PROCESSING_STEP_KEYS.indexOf(stepKey);
 }
 
+/** Step 0 = no step selected; Step 1–8 = processing step keys. */
+export function getProcessingStepDisplayNumber(stepKey) {
+  if (!stepKey) return 0;
+  const stepIndex = PROCESSING_STEP_KEYS.indexOf(stepKey);
+  if (stepIndex === -1) return 0;
+  return stepIndex + 1;
+}
+
 export function canSelectProcessingStep(currentStepKey, targetStepKey) {
   const currentIndex = getProcessingStepIndex(currentStepKey);
   const targetIndex = getProcessingStepIndex(targetStepKey);

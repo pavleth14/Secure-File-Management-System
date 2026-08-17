@@ -19,8 +19,8 @@ const COLUMNS = [
   { key: 'email', label: 'Email' },
 ];
 
-function SortableHeader({ columnKey, label, sortBy, sortDir, onSort }) {
-  const active = sortBy === columnKey;
+function SortableHeader({ columnKey, label, sortBy, sortDir, onSort, sortActive = false }) {
+  const active = sortActive || sortBy === columnKey;
   return (
     <th className="whitespace-nowrap px-4 py-3 text-left text-xs font-medium uppercase text-slate-500 dark:text-slate-400">
       <button
@@ -56,6 +56,7 @@ export default function LeadBoardTable({
   recruiterColumnAfterStatus = false,
   showArchiveColumns = false,
   statusColorMap = {},
+  statusFilter = '',
   loading = false,
   emptyMessage = 'No leads on this board yet.',
 }) {
@@ -63,10 +64,13 @@ export default function LeadBoardTable({
   const [openCommentsLeadId, setOpenCommentsLeadId] = useState(null);
 
   const handleSort = (key) => {
-    if (sortBy === key) {
-      onSortChange(key, sortDir === 'asc' ? 'desc' : 'asc');
+    const resolvedKey =
+      key === 'status' && statusFilter === 'Processing' ? 'processingStep' : key;
+
+    if (sortBy === resolvedKey) {
+      onSortChange(resolvedKey, sortDir === 'asc' ? 'desc' : 'asc');
     } else {
-      onSortChange(key, 'asc');
+      onSortChange(resolvedKey, 'asc');
     }
   };
 
@@ -147,6 +151,7 @@ export default function LeadBoardTable({
                 sortBy={sortBy}
                 sortDir={sortDir}
                 onSort={handleSort}
+                sortActive={sortBy === 'processingStep'}
               />
               {showRecruiterAfterStatus && recruiterHeader}
               {COLUMNS.slice(1).map((column) => (
@@ -208,6 +213,7 @@ export default function LeadBoardTable({
                   <td className="px-4 py-3 text-sm">
                     <LeadStatusIndicator
                       statusName={lead.status}
+                      processingStep={lead.processingStep}
                       statusColorMap={statusColorMap}
                     />
                   </td>

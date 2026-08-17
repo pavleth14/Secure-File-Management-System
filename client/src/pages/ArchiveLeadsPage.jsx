@@ -106,7 +106,14 @@ export default function ArchiveLeadsPage() {
   }, [searchInput]);
 
   const updateFilter = (key, value) => {
-    setFilters((prev) => ({ ...prev, [key]: value, page: 1 }));
+    setFilters((prev) => {
+      const next = { ...prev, [key]: value, page: 1 };
+      if (key === 'status' && value !== 'Processing' && prev.sortBy === 'processingStep') {
+        next.sortBy = 'date';
+        next.sortDir = 'desc';
+      }
+      return next;
+    });
   };
 
   const handleSortChange = (sortBy, sortDir) => {
@@ -243,6 +250,7 @@ export default function ArchiveLeadsPage() {
         showRecruiterColumn
         showArchiveColumns
         statusColorMap={statusColorMap}
+        statusFilter={filters.status}
         loading={leadsLoading}
         emptyMessage="No archived leads found."
       />

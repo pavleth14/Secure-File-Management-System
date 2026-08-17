@@ -24,6 +24,15 @@ export function validateProcessingStepTransition(oldStep, newStep) {
   return newIndex > oldIndex;
 }
 
+/** Display/sort index: Step 0 = no step yet, Step 1–8 = selected processing step. */
+export function resolveProcessingStepIndex(status, processingStep) {
+  if (status !== 'Processing') return null;
+  if (!processingStep) return 0;
+  const stepIndex = PROCESSING_STEP_KEYS.indexOf(processingStep);
+  if (stepIndex === -1) return 0;
+  return stepIndex + 1;
+}
+
 export function buildProcessingStepCommentText(stepKey) {
   return `Processing step: ${getProcessingStepLabel(stepKey)}`;
 }
