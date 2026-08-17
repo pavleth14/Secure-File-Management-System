@@ -21,7 +21,7 @@ export function validateProcessingStepTransition(oldStep, newStep) {
   const newIndex = PROCESSING_STEP_KEYS.indexOf(newStep);
 
   if (newIndex <= oldIndex) return true;
-  return newIndex === oldIndex + 1;
+  return newIndex > oldIndex;
 }
 
 export function buildProcessingStepCommentText(stepKey) {

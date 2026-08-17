@@ -15,7 +15,6 @@ import {
 } from './leadStatusService.js';
 import { appendStatusChangeComment } from './leadStatusChangeService.js';
 import {
-  appendProcessingStepComment,
   validateProcessingStepTransition,
   isValidProcessingStep,
   PROCESSING_STEP_HIRED_KEY,
@@ -573,7 +572,7 @@ async function validateLeadUpdate(user, lead, updates) {
       step &&
       !validateProcessingStepTransition(lead.processingStep || null, step)
     ) {
-      const err = new Error('Processing steps cannot be skipped forward');
+      const err = new Error('Invalid processing step transition');
       err.status = 400;
       throw err;
     }
@@ -606,11 +605,6 @@ export async function updateLead(user, lead, updates, { req } = {}) {
 
     if (nextStep !== previousStep) {
       if (nextStep) {
-        appendProcessingStepComment(lead, {
-          userId: user._id,
-          stepKey: nextStep,
-        });
-
         if (req) {
           await auditLeadProcessingStepChanged({
             user,

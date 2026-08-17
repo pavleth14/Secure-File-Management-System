@@ -14,7 +14,7 @@ export function canSelectProcessingStep(currentStepKey, targetStepKey) {
 
   if (targetIndex === -1) return false;
   if (targetIndex <= currentIndex) return true;
-  return targetIndex === currentIndex + 1;
+  return targetIndex > currentIndex;
 }
 
 export function getProcessingStepLabel(stepKey, steps) {
