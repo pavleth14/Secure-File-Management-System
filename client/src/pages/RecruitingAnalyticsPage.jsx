@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState, Fragment } from 'react';
 import api from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import AnalyticsStatCard from '../components/recruiting/analytics/AnalyticsStatCard';
@@ -16,6 +16,7 @@ const TABS = [
 ];
 
 const LONGEST_WAITING_PAGE_SIZE = 10;
+const RECRUITER_TABLE_COLUMN_COUNT = 8;
 
 const thClass =
   'px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400';
@@ -53,6 +54,7 @@ export default function RecruitingAnalyticsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [longestWaitingPage, setLongestWaitingPage] = useState(1);
+  const [expandedRecruiterIds, setExpandedRecruiterIds] = useState(() => new Set());
 
   const visibleTabs = useMemo(
     () => TABS.filter((tab) => viewAll || tab.id !== 'old-leads'),
@@ -128,6 +130,19 @@ export default function RecruitingAnalyticsPage() {
     () => (data?.pipeline || []).filter((row) => !row.isActive),
     [data]
   );
+
+  const toggleRecruiterExpanded = useCallback((recruiterId) => {
+    setExpandedRecruiterIds((current) => {
+      const next = new Set(current);
+      const key = String(recruiterId);
+      if (next.has(key)) {
+        next.delete(key);
+      } else {
+        next.add(key);
+      }
+      return next;
+    });
+  }, []);
 
   return (
     <div className="space-y-6">
@@ -443,18 +458,81 @@ export default function RecruitingAnalyticsPage() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
-                    {(data.recruiters || []).map((recruiter) => (
-                      <tr key={recruiter.id}>
-                        <td className={`${tdClass} font-medium`}>{recruiter.name}</td>
-                        <td className={tdClass}>{recruiter.active}</td>
-                        <td className={tdClass}>{recruiter.newInPeriod}</td>
-                        <td className={tdClass}>{recruiter.hired}</td>
-                        <td className={tdClass}>{recruiter.rejected}</td>
-                        <td className={tdClass}>{formatPercent(recruiter.conversionRate)}</td>
-                        <td className={tdClass}>{recruiter.local}</td>
-                        <td className={tdClass}>{recruiter.otr}</td>
-                      </tr>
-                    ))}
+                    {(data.recruiters || []).map((recruiter) => {
+                      const recruiterKey = String(recruiter.id);
+                      const isExpanded = expandedRecruiterIds.has(recruiterKey);
+                      const statusBreakdown =
+                        recruiter.statusBreakdown?.length > 0
+                          ? recruiter.statusBreakdown
+                          : (data.recruiterStatusColumns || []).map((column) => ({
+                              status: column.name,
+                              count: 0,
+                              isActive: column.isActive,
+                            }));
+
+                      return (
+                        <Fragment key={recruiterKey}>
+                          <tr className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40">
+                            <td className={`${tdClass} font-medium`}>
+                              <button
+                                type="button"
+                                onClick={() => toggleRecruiterExpanded(recruiterKey)}
+                                className="inline-flex items-center gap-2 text-left hover:text-brand-700 dark:hover:text-brand-400"
+                                aria-expanded={isExpanded}
+                              >
+                                <span
+                                  className="inline-block w-4 shrink-0 text-xs text-slate-400"
+                                  aria-hidden
+                                >
+                                  {isExpanded ? '▼' : '▶'}
+                                </span>
+                                {recruiter.name}
+                              </button>
+                            </td>
+                            <td className={tdClass}>{recruiter.active}</td>
+                            <td className={tdClass}>{recruiter.newInPeriod}</td>
+                            <td className={tdClass}>{recruiter.hired}</td>
+                            <td className={tdClass}>{recruiter.rejected}</td>
+                            <td className={tdClass}>{formatPercent(recruiter.conversionRate)}</td>
+                            <td className={tdClass}>{recruiter.local}</td>
+                            <td className={tdClass}>{recruiter.otr}</td>
+                          </tr>
+                          {isExpanded && (
+                            <tr>
+                              <td
+                                colSpan={RECRUITER_TABLE_COLUMN_COUNT}
+                                className="bg-slate-50 px-4 py-4 dark:bg-slate-800/40"
+                              >
+                                <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                                  Leads by status (active, non-archived)
+                                </p>
+                                <div className="grid grid-cols-2 gap-x-6 gap-y-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
+                                  {statusBreakdown.map((row) => (
+                                    <div
+                                      key={`${recruiterKey}-${row.status}`}
+                                      className="flex items-center justify-between gap-3 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-900"
+                                    >
+                                      <span
+                                        className={
+                                          row.isActive
+                                            ? 'text-slate-800 dark:text-slate-100'
+                                            : 'text-slate-500 dark:text-slate-400'
+                                        }
+                                      >
+                                        {row.status}
+                                      </span>
+                                      <span className="font-semibold tabular-nums text-slate-900 dark:text-slate-100">
+                                        {row.count}
+                                      </span>
+                                    </div>
+                                  ))}
+                                </div>
+                              </td>
+                            </tr>
+                          )}
+                        </Fragment>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>

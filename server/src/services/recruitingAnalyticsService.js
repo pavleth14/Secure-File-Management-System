@@ -139,6 +139,47 @@ async function aggregateStatusBreakdown(filter) {
   }));
 }
 
+async function aggregateRecruiterStatusCounts(baseFilter) {
+  const statuses = await listLeadStatuses();
+  const rows = await Lead.aggregate([
+    { $match: { ...baseFilter, archived: false } },
+    {
+      $group: {
+        _id: { recruiter: '$assignedRecruiter', status: '$status' },
+        count: { $sum: 1 },
+      },
+    },
+  ]);
+
+  const byRecruiter = new Map();
+  for (const row of rows) {
+    const recruiterId = row._id?.recruiter?.toString?.();
+    if (!recruiterId) continue;
+    if (!byRecruiter.has(recruiterId)) {
+      byRecruiter.set(recruiterId, new Map());
+    }
+    byRecruiter.get(recruiterId).set(row._id.status || 'Unknown', row.count);
+  }
+
+  return { byRecruiter, statuses };
+}
+
+function buildRecruiterStatusBreakdown(recruiterId, byRecruiter, statuses) {
+  const counts = byRecruiter.get(recruiterId?.toString?.()) || new Map();
+  return statuses.map((status) => ({
+    status: status.name,
+    count: counts.get(status.name) || 0,
+    isActive: Boolean(status.isActive),
+  }));
+}
+
+function buildRecruiterStatusColumns(statuses) {
+  return statuses.map((status) => ({
+    name: status.name,
+    isActive: Boolean(status.isActive),
+  }));
+}
+
 async function getOverviewMetrics(baseFilter, periodFilter, dateFrom, dateTo) {
   const activeLeads = await countLeads({ ...baseFilter, archived: false });
   const newLeads = await countLeads({ ...baseFilter, ...periodFilter });
@@ -215,11 +256,12 @@ async function getSourceAnalytics(baseFilter, periodFilter) {
   }));
 }
 
-async function getRecruiterAnalyticsSimple(baseFilter, periodFilter, viewAll) {
+async function getRecruiterAnalyticsSimple(baseFilter, periodFilter, viewAll, statusCounts) {
   if (!viewAll) {
     return [];
   }
 
+  const { byRecruiter, statuses } = statusCounts;
   const recruiters = await User.find({ isRecruiter: true }).sort({ name: 1 }).select('name');
   const results = [];
 
@@ -258,13 +300,15 @@ async function getRecruiterAnalyticsSimple(baseFilter, periodFilter, viewAll) {
       conversionRate: pct(hired, hired + rejected),
       local,
       otr,
+      statusBreakdown: buildRecruiterStatusBreakdown(recruiter._id, byRecruiter, statuses),
     });
   }
 
   return results;
 }
 
-async function getSelfRecruiterAnalytics(user, baseFilter, periodFilter) {
+async function getSelfRecruiterAnalytics(user, baseFilter, periodFilter, statusCounts) {
+  const { byRecruiter, statuses } = statusCounts;
   const recruiterFilter = { ...baseFilter, assignedRecruiter: user._id };
   const active = await countLeads({ ...recruiterFilter, archived: false });
   const newInPeriod = await countLeads({ ...recruiterFilter, ...periodFilter });
@@ -298,6 +342,7 @@ async function getSelfRecruiterAnalytics(user, baseFilter, periodFilter) {
         driverType: { $in: OTR_DRIVER_TYPES },
         archived: false,
       }),
+      statusBreakdown: buildRecruiterStatusBreakdown(user._id, byRecruiter, statuses),
     },
   ];
 }
@@ -532,9 +577,10 @@ export async function getRecruitingAnalytics(user, options = {}) {
   const bySource = await getSourceAnalytics(baseFilter, periodFilter);
   const byDriverType = await aggregateByField({ ...baseFilter, ...periodFilter }, 'driverType');
   const pipeline = await getPipeline(baseFilter);
+  const recruiterStatusCounts = await aggregateRecruiterStatusCounts(baseFilter);
   const recruiters = viewAll
-    ? await getRecruiterAnalyticsSimple(baseFilter, periodFilter, viewAll)
-    : await getSelfRecruiterAnalytics(user, baseFilter, periodFilter);
+    ? await getRecruiterAnalyticsSimple(baseFilter, periodFilter, viewAll, recruiterStatusCounts)
+    : await getSelfRecruiterAnalytics(user, baseFilter, periodFilter, recruiterStatusCounts);
   const oldLeads = viewAll ? await getOldLeadsAnalytics(dateFrom, dateTo) : null;
   const rejectionReasons = await getRejectionReasons(baseFilter, periodFilter);
   const roundRobinBalance = await getRoundRobinBalance(baseFilter, periodFilter, viewAll);
@@ -565,6 +611,7 @@ export async function getRecruitingAnalytics(user, options = {}) {
     })),
     pipeline,
     recruiters,
+    recruiterStatusColumns: buildRecruiterStatusColumns(recruiterStatusCounts.statuses),
     oldLeads,
     rejectionReasons,
     roundRobinBalance,
