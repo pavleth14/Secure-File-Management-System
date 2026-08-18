@@ -106,9 +106,13 @@ async function start() {
   if (roundRobinMigration.modifiedCount) {
     console.log('[RECRUITING] Applied default round-robin driver types', roundRobinMigration);
   }
-  await initializeRingCentralIntegration();
-  const server = app.listen(PORT, '0.0.0.0', () => {
+  const server = app.listen(PORT, '0.0.0.0', async () => {
     console.log(`Server running on http://0.0.0.0:${PORT}`);
+    try {
+      await initializeRingCentralIntegration();
+    } catch (err) {
+      console.error('[ringcentral] Failed to ensure webhook subscription:', err.message);
+    }
   });
   server.requestTimeout = 10 * 60 * 1000;
   server.headersTimeout = 10 * 60 * 1000 + 1000;
