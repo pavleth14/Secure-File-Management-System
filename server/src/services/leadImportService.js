@@ -16,6 +16,7 @@ import { auditLeadStatusChanged } from './recruitingAuditService.js';
 import { getRoundRobinAssignments } from './roundRobinService.js';
 import { formatLeadDateIso } from '../utils/leadDateFormat.js';
 import { notifyCsvImportSlack } from './slackNotificationService.js';
+import { backfillRingCentralEventsForLead } from './ringCentralEventService.js';
 import {
   generateImportPlaceholderEmail,
 } from '../utils/importPlaceholderEmail.js';
@@ -669,6 +670,9 @@ export async function confirmLeadImport(manager, previewId, selectedRowNumbers =
     try {
       const createdLead = await Lead.create(leadData);
       importedCount += 1;
+      backfillRingCentralEventsForLead(createdLead._id).catch((err) => {
+        console.error('[ringcentral] import backfill failed', createdLead._id, err.message);
+      });
       importedLeadsForSlack.push({
         firstName: payload.firstName,
         lastName: payload.lastName,

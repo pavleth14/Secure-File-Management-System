@@ -40,6 +40,8 @@ const userSchema = new mongoose.Schema(
       ref: 'DispatchBoard',
       default: null,
     },
+    ringCentralExtensionId: { type: String, trim: true, default: null },
+    ringCentralExtensionNumber: { type: String, trim: true, default: null },
   },
   { timestamps: true }
 );

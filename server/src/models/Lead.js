@@ -3,6 +3,28 @@ import {
   DRIVER_TYPES,
   DEFAULT_LEAD_STATUS,
 } from '../config/recruitingConstants.js';
+import { normalizeUsPhoneDigits } from '../utils/usPhone.js';
+
+const ringCentralEventSchema = new mongoose.Schema(
+  {
+    type: { type: String, enum: ['call', 'sms'], required: true },
+    direction: { type: String, enum: ['Inbound', 'Outbound'], required: true },
+    durationSec: { type: Number, default: 0 },
+    result: { type: String, trim: true, default: '' },
+    text: { type: String, required: true, trim: true, maxlength: 2000 },
+    ringCentralEventId: { type: String, required: true, trim: true },
+    author: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      default: null,
+    },
+    authorLabel: { type: String, trim: true, default: null },
+    extensionId: { type: String, trim: true, default: null },
+    isSystem: { type: Boolean, default: true },
+    occurredAt: { type: Date, required: true },
+  },
+  { timestamps: { createdAt: true, updatedAt: true } }
+);
 
 const commentSchema = new mongoose.Schema(
   {
@@ -23,6 +45,8 @@ const leadSchema = new mongoose.Schema(
     firstName: { type: String, required: true, trim: true },
     lastName: { type: String, required: true, trim: true },
     phone: { type: String, required: true, trim: true, unique: true },
+    phoneDigits: { type: String, trim: true, default: '', index: true },
+    firstCalledAt: { type: Date, default: null },
     email: {
       type: String,
       required: true,
@@ -63,6 +87,7 @@ const leadSchema = new mongoose.Schema(
       default: null,
     },
     comments: [commentSchema],
+    ringCentralEvents: [ringCentralEventSchema],
     extraFields: {
       type: Map,
       of: String,
@@ -78,5 +103,13 @@ leadSchema.index({ status: 1 });
 leadSchema.index({ source: 1 });
 leadSchema.index({ createdAt: -1 });
 leadSchema.index({ lastName: 1, firstName: 1 });
+leadSchema.index({ 'ringCentralEvents.ringCentralEventId': 1 });
+
+leadSchema.pre('save', function syncPhoneDigits(next) {
+  if (this.isModified('phone') || !this.phoneDigits) {
+    this.phoneDigits = normalizeUsPhoneDigits(this.phone);
+  }
+  next();
+});
 
 export const Lead = mongoose.model('Lead', leadSchema);

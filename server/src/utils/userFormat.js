@@ -17,6 +17,8 @@ export function formatUserResponse(user) {
     isSafetyManager: Boolean(obj.isSafetyManager),
     dispatchBoardId: obj.dispatchBoardId?._id || obj.dispatchBoardId || null,
     dispatchBoardName: obj.dispatchBoardId?.name || null,
+    ringCentralExtensionId: obj.ringCentralExtensionId || null,
+    ringCentralExtensionNumber: obj.ringCentralExtensionNumber || null,
     createdAt: obj.createdAt,
   };
 }

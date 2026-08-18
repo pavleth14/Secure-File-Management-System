@@ -14,6 +14,7 @@ import { getRoundRobinAssignment } from './roundRobinService.js';
 import { findDuplicateLead, handleLeadDuplicateError } from './leadService.js';
 import { formatLeadDateIso } from '../utils/leadDateFormat.js';
 import { notifyNewLeadSlack } from './slackNotificationService.js';
+import { backfillRingCentralEventsForLead } from './ringCentralEventService.js';
 
 export const SHEET_NAME_TO_DRIVER_TYPE = {
   tbf_form_company: 'Solo',
@@ -307,6 +308,10 @@ export async function ingestSheetLead(payload) {
       },
       { sourceLabel: presentation.slackSourceLabel, recruiterName: recruiter?.name }
     );
+
+    backfillRingCentralEventsForLead(lead._id).catch((err) => {
+      console.error('[ringcentral] sheets ingest backfill failed', lead._id, err.message);
+    });
 
     return {
       status: 'created',

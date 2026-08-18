@@ -421,7 +421,7 @@ async function getPipeline(baseFilter) {
 
 async function getResponseTimeAnalytics(baseFilter, dateFrom, dateTo) {
   const leads = await Lead.find(baseFilter)
-    .select('importedAt createdAt assignedRecruiter comments')
+    .select('importedAt createdAt assignedRecruiter firstCalledAt')
     .populate('assignedRecruiter', 'name')
     .lean();
 
@@ -430,7 +430,7 @@ async function getResponseTimeAnalytics(baseFilter, dateFrom, dateTo) {
   for (const lead of leads) {
     const result = computeResponseTimeMs(lead);
     if (!result) continue;
-    if (!isWithinRange(result.attemptingAt, dateFrom, dateTo)) continue;
+    if (!isWithinRange(result.calledAt, dateFrom, dateTo)) continue;
 
     const recruiter = lead.assignedRecruiter;
     durations.push({

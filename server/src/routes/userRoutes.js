@@ -177,6 +177,8 @@ router.put('/:id', async (req, res, next) => {
       isSafety,
       isSafetyManager,
       dispatchBoardId,
+      ringCentralExtensionId,
+      ringCentralExtensionNumber,
       replacementTeamLeaderUserId,
     } = req.body;
     const oldRole = target.role;
@@ -240,6 +242,17 @@ router.put('/:id', async (req, res, next) => {
       }
       if (isSafety !== undefined) target.isSafety = Boolean(isSafety);
       if (isSafetyManager !== undefined) target.isSafetyManager = Boolean(isSafetyManager);
+
+      if (ringCentralExtensionId !== undefined) {
+        target.ringCentralExtensionId = ringCentralExtensionId
+          ? String(ringCentralExtensionId).trim()
+          : null;
+      }
+      if (ringCentralExtensionNumber !== undefined) {
+        target.ringCentralExtensionNumber = ringCentralExtensionNumber
+          ? String(ringCentralExtensionNumber).trim()
+          : null;
+      }
 
       await syncDispatchUserOnUpdate(target, {
         isDispatcher,

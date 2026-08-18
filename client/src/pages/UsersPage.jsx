@@ -136,6 +136,15 @@ export default function UsersPage() {
     }
   };
 
+  const handleRingCentralFieldChange = async (userId, field, value) => {
+    try {
+      await api.put(`/users/${userId}`, { [field]: value.trim() || null });
+      await load();
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to update RingCentral mapping');
+    }
+  };
+
   const handleDispatchFlagChange = async (userId, field, value) => {
     try {
       await api.put(`/users/${userId}`, { [field]: value });
@@ -462,6 +471,48 @@ export default function UsersPage() {
                         />
                         Manager
                       </label>
+                      {(user.isRecruiter || user.isRecruitingManager) && (
+                        <div className="mt-2 space-y-1.5 border-t border-slate-200 pt-2 dark:border-slate-600">
+                          <label className="block text-xs text-slate-500 dark:text-slate-400">
+                            RC Extension ID
+                            <input
+                              type="text"
+                              defaultValue={user.ringCentralExtensionId || ''}
+                              placeholder="RingCentral extension ID"
+                              onBlur={(e) => {
+                                const next = e.target.value.trim();
+                                if (next !== (user.ringCentralExtensionId || '')) {
+                                  handleRingCentralFieldChange(
+                                    user.id,
+                                    'ringCentralExtensionId',
+                                    next
+                                  );
+                                }
+                              }}
+                              className="mt-0.5 w-full rounded border border-slate-300 px-2 py-1 text-xs dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
+                            />
+                          </label>
+                          <label className="block text-xs text-slate-500 dark:text-slate-400">
+                            RC Ext Number
+                            <input
+                              type="text"
+                              defaultValue={user.ringCentralExtensionNumber || ''}
+                              placeholder="e.g. 101"
+                              onBlur={(e) => {
+                                const next = e.target.value.trim();
+                                if (next !== (user.ringCentralExtensionNumber || '')) {
+                                  handleRingCentralFieldChange(
+                                    user.id,
+                                    'ringCentralExtensionNumber',
+                                    next
+                                  );
+                                }
+                              }}
+                              className="mt-0.5 w-full rounded border border-slate-300 px-2 py-1 text-xs dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
+                            />
+                          </label>
+                        </div>
+                      )}
                     </div>
                   </td>
                 )}

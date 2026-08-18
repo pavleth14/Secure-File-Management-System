@@ -1,7 +1,4 @@
 const NEW_LEAD_STATUS = 'New Lead';
-const ATTEMPTING_STATUS = 'Attempting';
-
-const STATUS_CHANGE_PATTERN = /^Status changed from (.+?) to (.+?)\./;
 
 export function getLeadStartTime(lead) {
   if (!lead) return null;
@@ -11,31 +8,20 @@ export function getLeadStartTime(lead) {
   return Number.isNaN(date.getTime()) ? null : date;
 }
 
-export function findFirstNewLeadToAttemptingAt(comments) {
-  if (!Array.isArray(comments) || comments.length === 0) {
-    return null;
-  }
+export function computeResponseTimeMs(lead) {
+  const start = getLeadStartTime(lead);
+  const calledAt = lead.firstCalledAt
+    ? lead.firstCalledAt instanceof Date
+      ? lead.firstCalledAt
+      : new Date(lead.firstCalledAt)
+    : null;
 
-  const sorted = [...comments].sort(
-    (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
-  );
+  if (!start || !calledAt || Number.isNaN(calledAt.getTime())) return null;
 
-  for (const comment of sorted) {
-    if (!comment?.isSystem) continue;
+  const durationMs = calledAt.getTime() - start.getTime();
+  if (durationMs < 0) return null;
 
-    const text = String(comment.text || '').trim();
-    const match = text.match(STATUS_CHANGE_PATTERN);
-    if (!match) continue;
-
-    const fromStatus = match[1].trim();
-    const toStatus = match[2].trim();
-    if (fromStatus === NEW_LEAD_STATUS && toStatus === ATTEMPTING_STATUS) {
-      const at = new Date(comment.createdAt);
-      return Number.isNaN(at.getTime()) ? null : at;
-    }
-  }
-
-  return null;
+  return { durationMs, calledAt, startAt: start };
 }
 
 export function isWithinRange(date, dateFrom, dateTo) {
@@ -46,13 +32,4 @@ export function isWithinRange(date, dateFrom, dateTo) {
   return true;
 }
 
-export function computeResponseTimeMs(lead) {
-  const start = getLeadStartTime(lead);
-  const attemptingAt = findFirstNewLeadToAttemptingAt(lead.comments);
-  if (!start || !attemptingAt) return null;
-
-  const durationMs = attemptingAt.getTime() - start.getTime();
-  if (durationMs < 0) return null;
-
-  return { durationMs, attemptingAt, startAt: start };
-}
+export { NEW_LEAD_STATUS };

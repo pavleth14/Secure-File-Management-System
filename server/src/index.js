@@ -20,9 +20,11 @@ import favoritesRoutes from './routes/favoritesRoutes.js';
 import dashboardRoutes from './routes/dashboardRoutes.js';
 import recruitingRoutes from './routes/recruitingRoutes.js';
 import dispatchRoutes from './routes/dispatchRoutes.js';
+import ringCentralWebhookRoutes from './routes/ringCentralWebhookRoutes.js';
 import { ensureDefaultLeadSources } from './services/leadSourceService.js';
 import { ensureDefaultLeadStatuses, migrateObsoleteLeadStatuses } from './services/leadStatusService.js';
 import { ensureRoundRobinDefaults } from './services/roundRobinService.js';
+import { initializeRingCentralIntegration } from './services/ringCentralSubscriptionService.js';
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -85,6 +87,7 @@ app.use('/api/logs', logRoutes);
 app.use('/api/my-files', myFilesRoutes);
 app.use('/api/favorites', favoritesRoutes);
 app.use('/api/dashboard', dashboardRoutes);
+app.use('/api/webhooks', ringCentralWebhookRoutes);
 app.use('/api/recruiting', recruitingRoutes);
 app.use('/api/dispatch', dispatchRoutes);
 
@@ -103,6 +106,7 @@ async function start() {
   if (roundRobinMigration.modifiedCount) {
     console.log('[RECRUITING] Applied default round-robin driver types', roundRobinMigration);
   }
+  await initializeRingCentralIntegration();
   const server = app.listen(PORT, '0.0.0.0', () => {
     console.log(`Server running on http://0.0.0.0:${PORT}`);
   });

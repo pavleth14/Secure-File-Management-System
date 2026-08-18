@@ -27,6 +27,11 @@ import { isRecruitingModuleUser, canMutateLead, canViewLeadOnRecruiterBoard } fr
 import { formatLeadDateIso } from '../utils/leadDateFormat.js';
 import { notifyNewLeadSlack } from './slackNotificationService.js';
 import { buildLeadSearchOrConditions } from '../utils/leadPhoneSearch.js';
+import { normalizeUsPhoneDigits } from '../utils/usPhone.js';
+import {
+  backfillRingCentralEventsForLead,
+  formatRingCentralEvent,
+} from './ringCentralEventService.js';
 
 const PERSONAL_INFO_FIELDS = ['firstName', 'lastName', 'phone', 'email', 'stateCity'];
 const IMMUTABLE_FIELDS = ['source', 'createdAt', 'updatedAt', 'importedAt'];
@@ -129,6 +134,8 @@ export function formatLead(lead) {
         }
       : null,
     comments: (lead.comments || []).map(formatComment),
+    ringCentralEvents: (lead.ringCentralEvents || []).map(formatRingCentralEvent),
+    firstCalledAt: lead.firstCalledAt || null,
     extraFields: formatExtraFields(lead.extraFields),
     createdAt: lead.createdAt,
     importedAt: lead.importedAt,
@@ -209,9 +216,10 @@ export async function assertNoDuplicateLead(email, phone, excludeLeadId = null) 
 
 async function populateLead(query) {
   return query
-    .populate('assignedRecruiter', 'name isRecruiter')
+    .populate('assignedRecruiter', 'name isRecruiter ringCentralExtensionId')
     .populate('archivedBy', 'name')
-    .populate('comments.author', 'name');
+    .populate('comments.author', 'name')
+    .populate('ringCentralEvents.author', 'name');
 }
 
 function escapeRegex(value) {
@@ -325,7 +333,7 @@ async function queryLeadListSortedByProcessingStep(filter, options) {
 
   let query = Lead.find({ _id: { $in: ids } });
   if (listMode) {
-    query = query.select({ comments: { $slice: -1 } });
+    query = query.select({ comments: { $slice: -1 }, ringCentralEvents: { $slice: -1 } });
   }
 
   const leads = await populateLead(query);
@@ -360,7 +368,7 @@ async function queryLeadList(filter, options) {
     .limit(safeLimit);
 
   if (listMode) {
-    query = query.select({ comments: { $slice: -1 } });
+    query = query.select({ comments: { $slice: -1 }, ringCentralEvents: { $slice: -1 } });
   }
 
   const [totalCount, leads] = await Promise.all([Lead.countDocuments(filter), populateLead(query)]);
@@ -427,7 +435,7 @@ export async function listActiveLeads(user, options = {}) {
 export async function getLeadById(leadId, { listMode = false } = {}) {
   let query = Lead.findById(leadId);
   if (listMode) {
-    query = query.select({ comments: { $slice: -1 } });
+    query = query.select({ comments: { $slice: -1 }, ringCentralEvents: { $slice: -1 } });
   }
   return populateLead(query);
 }
@@ -508,6 +516,7 @@ export async function createLead(user, payload, { req } = {}) {
     firstName: firstName.trim(),
     lastName: lastName.trim(),
     phone: normalizedPhone,
+    phoneDigits: normalizeUsPhoneDigits(normalizedPhone),
     email: normalizedEmail,
     stateCity: stateCity?.trim() || '',
     status: initialStatus,
@@ -537,6 +546,9 @@ export async function createLead(user, payload, { req } = {}) {
 
   const createdLead = await getLeadById(lead._id);
   notifyNewLeadSlack(createdLead, { sourceLabel: source });
+  backfillRingCentralEventsForLead(lead._id).catch((err) => {
+    console.error('[ringcentral] createLead backfill failed', lead._id, err.message);
+  });
 
   return createdLead;
 }

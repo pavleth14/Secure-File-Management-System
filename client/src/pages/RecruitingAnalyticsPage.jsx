@@ -258,7 +258,7 @@ export default function RecruitingAnalyticsPage() {
                 <AnalyticsStatCard
                   label="Average response time"
                   value={formatDurationMs(data.overview.averageResponseTimeMs)}
-                  hint={`New Lead → Attempting (${data.overview.averageResponseTimeCount ?? 0} in period)`}
+                  hint={`First outbound call by assigned recruiter (${data.overview.averageResponseTimeCount ?? 0} in period)`}
                 />
               </div>
 
@@ -269,8 +269,8 @@ export default function RecruitingAnalyticsPage() {
                       Average response time by recruiter
                     </h2>
                     <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                      Time from lead import/creation to first Attempting status (transitions in
-                      selected period).
+                      Time from lead import/creation to first outbound call by assigned recruiter
+                      (calls in selected period).
                     </p>
                   </div>
                   <table className="min-w-full divide-y divide-slate-200 dark:divide-slate-700">

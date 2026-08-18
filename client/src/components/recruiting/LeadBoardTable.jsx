@@ -3,6 +3,7 @@ import { formatDate } from '../../utils/format';
 import { formatLeadDisplayDate } from '../../utils/leadDateFormat';
 import { useContextMenu } from '../../hooks/useContextMenu';
 import LeadCommentsCell from './LeadCommentsCell';
+import LeadRingCentralCell from './LeadRingCentralCell';
 import LeadPhoneCell from './LeadPhoneCell';
 import LeadStatusIndicator from './LeadStatusIndicator';
 import { formatLeadDisplayEmail } from '../../utils/leadEmailFormat';
@@ -62,6 +63,7 @@ export default function LeadBoardTable({
 }) {
   const { openContextMenu, contextMenuNode } = useContextMenu();
   const [openCommentsLeadId, setOpenCommentsLeadId] = useState(null);
+  const [openRingCentralLeadId, setOpenRingCentralLeadId] = useState(null);
 
   const handleSort = (key) => {
     const resolvedKey =
@@ -76,6 +78,7 @@ export default function LeadBoardTable({
 
   const handleViewLead = (lead, options) => {
     setOpenCommentsLeadId(null);
+    setOpenRingCentralLeadId(null);
     onViewLead?.(lead, options);
   };
 
@@ -127,7 +130,7 @@ export default function LeadBoardTable({
   const showRecruiterAfterStatus = showRecruiterColumn && recruiterColumnAfterStatus;
 
   const extraColumns =
-    (showRecruiterColumn ? 1 : 0) + (showArchiveColumns ? 2 : 0);
+    (showRecruiterColumn ? 1 : 0) + (showArchiveColumns ? 2 : 0) + 1;
 
   const recruiterHeader = showRecruiterColumn ? (
     <SortableHeader
@@ -181,6 +184,9 @@ export default function LeadBoardTable({
               )}
               <th className="px-4 py-3 text-left text-xs font-medium uppercase text-slate-500 dark:text-slate-400">
                 Comments
+              </th>
+              <th className="px-4 py-3 text-left text-xs font-medium uppercase text-slate-500 dark:text-slate-400">
+                RingCentral
               </th>
             </tr>
           </thead>
@@ -255,9 +261,10 @@ export default function LeadBoardTable({
                   <LeadCommentsCell
                     lead={lead}
                     open={openCommentsLeadId === lead.id}
-                    onToggle={(leadId) =>
-                      setOpenCommentsLeadId((current) => (current === leadId ? null : leadId))
-                    }
+                    onToggle={(leadId) => {
+                      setOpenRingCentralLeadId(null);
+                      setOpenCommentsLeadId((current) => (current === leadId ? null : leadId));
+                    }}
                     onClose={() => setOpenCommentsLeadId(null)}
                     currentUserId={currentUserId}
                     onEditComment={readOnly ? undefined : onEditComment}
@@ -268,6 +275,15 @@ export default function LeadBoardTable({
                     }
                     onViewLead={onViewLead ? handleViewLead : undefined}
                     readOnly={readOnly}
+                  />
+                  <LeadRingCentralCell
+                    lead={lead}
+                    open={openRingCentralLeadId === lead.id}
+                    onToggle={(leadId) => {
+                      setOpenCommentsLeadId(null);
+                      setOpenRingCentralLeadId((current) => (current === leadId ? null : leadId));
+                    }}
+                    onClose={() => setOpenRingCentralLeadId(null)}
                   />
                 </tr>
               ))
