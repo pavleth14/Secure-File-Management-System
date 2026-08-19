@@ -20,7 +20,6 @@ import LeadSourcesPage from './pages/LeadSourcesPage';
 import LeadStatusesPage from './pages/LeadStatusesPage';
 import OldLeadsPage from './pages/OldLeadsPage';
 import RoundRobinSettingsPage from './pages/RoundRobinSettingsPage';
-import RecruitingAnalyticsPage from './pages/RecruitingAnalyticsPage';
 import TrucksPage from './pages/safety/TrucksPage';
 import TrailersPage from './pages/safety/TrailersPage';
 import DriversPage from './pages/safety/DriversPage';
@@ -198,14 +197,6 @@ export default function App() {
               <RecruitingManagerGuard>
                 <RoundRobinSettingsPage />
               </RecruitingManagerGuard>
-            </RecruitingAccessGuard>
-          }
-        />
-        <Route
-          path="/recruiting/analytics"
-          element={
-            <RecruitingAccessGuard>
-              <RecruitingAnalyticsPage />
             </RecruitingAccessGuard>
           }
         />
