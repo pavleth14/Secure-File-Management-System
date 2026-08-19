@@ -18,6 +18,7 @@ import {
 import { useLeadStatuses } from '../../hooks/useRecruitingData';
 import LeadStatusIndicator from './LeadStatusIndicator';
 import ProcessingProgressBar from './ProcessingProgressBar';
+import { resolveLeadProcessingStep } from '../../utils/processingSteps';
 import {
   formatLeadDisplayEmail,
   normalizeLeadEmailForEdit,
@@ -52,7 +53,7 @@ function parseRejectionDraft(lead) {
 function buildDraft(lead) {
   return {
     status: lead?.status || '',
-    processingStep: lead?.processingStep || '',
+    processingStep: resolveLeadProcessingStep(lead) || '',
     driverType: lead?.driverType || '',
     firstName: lead?.firstName || '',
     lastName: lead?.lastName || '',
@@ -91,7 +92,7 @@ function getDraftChanges(original, draft) {
     changes.rejectionReason = null;
   }
 
-  const originalStep = original.processingStep || '';
+  const originalStep = resolveLeadProcessingStep(original) || '';
   const draftStep = draft.processingStep || '';
 
   if (
@@ -158,6 +159,12 @@ export default function LeadViewModal({
   const hasProcessingHistory = (displayLead?.processingStepHistory || []).length > 0;
   const canEditProcessingSteps = isProcessing && fieldPermissions.status;
   const showProcessingSection = isProcessing || hasProcessingHistory;
+  const effectiveProcessingStep = useMemo(() => {
+    if (draft.processingStep) {
+      return draft.processingStep;
+    }
+    return resolveLeadProcessingStep(displayLead);
+  }, [draft.processingStep, displayLead]);
 
   useEffect(() => {
     setFullLead(lead);
@@ -344,6 +351,7 @@ export default function LeadViewModal({
                 type="select"
                 options={statusOptions}
                 statusColorMap={statusColorMap}
+                processingStep={effectiveProcessingStep}
               />
               {showProcessingSection && (
                 <div className="sm:col-span-2">
@@ -351,7 +359,7 @@ export default function LeadViewModal({
                     Processing progress
                   </dt>
                   <ProcessingProgressBar
-                    value={draft.processingStep || null}
+                    value={effectiveProcessingStep || null}
                     onChange={canEditProcessingSteps ? handleProcessingStepChange : undefined}
                     readOnly={!canEditProcessingSteps}
                     stepHistory={displayLead.processingStepHistory || []}
@@ -588,6 +596,7 @@ function EditableDetailField({
   type = 'text',
   options = [],
   statusColorMap = {},
+  processingStep = null,
   className = '',
 }) {
   return (
@@ -636,7 +645,11 @@ function EditableDetailField({
         )
       ) : field === 'status' ? (
         <dd className="mt-1 text-sm text-slate-900 dark:text-slate-100">
-          <LeadStatusIndicator statusName={value} statusColorMap={statusColorMap} />
+          <LeadStatusIndicator
+            statusName={value}
+            processingStep={processingStep}
+            statusColorMap={statusColorMap}
+          />
         </dd>
       ) : (
         <dd className="mt-1 text-sm text-slate-900 dark:text-slate-100">
