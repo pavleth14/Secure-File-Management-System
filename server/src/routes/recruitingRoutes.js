@@ -18,6 +18,7 @@ import sourceRoutes from './sourceRoutes.js';
 import statusRoutes from './statusRoutes.js';
 import oldLeadRoutes from './oldLeadRoutes.js';
 import roundRobinRoutes from './roundRobinRoutes.js';
+import analyticsRoutes from './analyticsRoutes.js';
 import sheetsIngestRoutes from './sheetsIngestRoutes.js';
 
 const router = Router();
@@ -148,5 +149,6 @@ router.use('/old-leads', oldLeadRoutes);
 router.use('/sources', sourceRoutes);
 router.use('/statuses', statusRoutes);
 router.use('/round-robin', roundRobinRoutes);
+router.use('/analytics', analyticsRoutes);
 
 export default router;

@@ -1,12 +1,47 @@
 import { PROCESSING_STEPS } from '../../constants/recruitingConstants';
 import { canSelectProcessingStep, getProcessingStepIndex } from '../../utils/processingSteps';
+import { formatChicagoSavedAt, formatDurationMs } from '../../utils/recruitingAnalytics';
+
+function buildLatestSaveMap(stepHistory) {
+  const map = {};
+  for (const entry of stepHistory || []) {
+    const existing = map[entry.stepKey];
+    if (!existing || new Date(entry.savedAt) > new Date(existing.savedAt)) {
+      map[entry.stepKey] = entry;
+    }
+  }
+  return map;
+}
+
+function buildSortedHistory(stepHistory) {
+  return [...(stepHistory || [])].sort(
+    (a, b) => new Date(a.savedAt).getTime() - new Date(b.savedAt).getTime()
+  );
+}
+
+function findPreviousSave(sortedHistory, savedAt) {
+  const targetTime = new Date(savedAt).getTime();
+  let previous = null;
+  for (const entry of sortedHistory) {
+    const entryTime = new Date(entry.savedAt).getTime();
+    if (entryTime < targetTime) {
+      previous = entry;
+    } else {
+      break;
+    }
+  }
+  return previous;
+}
 
 export default function ProcessingProgressBar({
   value,
   onChange,
   readOnly = false,
+  stepHistory = [],
 }) {
   const currentIndex = getProcessingStepIndex(value);
+  const latestSaveByStep = buildLatestSaveMap(stepHistory);
+  const sortedHistory = buildSortedHistory(stepHistory);
 
   const handleStepClick = (stepKey) => {
     if (readOnly || !onChange) return;
@@ -18,11 +53,11 @@ export default function ProcessingProgressBar({
     <div className="mt-3 overflow-x-auto pb-1">
       <div className="relative min-w-[720px] px-2 pt-2">
         <div
-          className="absolute left-6 right-6 top-[1.125rem] h-0.5 bg-slate-200 dark:bg-slate-600"
+          className="absolute left-6 right-6 top-[3.75rem] h-0.5 bg-slate-200 dark:bg-slate-600"
           aria-hidden
         />
         <div
-          className="absolute left-6 top-[1.125rem] h-0.5 bg-brand-500 transition-all duration-300 dark:bg-brand-400"
+          className="absolute left-6 top-[3.75rem] h-0.5 bg-brand-500 transition-all duration-300 dark:bg-brand-400"
           style={{
             width:
               currentIndex >= 0
@@ -38,12 +73,37 @@ export default function ProcessingProgressBar({
             const isCurrent = index === currentIndex;
             const isSelectable =
               !readOnly && onChange && canSelectProcessingStep(value, step.key);
+            const savedEntry = latestSaveByStep[step.key];
+            const previousSave = savedEntry
+              ? findPreviousSave(sortedHistory, savedEntry.savedAt)
+              : null;
+            const durationMs = savedEntry && previousSave
+              ? new Date(savedEntry.savedAt).getTime() - new Date(previousSave.savedAt).getTime()
+              : null;
 
             return (
               <li
                 key={step.key}
                 className="flex w-[88px] flex-col items-center text-center"
               >
+                <div className="mb-2 min-h-[2.75rem] w-full px-0.5">
+                  {savedEntry ? (
+                    <div className="text-[9px] leading-tight text-slate-500 dark:text-slate-400">
+                      <p className="font-medium text-slate-600 dark:text-slate-300">
+                        Step: {step.label}
+                      </p>
+                      <p>Saved: {formatChicagoSavedAt(savedEntry.savedAt)}</p>
+                      {durationMs != null && durationMs >= 0 && (
+                        <p className="mt-0.5 text-brand-600 dark:text-brand-400">
+                          +{formatDurationMs(durationMs)} from previous
+                        </p>
+                      )}
+                    </div>
+                  ) : (
+                    <span className="invisible text-[9px]">—</span>
+                  )}
+                </div>
+
                 <button
                   type="button"
                   onClick={() => handleStepClick(step.key)}

@@ -40,6 +40,19 @@ const commentSchema = new mongoose.Schema(
   { timestamps: { createdAt: true, updatedAt: true } }
 );
 
+const processingStepHistorySchema = new mongoose.Schema(
+  {
+    stepKey: { type: String, required: true, trim: true },
+    savedAt: { type: Date, required: true },
+    savedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      required: true,
+    },
+  },
+  { timestamps: false }
+);
+
 const leadSchema = new mongoose.Schema(
   {
     firstName: { type: String, required: true, trim: true },
@@ -62,6 +75,7 @@ const leadSchema = new mongoose.Schema(
     rejectionReason: { type: String, trim: true, default: null },
     processingStep: { type: String, trim: true, default: null },
     processingStepIndex: { type: Number, default: null },
+    processingStepHistory: { type: [processingStepHistorySchema], default: [] },
     driverType: {
       type: String,
       enum: DRIVER_TYPES,

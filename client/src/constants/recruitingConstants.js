@@ -1,6 +1,7 @@
 export const LEAD_STATUSES = [
   'Approved',
   'Attempting',
+  "Couldn't Reach",
   'Female',
   'Hired',
   'Invalid Lead',
@@ -12,6 +13,18 @@ export const LEAD_STATUSES = [
   'Rejected',
   'SAP',
 ];
+
+export const RECRUITER_DISQUALIFICATION_STATUSES = [
+  "Couldn't Reach",
+  'Female',
+  'Invalid Lead',
+  'Local Driver',
+  'No Experience',
+  'Not Interested',
+  'SAP',
+];
+
+export const SAFETY_DISQUALIFICATION_STATUSES = ['Rejected'];
 
 export const DRIVER_TYPES = ['Local', 'Solo', 'Team', 'Owner Operator'];
 

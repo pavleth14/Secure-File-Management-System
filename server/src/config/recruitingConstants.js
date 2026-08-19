@@ -1,6 +1,7 @@
 export const LEAD_STATUSES = [
   'Approved',
   'Attempting',
+  "Couldn't Reach",
   'Female',
   'Hired',
   'Invalid Lead',
@@ -12,6 +13,20 @@ export const LEAD_STATUSES = [
   'Rejected',
   'SAP',
 ];
+
+/** Recruiter-side disqualification statuses for analytics. */
+export const RECRUITER_DISQUALIFICATION_STATUSES = [
+  "Couldn't Reach",
+  'Female',
+  'Invalid Lead',
+  'Local Driver',
+  'No Experience',
+  'Not Interested',
+  'SAP',
+];
+
+/** Safety-side disqualification statuses for analytics. */
+export const SAFETY_DISQUALIFICATION_STATUSES = ['Rejected'];
 
 export const REMOVED_LEAD_STATUSES = [
   'Considering The Offer',
@@ -36,6 +51,7 @@ export const DEFAULT_SYSTEM_STATUS_COLORS = {
   'No Experience': '#64748B',
   SAP: '#64748B',
   'Local Driver': '#64748B',
+  "Couldn't Reach": '#64748B',
 };
 
 /** Default isActive for system statuses on first insert only. */
@@ -52,6 +68,7 @@ export const DEFAULT_SYSTEM_STATUS_ACTIVITY = {
   'No Experience': false,
   SAP: false,
   'Local Driver': false,
+  "Couldn't Reach": false,
 };
 
 export const DRIVER_TYPES = ['Local', 'Solo', 'Team', 'Owner Operator'];

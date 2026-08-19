@@ -105,6 +105,19 @@ function formatExtraFields(extraFields) {
   return {};
 }
 
+function formatProcessingStepHistoryEntry(entry) {
+  const savedBy = entry.savedBy;
+  return {
+    id: entry._id,
+    stepKey: entry.stepKey,
+    savedAt: entry.savedAt,
+    savedBy: {
+      id: savedBy?._id || savedBy,
+      name: savedBy?.name || null,
+    },
+  };
+}
+
 export function formatLead(lead) {
   const recruiter = lead.assignedRecruiter;
   const formatted = {
@@ -118,6 +131,7 @@ export function formatLead(lead) {
     rejectionReason: lead.rejectionReason || null,
     processingStep: lead.processingStep || null,
     processingStepIndex: lead.processingStepIndex ?? null,
+    processingStepHistory: (lead.processingStepHistory || []).map(formatProcessingStepHistoryEntry),
     driverType: lead.driverType,
     source: lead.source,
     date: formatLeadDateIso(lead.date, lead.createdAt) || '',
@@ -219,7 +233,8 @@ async function populateLead(query) {
     .populate('assignedRecruiter', 'name isRecruiter ringCentralExtensionId')
     .populate('archivedBy', 'name')
     .populate('comments.author', 'name')
-    .populate('ringCentralEvents.author', 'name');
+    .populate('ringCentralEvents.author', 'name')
+    .populate('processingStepHistory.savedBy', 'name');
 }
 
 function escapeRegex(value) {
@@ -693,6 +708,16 @@ export async function updateLead(user, lead, updates, { req } = {}) {
 
     if (nextStep !== previousStep) {
       if (nextStep) {
+        const savedAt = new Date();
+        if (!Array.isArray(lead.processingStepHistory)) {
+          lead.processingStepHistory = [];
+        }
+        lead.processingStepHistory.push({
+          stepKey: nextStep,
+          savedAt,
+          savedBy: user._id,
+        });
+
         if (req) {
           await auditLeadProcessingStepChanged({
             user,

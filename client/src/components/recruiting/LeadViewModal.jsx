@@ -155,9 +155,12 @@ export default function LeadViewModal({
   const canSave = Boolean(onSave) && !readOnly;
   const isRejected = draft.status === 'Rejected';
   const isProcessing = draft.status === 'Processing';
+  const hasProcessingHistory = (displayLead?.processingStepHistory || []).length > 0;
   const showProcessingEditable =
     isProcessing && fieldPermissions.status && Boolean(editingFields.status);
   const showProcessingReadOnly = isProcessing && !showProcessingEditable;
+  const showProcessingSection =
+    isProcessing || hasProcessingHistory;
 
   useEffect(() => {
     setFullLead(lead);
@@ -345,7 +348,7 @@ export default function LeadViewModal({
                 options={statusOptions}
                 statusColorMap={statusColorMap}
               />
-              {(showProcessingEditable || showProcessingReadOnly) && (
+              {showProcessingSection && (
                 <div className="sm:col-span-2">
                   <dt className="text-xs font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400">
                     Processing progress
@@ -354,6 +357,7 @@ export default function LeadViewModal({
                     value={draft.processingStep || null}
                     onChange={showProcessingEditable ? handleProcessingStepChange : undefined}
                     readOnly={!showProcessingEditable}
+                    stepHistory={displayLead.processingStepHistory || []}
                   />
                 </div>
               )}

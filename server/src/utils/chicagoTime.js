@@ -83,3 +83,35 @@ export function formatChicagoDisplay(value) {
     minute: '2-digit',
   }).format(date);
 }
+
+/** Start of calendar day in Chicago (00:00:00.000). dateStr: YYYY-MM-DD */
+export function chicagoStartOfDay(dateStr) {
+  return parseChicagoDateTime(dateStr, '00:00');
+}
+
+/** End of calendar day in Chicago (23:59:59.999). dateStr: YYYY-MM-DD */
+export function chicagoEndOfDay(dateStr) {
+  const end = parseChicagoDateTime(dateStr, '23:59');
+  return new Date(end.getTime() + 59 * 1000 + 999);
+}
+
+export function formatChicagoAnalyticsDisplay(value) {
+  if (!value) return '';
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+  const formatted = new Intl.DateTimeFormat('en-US', {
+    timeZone: DISPATCH_TIMEZONE,
+    month: '2-digit',
+    day: '2-digit',
+    year: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true,
+  }).formatToParts(date);
+  const mapped = Object.fromEntries(
+    formatted.filter((part) => part.type !== 'literal').map((part) => [part.type, part.value])
+  );
+  return `${mapped.month}/${mapped.day}/${mapped.year} at ${mapped.hour}:${mapped.minute} ${mapped.dayPeriod}`;
+}
+
+export { DISPATCH_TIMEZONE };
