@@ -179,6 +179,139 @@ async function getProcessingStepIntervalAnalytics(from, to) {
   };
 }
 
+function buildProcessingEpisodesFromEvents(events) {
+  const episodes = [];
+  let enteredAt = null;
+
+  for (const event of events) {
+    const oldStatus = event.oldValues?.status || null;
+    const newStatus = event.newValues?.status || null;
+    const timestamp = new Date(event.timestamp);
+
+    if (newStatus === 'Processing' && oldStatus !== 'Processing') {
+      enteredAt = timestamp;
+      continue;
+    }
+
+    if (oldStatus === 'Processing' && newStatus !== 'Processing' && enteredAt) {
+      episodes.push({
+        enteredAt,
+        exitedAt: timestamp,
+        durationMs: timestamp.getTime() - enteredAt.getTime(),
+      });
+      enteredAt = null;
+    }
+  }
+
+  return episodes;
+}
+
+async function getProcessingStatusDurationAnalytics(from, to) {
+  const exitEvents = await AuditLog.find({
+    action: AUDIT_ACTIONS.LEAD_STATUS_CHANGE,
+    category: AUDIT_CATEGORIES.RECRUITING,
+    timestamp: { $gte: from, $lte: to },
+    'oldValues.status': 'Processing',
+    'newValues.status': { $ne: 'Processing' },
+  })
+    .select('targetId timestamp')
+    .lean();
+
+  if (!exitEvents.length) {
+    return {
+      overallAverageMs: null,
+      episodeCount: 0,
+      byRecruiter: [],
+    };
+  }
+
+  const leadIds = [...new Set(exitEvents.map((event) => String(event.targetId)))];
+  const exitKeySet = new Set(
+    exitEvents.map((event) => `${event.targetId}:${new Date(event.timestamp).getTime()}`)
+  );
+
+  const [statusEvents, leads] = await Promise.all([
+    AuditLog.find({
+      targetId: { $in: leadIds },
+      action: AUDIT_ACTIONS.LEAD_STATUS_CHANGE,
+      category: AUDIT_CATEGORIES.RECRUITING,
+    })
+      .select('targetId timestamp oldValues newValues')
+      .sort({ timestamp: 1 })
+      .lean(),
+    Lead.find({ _id: { $in: leadIds } })
+      .select('assignedRecruiter')
+      .lean(),
+  ]);
+
+  const eventsByLead = new Map();
+  for (const event of statusEvents) {
+    const leadId = String(event.targetId);
+    if (!eventsByLead.has(leadId)) {
+      eventsByLead.set(leadId, []);
+    }
+    eventsByLead.get(leadId).push(event);
+  }
+
+  const recruiterByLead = Object.fromEntries(
+    leads.map((lead) => [lead._id.toString(), lead.assignedRecruiter?.toString?.() || String(lead.assignedRecruiter)])
+  );
+
+  const recruiterTotals = new Map();
+  const allDurations = [];
+
+  for (const [leadId, events] of eventsByLead.entries()) {
+    const episodes = buildProcessingEpisodesFromEvents(events);
+    for (const episode of episodes) {
+      const exitKey = `${leadId}:${episode.exitedAt.getTime()}`;
+      if (!exitKeySet.has(exitKey)) {
+        continue;
+      }
+
+      allDurations.push(episode.durationMs);
+      const recruiterId = recruiterByLead[leadId];
+      if (!recruiterId) {
+        continue;
+      }
+      if (!recruiterTotals.has(recruiterId)) {
+        recruiterTotals.set(recruiterId, []);
+      }
+      recruiterTotals.get(recruiterId).push(episode.durationMs);
+    }
+  }
+
+  const recruiterIds = [...recruiterTotals.keys()];
+  const recruiters = recruiterIds.length
+    ? await User.find({ _id: { $in: recruiterIds } }).select('name').lean()
+    : [];
+  const recruiterNameMap = Object.fromEntries(
+    recruiters.map((recruiter) => [recruiter._id.toString(), recruiter.name])
+  );
+
+  const byRecruiter = recruiterIds
+    .map((recruiterId) => {
+      const durations = recruiterTotals.get(recruiterId) || [];
+      const totalMs = durations.reduce((sum, value) => sum + value, 0);
+      return {
+        recruiterId,
+        recruiterName: recruiterNameMap[recruiterId] || 'Unknown',
+        episodeCount: durations.length,
+        averageMs: durations.length ? Math.round(totalMs / durations.length) : null,
+      };
+    })
+    .sort((a, b) => a.recruiterName.localeCompare(b.recruiterName));
+
+  const overallTotalMs = allDurations.reduce((sum, value) => sum + value, 0);
+
+  return {
+    overallAverageMs: allDurations.length
+      ? Math.round(overallTotalMs / allDurations.length)
+      : null,
+    episodeCount: allDurations.length,
+    byRecruiter,
+  };
+}
+
 export async function getRecruitingAnalytics(user, options = {}) {
   assertAnalyticsAccess(user);
 
@@ -194,6 +327,7 @@ export async function getRecruitingAnalytics(user, options = {}) {
     ]);
 
   const processingStepIntervals = await getProcessingStepIntervalAnalytics(from, to);
+  const processingStatusDuration = await getProcessingStatusDurationAnalytics(from, to);
 
   return {
     period: {
@@ -214,5 +348,6 @@ export async function getRecruitingAnalytics(user, options = {}) {
     },
     processingSteps,
     processingStepIntervals,
+    processingStatusDuration,
   };
 }

@@ -173,6 +173,63 @@ export default function RecruitingAnalyticsPage() {
                 hint="Status entry events in selected period"
               />
             </div>
+
+            <div className="mt-6 border-t border-slate-200 pt-6 dark:border-slate-700">
+              <h3 className="mb-1 text-sm font-semibold text-slate-800 dark:text-slate-100">
+                Average time in Processing status
+              </h3>
+              <p className="mb-4 text-sm text-slate-500 dark:text-slate-400">
+                From entering Processing until switching to another status. Counted when the exit
+                happens in the selected period.
+              </p>
+              <div className="mb-4 grid gap-4 sm:grid-cols-2">
+                <StatCard
+                  label="Overall average"
+                  value={
+                    data.processingStatusDuration?.overallAverageMs != null
+                      ? formatDurationMs(data.processingStatusDuration.overallAverageMs)
+                      : '—'
+                  }
+                  hint={`${data.processingStatusDuration?.episodeCount ?? 0} completed episodes`}
+                />
+              </div>
+
+              {(data.processingStatusDuration?.byRecruiter || []).length === 0 ? (
+                <p className="text-sm text-slate-500 dark:text-slate-400">
+                  No Processing status exits in this period.
+                </p>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="min-w-full text-left text-sm">
+                    <thead>
+                      <tr className="border-b border-slate-200 text-xs uppercase tracking-wide text-slate-500 dark:border-slate-700 dark:text-slate-400">
+                        <th className="px-3 py-2 font-medium">Recruiter</th>
+                        <th className="px-3 py-2 font-medium">Average time in Processing</th>
+                        <th className="px-3 py-2 font-medium">Episodes</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {data.processingStatusDuration.byRecruiter.map((row) => (
+                        <tr
+                          key={row.recruiterId}
+                          className="border-b border-slate-100 dark:border-slate-700/80"
+                        >
+                          <td className="px-3 py-2 text-slate-800 dark:text-slate-100">
+                            {row.recruiterName}
+                          </td>
+                          <td className="px-3 py-2 text-slate-800 dark:text-slate-100">
+                            {row.averageMs != null ? formatDurationMs(row.averageMs) : '—'}
+                          </td>
+                          <td className="px-3 py-2 text-slate-600 dark:text-slate-300">
+                            {row.episodeCount}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
           </Section>
 
           <Section title="Disqualified Drivers">
