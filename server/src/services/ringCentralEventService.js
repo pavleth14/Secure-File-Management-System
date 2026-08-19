@@ -26,7 +26,8 @@ export function formatCallDuration(seconds) {
   const minutes = Math.floor(safe / 60);
   const secs = safe % 60;
   if (minutes === 0) return `${secs}s`;
-  return `${minutes}m ${String(secs).padStart(2, '0')}s`;
+  if (secs === 0) return `${minutes} min`;
+  return `${minutes} min ${secs}s`;
 }
 
 function formatRecruiterLabel(userDoc, extensionId) {
@@ -104,9 +105,14 @@ function getExtensionFromCallRecord(record) {
 
 function parseCallLogRecord(record) {
   const direction = record?.direction === 'Inbound' ? 'Inbound' : 'Outbound';
-  const durationSec = record?.durationMs
-    ? Math.round(record.durationMs / 1000)
-    : Math.round(Number(record?.duration) || 0);
+  let durationSec = 0;
+  if (record?.durationMs != null && Number(record.durationMs) > 0) {
+    durationSec = Math.round(Number(record.durationMs) / 1000);
+  } else if (record?.duration != null && Number(record.duration) > 0) {
+    durationSec = Math.round(Number(record.duration));
+  } else if (record?.billing?.duration != null && Number(record.billing.duration) > 0) {
+    durationSec = Math.round(Number(record.billing.duration));
+  }
   const result = record?.result || record?.reason || 'Unknown';
   const extensionId = getExtensionFromCallRecord(record);
   const externalPhone = getExternalPhoneFromCallRecord(record);
@@ -148,6 +154,97 @@ function parseSmsRecord(record) {
   };
 }
 
+function extractPartyDurationSec(party, body) {
+  if (party?.durationMs != null && Number(party.durationMs) > 0) {
+    return Math.round(Number(party.durationMs) / 1000);
+  }
+  if (party?.duration != null && Number(party.duration) > 0) {
+    return Math.round(Number(party.duration));
+  }
+  if (party?.status?.durationMs != null && Number(party.status.durationMs) > 0) {
+    return Math.round(Number(party.status.durationMs) / 1000);
+  }
+  if (party?.status?.duration != null && Number(party.status.duration) > 0) {
+    return Math.round(Number(party.status.duration));
+  }
+  if (body?.durationMs != null && Number(body.durationMs) > 0) {
+    return Math.round(Number(body.durationMs) / 1000);
+  }
+  if (body?.duration != null && Number(body.duration) > 0) {
+    return Math.round(Number(body.duration));
+  }
+
+  const startRaw =
+    party?.startTime || party?.status?.startTime || party?.creationTime || body?.creationTime;
+  const endRaw =
+    party?.endTime ||
+    party?.status?.endTime ||
+    body?.eventTime ||
+    body?.lastModifiedTime ||
+    body?.timestamp;
+
+  if (startRaw && endRaw) {
+    const durationMs = new Date(endRaw).getTime() - new Date(startRaw).getTime();
+    if (durationMs > 0) {
+      return Math.round(durationMs / 1000);
+    }
+  }
+
+  return 0;
+}
+
+async function resolveCallDurationFromLog({
+  externalPhone,
+  telephonySessionId,
+  direction,
+  occurredAt,
+}) {
+  if (!externalPhone || !isRingCentralEnabled()) {
+    return 0;
+  }
+
+  const phoneE164 = toE164UsPhone(externalPhone);
+  if (!phoneE164) return 0;
+
+  const anchor = occurredAt ? new Date(occurredAt) : new Date();
+  const dateFrom = new Date(anchor.getTime() - 15 * 60 * 1000).toISOString();
+  const dateTo = new Date(anchor.getTime() + 5 * 60 * 1000).toISOString();
+
+  try {
+    const records = await fetchCallLogRecords({
+      phoneNumber: phoneE164,
+      dateFrom,
+      dateTo,
+      perPage: 50,
+    });
+
+    if (!records.length) return 0;
+
+    let match = null;
+    if (telephonySessionId) {
+      match = records.find(
+        (record) => String(record.telephonySessionId || '') === String(telephonySessionId)
+      );
+    }
+
+    if (!match) {
+      match = records.find((record) => {
+        const recordDirection = record?.direction === 'Inbound' ? 'Inbound' : 'Outbound';
+        return recordDirection === direction;
+      });
+    }
+
+    if (!match) {
+      match = records[0];
+    }
+
+    return parseCallLogRecord(match).durationSec;
+  } catch (err) {
+    console.error('[ringcentral] call log duration lookup failed', err.message);
+    return 0;
+  }
+}
+
 async function appendEventToLead(lead, eventData, { skipActiveCheck = false } = {}) {
   if (!skipActiveCheck && !(await isLeadInActiveStatus(lead))) {
     return { added: false, reason: 'inactive_status' };
@@ -157,10 +254,28 @@ async function appendEventToLead(lead, eventData, { skipActiveCheck = false } = 
     return { added: false, reason: 'missing_event_id' };
   }
 
-  const alreadyExists = (lead.ringCentralEvents || []).some(
+  const alreadyExists = (lead.ringCentralEvents || []).find(
     (event) => event.ringCentralEventId === eventData.ringCentralEventId
   );
   if (alreadyExists) {
+    if (
+      eventData.type === 'call' &&
+      eventData.durationSec > (alreadyExists.durationSec || 0)
+    ) {
+      const recruiter = await findUserByRingCentralExtension(eventData.extensionId, null);
+      const recruiterName = formatRecruiterLabel(recruiter, eventData.extensionId);
+      alreadyExists.durationSec = eventData.durationSec;
+      alreadyExists.result = eventData.result || alreadyExists.result;
+      alreadyExists.text = buildCallEventText({
+        direction: eventData.direction,
+        durationSec: eventData.durationSec,
+        result: alreadyExists.result,
+        recruiterName,
+      });
+      alreadyExists.updatedAt = new Date();
+      await lead.save();
+      return { added: true, updated: true };
+    }
     return { added: false, reason: 'duplicate' };
   }
 
@@ -275,18 +390,24 @@ async function processTelephonySessionBody(body) {
       direction === 'Outbound' ? party?.to?.phoneNumber : party?.from?.phoneNumber;
 
     const extensionId = getExtensionFromParty(party, direction);
-    let durationSec = 0;
-    if (party?.durationMs) {
-      durationSec = Math.round(party.durationMs / 1000);
-    } else if (party?.duration) {
-      durationSec = Math.round(party.duration);
-    }
+    let durationSec = extractPartyDurationSec(party, body);
 
     const result =
       party?.reason ||
       (party?.missedCall ? 'Missed' : party?.status?.code) ||
       body?.reason ||
       'Unknown';
+
+    const occurredAt = body?.eventTime ? new Date(body.eventTime) : new Date();
+
+    if (durationSec === 0 && externalPhone) {
+      durationSec = await resolveCallDurationFromLog({
+        externalPhone,
+        telephonySessionId,
+        direction,
+        occurredAt,
+      });
+    }
 
     const eventId = telephonySessionId
       ? `call:session:${telephonySessionId}:${extensionId || 'x'}:${direction}`
@@ -300,7 +421,7 @@ async function processTelephonySessionBody(body) {
         result,
         extensionId,
         externalPhone,
-        occurredAt: body?.eventTime ? new Date(body.eventTime) : new Date(),
+        occurredAt,
         ringCentralEventId: eventId,
       },
       { skipActiveCheck: false }
@@ -365,13 +486,24 @@ export function formatRingCentralEvent(event) {
     (authorDoc && typeof authorDoc === 'object' && authorDoc.name ? authorDoc.name : null) ||
     'Unknown';
 
+  const durationSec = event.durationSec || 0;
+  const text =
+    event.type === 'call'
+      ? buildCallEventText({
+          direction: event.direction,
+          durationSec,
+          result: event.result,
+          recruiterName: authorName,
+        })
+      : event.text;
+
   return {
     id: event._id,
     type: event.type,
     direction: event.direction,
-    durationSec: event.durationSec,
+    durationSec,
     result: event.result,
-    text: event.text,
+    text,
     author: authorName,
     authorId: authorDoc?._id || authorDoc || null,
     isSystem: Boolean(event.isSystem),

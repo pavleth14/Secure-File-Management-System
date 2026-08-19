@@ -156,11 +156,8 @@ export default function LeadViewModal({
   const isRejected = draft.status === 'Rejected';
   const isProcessing = draft.status === 'Processing';
   const hasProcessingHistory = (displayLead?.processingStepHistory || []).length > 0;
-  const showProcessingEditable =
-    isProcessing && fieldPermissions.status && Boolean(editingFields.status);
-  const showProcessingReadOnly = isProcessing && !showProcessingEditable;
-  const showProcessingSection =
-    isProcessing || hasProcessingHistory;
+  const canEditProcessingSteps = isProcessing && fieldPermissions.status;
+  const showProcessingSection = isProcessing || hasProcessingHistory;
 
   useEffect(() => {
     setFullLead(lead);
@@ -355,8 +352,8 @@ export default function LeadViewModal({
                   </dt>
                   <ProcessingProgressBar
                     value={draft.processingStep || null}
-                    onChange={showProcessingEditable ? handleProcessingStepChange : undefined}
-                    readOnly={!showProcessingEditable}
+                    onChange={canEditProcessingSteps ? handleProcessingStepChange : undefined}
+                    readOnly={!canEditProcessingSteps}
                     stepHistory={displayLead.processingStepHistory || []}
                   />
                 </div>
