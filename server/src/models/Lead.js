@@ -20,6 +20,7 @@ const ringCentralEventSchema = new mongoose.Schema(
     },
     authorLabel: { type: String, trim: true, default: null },
     extensionId: { type: String, trim: true, default: null },
+    callLogSynced: { type: Boolean, default: false },
     isSystem: { type: Boolean, default: true },
     occurredAt: { type: Date, required: true },
   },

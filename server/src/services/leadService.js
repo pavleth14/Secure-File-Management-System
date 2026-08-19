@@ -31,6 +31,7 @@ import { normalizeUsPhoneDigits } from '../utils/usPhone.js';
 import {
   backfillRingCentralEventsForLead,
   formatRingCentralEvent,
+  repairStaleCallEventDurations,
 } from './ringCentralEventService.js';
 
 const PERSONAL_INFO_FIELDS = ['firstName', 'lastName', 'phone', 'email', 'stateCity'];
@@ -448,6 +449,14 @@ export async function listActiveLeads(user, options = {}) {
 }
 
 export async function getLeadById(leadId, { listMode = false } = {}) {
+  if (!listMode) {
+    try {
+      await repairStaleCallEventDurations(leadId);
+    } catch (err) {
+      console.error('[ringcentral] repair stale durations failed', leadId, err.message);
+    }
+  }
+
   let query = Lead.findById(leadId);
   if (listMode) {
     query = query.select({ comments: { $slice: -1 }, ringCentralEvents: { $slice: -1 } });

@@ -55,6 +55,42 @@ export async function fetchCallLogRecords({ phoneNumber, dateFrom, dateTo, perPa
   return data?.records || [];
 }
 
+/** Fetch call log rows for a telephony session (authoritative duration source). */
+export async function fetchCallLogByTelephonySessionId({
+  telephonySessionId,
+  extensionId,
+  perPage = 10,
+} = {}) {
+  if (!telephonySessionId) return [];
+
+  const params = new URLSearchParams({
+    view: 'Detailed',
+    telephonySessionId: String(telephonySessionId),
+    perPage: String(perPage),
+  });
+
+  const paths = [];
+  if (extensionId) {
+    paths.push(
+      `/restapi/v1.0/account/~/extension/${extensionId}/call-log?${params.toString()}`
+    );
+  }
+  paths.push(`/restapi/v1.0/account/~/call-log?${params.toString()}`);
+
+  for (const path of paths) {
+    try {
+      const data = await ringCentralApiRequest(path);
+      if (data?.records?.length) {
+        return data.records;
+      }
+    } catch (err) {
+      console.warn('[ringcentral] call-log session lookup failed', path, err.message);
+    }
+  }
+
+  return [];
+}
+
 export async function fetchSmsRecords({ extensionId, dateFrom, dateTo, perPage = 100 } = {}) {
   const params = new URLSearchParams({
     messageType: 'SMS',

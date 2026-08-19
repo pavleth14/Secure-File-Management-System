@@ -5,8 +5,13 @@ import { normalizeUsPhoneDigits, toE164UsPhone } from '../utils/usPhone.js';
 import { getActiveLeadStatusNames } from './leadStatusService.js';
 import {
   fetchCallLogRecords,
+  fetchCallLogByTelephonySessionId,
   fetchSmsRecords,
 } from './ringCentralApiService.js';
+
+const DEFERRED_CALL_RETRY_DELAYS_MS = [15_000, 45_000, 90_000];
+const IGNORED_DISCONNECT_REASONS = new Set(['CallerInputRedirect', 'BlindTransfer']);
+const pendingDeferredCallWrites = new Set();
 
 let activeStatusCache = { names: null, expiresAt: 0 };
 
@@ -113,6 +118,16 @@ function parseCallLogRecord(record) {
   } else if (record?.billing?.duration != null && Number(record.billing.duration) > 0) {
     durationSec = Math.round(Number(record.billing.duration));
   }
+
+  if (durationSec === 0 && Array.isArray(record?.legs)) {
+    for (const leg of record.legs) {
+      if (leg?.durationMs != null && Number(leg.durationMs) > 0) {
+        durationSec = Math.max(durationSec, Math.round(Number(leg.durationMs) / 1000));
+      } else if (leg?.duration != null && Number(leg.duration) > 0) {
+        durationSec = Math.max(durationSec, Math.round(Number(leg.duration)));
+      }
+    }
+  }
   const result = record?.result || record?.reason || 'Unknown';
   const extensionId = getExtensionFromCallRecord(record);
   const externalPhone = getExternalPhoneFromCallRecord(record);
@@ -154,95 +169,156 @@ function parseSmsRecord(record) {
   };
 }
 
-function extractPartyDurationSec(party, body) {
-  if (party?.durationMs != null && Number(party.durationMs) > 0) {
-    return Math.round(Number(party.durationMs) / 1000);
-  }
-  if (party?.duration != null && Number(party.duration) > 0) {
-    return Math.round(Number(party.duration));
-  }
-  if (party?.status?.durationMs != null && Number(party.status.durationMs) > 0) {
-    return Math.round(Number(party.status.durationMs) / 1000);
-  }
-  if (party?.status?.duration != null && Number(party.status.duration) > 0) {
-    return Math.round(Number(party.status.duration));
-  }
-  if (body?.durationMs != null && Number(body.durationMs) > 0) {
-    return Math.round(Number(body.durationMs) / 1000);
-  }
-  if (body?.duration != null && Number(body.duration) > 0) {
-    return Math.round(Number(body.duration));
-  }
-
-  const startRaw =
-    party?.startTime || party?.status?.startTime || party?.creationTime || body?.creationTime;
-  const endRaw =
-    party?.endTime ||
-    party?.status?.endTime ||
-    body?.eventTime ||
-    body?.lastModifiedTime ||
-    body?.timestamp;
-
-  if (startRaw && endRaw) {
-    const durationMs = new Date(endRaw).getTime() - new Date(startRaw).getTime();
-    if (durationMs > 0) {
-      return Math.round(durationMs / 1000);
-    }
-  }
-
-  return 0;
+function shouldIgnoreDisconnectParty(party) {
+  const reason = party?.status?.reason || party?.reason || '';
+  return IGNORED_DISCONNECT_REASONS.has(reason);
 }
 
-async function resolveCallDurationFromLog({
-  externalPhone,
-  telephonySessionId,
-  direction,
-  occurredAt,
-}) {
-  if (!externalPhone || !isRingCentralEnabled()) {
-    return 0;
+function parseSessionIdFromEventId(ringCentralEventId) {
+  if (!ringCentralEventId || !String(ringCentralEventId).startsWith('call:session:')) {
+    return null;
+  }
+  const parts = String(ringCentralEventId).split(':');
+  return parts[2] || null;
+}
+
+async function fetchAuthoritativeCallLogRecord({ telephonySessionId, extensionId, direction }) {
+  const records = await fetchCallLogByTelephonySessionId({
+    telephonySessionId,
+    extensionId,
+  });
+  if (!records.length) return null;
+
+  const directionalMatch = records.find((record) => {
+    const recordDirection = record?.direction === 'Inbound' ? 'Inbound' : 'Outbound';
+    return recordDirection === direction;
+  });
+
+  return directionalMatch || records[0];
+}
+
+/**
+ * Write call event only after RingCentral Call Log returns the session (accurate duration).
+ * Returns true when written or already stored with authoritative data.
+ */
+async function tryWriteCallEventFromCallLog(context) {
+  if (!isRingCentralEnabled() || !context?.externalPhone || !context?.telephonySessionId) {
+    return false;
   }
 
-  const phoneE164 = toE164UsPhone(externalPhone);
-  if (!phoneE164) return 0;
+  const lead = await findLeadByPhoneNumber(context.externalPhone);
+  if (!lead) return false;
 
-  const anchor = occurredAt ? new Date(occurredAt) : new Date();
-  const dateFrom = new Date(anchor.getTime() - 15 * 60 * 1000).toISOString();
-  const dateTo = new Date(anchor.getTime() + 5 * 60 * 1000).toISOString();
-
-  try {
-    const records = await fetchCallLogRecords({
-      phoneNumber: phoneE164,
-      dateFrom,
-      dateTo,
-      perPage: 50,
-    });
-
-    if (!records.length) return 0;
-
-    let match = null;
-    if (telephonySessionId) {
-      match = records.find(
-        (record) => String(record.telephonySessionId || '') === String(telephonySessionId)
-      );
-    }
-
-    if (!match) {
-      match = records.find((record) => {
-        const recordDirection = record?.direction === 'Inbound' ? 'Inbound' : 'Outbound';
-        return recordDirection === direction;
-      });
-    }
-
-    if (!match) {
-      match = records[0];
-    }
-
-    return parseCallLogRecord(match).durationSec;
-  } catch (err) {
-    console.error('[ringcentral] call log duration lookup failed', err.message);
-    return 0;
+  if (!(await isLeadInActiveStatus(lead))) {
+    return false;
   }
+
+  const existing = (lead.ringCentralEvents || []).find(
+    (event) => event.ringCentralEventId === context.ringCentralEventId
+  );
+  if (existing?.callLogSynced) {
+    return true;
+  }
+
+  const record = await fetchAuthoritativeCallLogRecord({
+    telephonySessionId: context.telephonySessionId,
+    extensionId: context.extensionId,
+    direction: context.direction,
+  });
+  if (!record) {
+    return false;
+  }
+
+  const parsed = parseCallLogRecord(record);
+  const eventData = {
+    type: 'call',
+    direction: context.direction,
+    durationSec: parsed.durationSec,
+    result: parsed.result || context.fallbackResult || 'Unknown',
+    extensionId: context.extensionId || parsed.extensionId,
+    externalPhone: context.externalPhone,
+    occurredAt: parsed.occurredAt || context.occurredAt,
+    ringCentralEventId: context.ringCentralEventId,
+    callLogSynced: true,
+  };
+
+  const result = await appendEventToLead(lead, eventData, { skipActiveCheck: true });
+  if (result.added || result.updated) {
+    console.log(
+      '[ringcentral] Call event saved from call log',
+      context.ringCentralEventId,
+      `${eventData.durationSec}s`
+    );
+    return true;
+  }
+
+  return false;
+}
+
+function scheduleDeferredCallEventRecording(context) {
+  const key = context.ringCentralEventId;
+  if (!key || pendingDeferredCallWrites.has(key)) {
+    return;
+  }
+  pendingDeferredCallWrites.add(key);
+
+  console.log(
+    '[ringcentral] Deferred call write scheduled',
+    key,
+    `retries at ${DEFERRED_CALL_RETRY_DELAYS_MS.map((ms) => `${ms / 1000}s`).join(', ')}`
+  );
+
+  for (const delayMs of DEFERRED_CALL_RETRY_DELAYS_MS) {
+    setTimeout(() => {
+      tryWriteCallEventFromCallLog(context)
+        .then((written) => {
+          if (written) {
+            pendingDeferredCallWrites.delete(key);
+          }
+        })
+        .catch((err) => {
+          console.error('[ringcentral] deferred call write failed', key, err.message);
+        });
+    }, delayMs);
+  }
+
+  setTimeout(() => pendingDeferredCallWrites.delete(key), 120_000);
+}
+
+/** Repair call events that were saved with unknown duration (legacy 0s rows). */
+export async function repairStaleCallEventDurations(leadId) {
+  if (!isRingCentralEnabled()) return { repaired: 0 };
+
+  const lead = await Lead.findById(leadId);
+  if (!lead) return { repaired: 0 };
+
+  let repaired = 0;
+  const staleEvents = (lead.ringCentralEvents || []).filter(
+    (event) =>
+      event.type === 'call' &&
+      !event.callLogSynced &&
+      event.ringCentralEventId?.startsWith('call:session:')
+  );
+
+  for (const event of staleEvents) {
+    const telephonySessionId = parseSessionIdFromEventId(event.ringCentralEventId);
+    if (!telephonySessionId) continue;
+
+    const context = {
+      telephonySessionId,
+      extensionId: event.extensionId,
+      direction: event.direction,
+      externalPhone: lead.phone,
+      ringCentralEventId: event.ringCentralEventId,
+      fallbackResult: event.result,
+      occurredAt: event.occurredAt,
+    };
+
+    const written = await tryWriteCallEventFromCallLog(context);
+    if (written) repaired += 1;
+  }
+
+  return { repaired };
 }
 
 async function appendEventToLead(lead, eventData, { skipActiveCheck = false } = {}) {
@@ -258,6 +334,31 @@ async function appendEventToLead(lead, eventData, { skipActiveCheck = false } = 
     (event) => event.ringCentralEventId === eventData.ringCentralEventId
   );
   if (alreadyExists) {
+    if (eventData.type === 'call' && eventData.callLogSynced) {
+      const recruiter = await findUserByRingCentralExtension(eventData.extensionId, null);
+      const recruiterName = formatRecruiterLabel(recruiter, eventData.extensionId);
+      const shouldUpdate =
+        !alreadyExists.callLogSynced ||
+        eventData.durationSec !== (alreadyExists.durationSec || 0) ||
+        eventData.result !== alreadyExists.result;
+
+      if (shouldUpdate) {
+        alreadyExists.durationSec = eventData.durationSec;
+        alreadyExists.result = eventData.result || alreadyExists.result;
+        alreadyExists.callLogSynced = true;
+        alreadyExists.text = buildCallEventText({
+          direction: eventData.direction,
+          durationSec: eventData.durationSec,
+          result: alreadyExists.result,
+          recruiterName,
+        });
+        alreadyExists.updatedAt = new Date();
+        await lead.save();
+        return { added: true, updated: true };
+      }
+      return { added: false, reason: 'duplicate' };
+    }
+
     if (
       eventData.type === 'call' &&
       eventData.durationSec > (alreadyExists.durationSec || 0)
@@ -306,6 +407,7 @@ async function appendEventToLead(lead, eventData, { skipActiveCheck = false } = 
     author: recruiter?._id || null,
     authorLabel: recruiter ? null : recruiterName,
     extensionId: eventData.extensionId || null,
+    callLogSynced: Boolean(eventData.callLogSynced),
     isSystem: true,
     occurredAt: eventData.occurredAt,
     createdAt: eventData.occurredAt,
@@ -363,7 +465,11 @@ export async function backfillRingCentralEventsForLead(leadId) {
     for (const record of callRecords) {
       const parsed = parseCallLogRecord(record);
       if (!parsed.ringCentralEventId) continue;
-      const result = await appendEventToLead(lead, parsed, { skipActiveCheck: true });
+      const result = await appendEventToLead(
+        lead,
+        { ...parsed, callLogSynced: true },
+        { skipActiveCheck: true }
+      );
       if (result.added) added += 1;
     }
   } catch (err) {
@@ -381,51 +487,35 @@ function partyIsDisconnected(party) {
 async function processTelephonySessionBody(body) {
   const parties = body?.parties || [];
   const telephonySessionId = body?.telephonySessionId || body?.sessionId;
+  if (!telephonySessionId) return;
 
   for (const party of parties) {
     if (!partyIsDisconnected(party)) continue;
+    if (shouldIgnoreDisconnectParty(party)) continue;
 
     const direction = party?.direction === 'Inbound' ? 'Inbound' : 'Outbound';
     const externalPhone =
       direction === 'Outbound' ? party?.to?.phoneNumber : party?.from?.phoneNumber;
+    if (!externalPhone) continue;
 
     const extensionId = getExtensionFromParty(party, direction);
-    let durationSec = extractPartyDurationSec(party, body);
-
-    const result =
+    const fallbackResult =
       party?.reason ||
       (party?.missedCall ? 'Missed' : party?.status?.code) ||
       body?.reason ||
       'Unknown';
-
     const occurredAt = body?.eventTime ? new Date(body.eventTime) : new Date();
+    const ringCentralEventId = `call:session:${telephonySessionId}:${extensionId || 'x'}:${direction}`;
 
-    if (durationSec === 0 && externalPhone) {
-      durationSec = await resolveCallDurationFromLog({
-        externalPhone,
-        telephonySessionId,
-        direction,
-        occurredAt,
-      });
-    }
-
-    const eventId = telephonySessionId
-      ? `call:session:${telephonySessionId}:${extensionId || 'x'}:${direction}`
-      : null;
-
-    await recordRingCentralEventForPhone(
-      {
-        type: 'call',
-        direction,
-        durationSec,
-        result,
-        extensionId,
-        externalPhone,
-        occurredAt,
-        ringCentralEventId: eventId,
-      },
-      { skipActiveCheck: false }
-    );
+    scheduleDeferredCallEventRecording({
+      telephonySessionId,
+      extensionId,
+      direction,
+      externalPhone,
+      fallbackResult,
+      occurredAt,
+      ringCentralEventId,
+    });
   }
 }
 
