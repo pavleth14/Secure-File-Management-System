@@ -295,29 +295,15 @@ function applyLeadListFilters(filter, options) {
         filter.archivedAt.$lte = new Date(`${dateTo}T23:59:59.999Z`);
       }
     } else {
-      const effectiveDateExpr = buildLeadEffectiveDateExpression();
-      const dateConditions = [];
+      filter.date = {};
       if (dateFrom) {
-        dateConditions.push({ $gte: [effectiveDateExpr, dateFrom] });
+        filter.date.$gte = dateFrom;
       }
       if (dateTo) {
-        dateConditions.push({ $lte: [effectiveDateExpr, dateTo] });
+        filter.date.$lte = dateTo;
       }
-      filter.$expr = dateConditions.length === 1 ? dateConditions[0] : { $and: dateConditions };
     }
   }
-}
-
-function buildLeadEffectiveDateExpression() {
-  return {
-    $cond: {
-      if: {
-        $gt: [{ $strLenCP: { $trim: { input: { $ifNull: ['$date', ''] } } } }, 0],
-      },
-      then: { $substrCP: [{ $trim: { input: '$date' } }, 0, 10] },
-      else: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt' } },
-    },
-  };
 }
 
 function buildProcessingStepSortSwitch() {
@@ -338,54 +324,6 @@ function buildProcessingStepSortSwitch() {
   }
 
   return { $switch: { branches, default: 0 } };
-}
-
-async function queryLeadListSortedByEffectiveDate(filter, options) {
-  const { page = 1, limit = 25, sortDir = 'desc', listMode = true } = options;
-  const sortOrder = sortDir === 'asc' ? 1 : -1;
-  const safeLimit = Math.min(Math.max(parseInt(limit, 10) || 25, 1), 100);
-  const safePage = Math.max(parseInt(page, 10) || 1, 1);
-  const skip = (safePage - 1) * safeLimit;
-
-  const [totalCount, aggResults] = await Promise.all([
-    Lead.countDocuments(filter),
-    Lead.aggregate([
-      { $match: filter },
-      { $addFields: { _dateSort: buildLeadEffectiveDateExpression() } },
-      { $sort: { _dateSort: sortOrder, _id: sortOrder } },
-      { $skip: skip },
-      { $limit: safeLimit },
-      { $project: { _id: 1 } },
-    ]),
-  ]);
-
-  const ids = aggResults.map((row) => row._id);
-  if (!ids.length) {
-    return {
-      leads: [],
-      page: safePage,
-      limit: safeLimit,
-      totalCount,
-      totalPages: Math.max(Math.ceil(totalCount / safeLimit), 1),
-    };
-  }
-
-  let query = Lead.find({ _id: { $in: ids } });
-  if (listMode) {
-    query = query.select({ comments: { $slice: -1 }, ringCentralEvents: { $slice: -1 } });
-  }
-
-  const leads = await populateLead(query);
-  const leadsById = new Map(leads.map((lead) => [lead._id.toString(), lead]));
-  const orderedLeads = ids.map((id) => leadsById.get(id.toString())).filter(Boolean);
-
-  return {
-    leads: orderedLeads,
-    page: safePage,
-    limit: safeLimit,
-    totalCount,
-    totalPages: Math.max(Math.ceil(totalCount / safeLimit), 1),
-  };
 }
 
 async function queryLeadListSortedByProcessingStep(filter, options) {
@@ -441,10 +379,6 @@ async function queryLeadList(filter, options) {
 
   if (sortBy === 'processingStep') {
     return queryLeadListSortedByProcessingStep(filter, options);
-  }
-
-  if (sortBy === 'date') {
-    return queryLeadListSortedByEffectiveDate(filter, options);
   }
 
   const sortField = LEAD_SORT_FIELDS[sortBy] || 'createdAt';
