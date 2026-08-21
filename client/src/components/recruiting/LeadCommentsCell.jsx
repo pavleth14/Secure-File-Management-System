@@ -4,7 +4,8 @@ import api from '../../api/client';
 import { formatDate } from '../../utils/format';
 import {
   canEditComment,
-  getLatestComment,
+  getLatestUserComment,
+  getUserComments,
   sortCommentsNewestFirst,
 } from '../../utils/leadPermissions';
 import TruncatedCommentText from './TruncatedCommentText';
@@ -168,11 +169,11 @@ export default function LeadCommentsCell({
 
   const canAddComment = !readOnly && Boolean(onSubmitComment);
 
-  const latestComment = getLatestComment(lead.comments);
-  const sortedComments = sortCommentsNewestFirst(comments);
+  const latestComment = getLatestUserComment(lead.comments);
+  const sortedComments = sortCommentsNewestFirst(getUserComments(comments));
 
   useEffect(() => {
-    setComments(lead.comments || []);
+    setComments(getUserComments(lead.comments || []));
   }, [lead.comments, lead.id]);
 
   useEffect(() => {
@@ -201,7 +202,7 @@ export default function LeadCommentsCell({
       .get(`/recruiting/leads/${lead.id}`)
       .then(({ data }) => {
         if (!cancelled) {
-          setComments(data.lead?.comments || []);
+          setComments(getUserComments(data.lead?.comments || []));
         }
       })
       .catch((err) => {
@@ -286,7 +287,7 @@ export default function LeadCommentsCell({
   const handleEditComment = async (commentId, text) => {
     if (!onEditComment) return;
     const updatedLead = await onEditComment(lead.id, commentId, text);
-    setComments(updatedLead?.comments || []);
+    setComments(getUserComments(updatedLead?.comments || []));
   };
 
   const handleViewMore = () => {
@@ -304,7 +305,7 @@ export default function LeadCommentsCell({
     setAddCommentError('');
     try {
       const updatedLead = await onSubmitComment(trimmed);
-      setComments(updatedLead?.comments || []);
+      setComments(getUserComments(updatedLead?.comments || []));
       setNewCommentText('');
       newCommentRef.current?.focus();
     } catch (err) {

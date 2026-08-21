@@ -97,11 +97,27 @@ export function isRecruiterBoardReadOnly({ isRecruiter, isRecruitingManager, isO
   return Boolean(isRecruiter && !isRecruitingManager && !isOwnBoard);
 }
 
+export function getUserComments(comments) {
+  return (comments || []).filter((comment) => !comment.isSystem);
+}
+
+export function getSystemComments(comments) {
+  return (comments || []).filter((comment) => comment.isSystem);
+}
+
 export function getLatestComment(comments) {
   if (!comments?.length) return null;
   return [...comments].sort(
     (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
   )[0];
+}
+
+export function getLatestUserComment(comments) {
+  return getLatestComment(getUserComments(comments));
+}
+
+export function getLatestSystemComment(comments) {
+  return getLatestComment(getSystemComments(comments));
 }
 
 export function sortCommentsNewestFirst(comments) {

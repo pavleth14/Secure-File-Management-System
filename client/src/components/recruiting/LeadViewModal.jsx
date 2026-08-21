@@ -6,6 +6,8 @@ import {
   canEditDriverType,
   canEditPersonalInfo,
   canEditStatus,
+  getSystemComments,
+  getUserComments,
   sortCommentsNewestFirst,
 } from '../../utils/leadPermissions';
 import {
@@ -217,7 +219,8 @@ export default function LeadViewModal({
 
   if (!open || !lead) return null;
 
-  const comments = sortCommentsNewestFirst(displayLead?.comments);
+  const statusHistory = sortCommentsNewestFirst(getSystemComments(displayLead?.comments));
+  const userComments = sortCommentsNewestFirst(getUserComments(displayLead?.comments));
   const hasUnsavedChanges = Object.keys(getDraftChanges(displayLead, draft)).length > 0;
 
   const startEditing = (field) => {
@@ -443,6 +446,34 @@ export default function LeadViewModal({
               />
             </div>
 
+            <div className="border-t border-slate-200 px-5 py-4 dark:border-slate-700">
+              <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                Status history
+              </h3>
+              {statusHistory.length === 0 ? (
+                <p className="text-sm text-slate-500 dark:text-slate-400">No status history yet.</p>
+              ) : (
+                <ul className="max-h-48 space-y-3 overflow-y-auto overscroll-y-contain pr-1">
+                  {statusHistory.map((comment) => (
+                    <li
+                      key={comment.id}
+                      className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 dark:border-slate-700 dark:bg-slate-900/50"
+                    >
+                      <p className="whitespace-pre-wrap break-words text-sm text-slate-900 dark:text-slate-100">
+                        {comment.text}
+                      </p>
+                      <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                        {comment.author || 'System'} · {formatDate(comment.createdAt)}
+                        <span className="ml-2 rounded-full bg-slate-200 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-slate-600 dark:bg-slate-700 dark:text-slate-300">
+                          System
+                        </span>
+                      </p>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+
             <div
               ref={commentsSectionRef}
               className="border-t border-slate-200 px-5 py-4 dark:border-slate-700"
@@ -450,11 +481,11 @@ export default function LeadViewModal({
               <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
                 Comments
               </h3>
-              {comments.length === 0 ? (
+              {userComments.length === 0 ? (
                 <p className="text-sm text-slate-500 dark:text-slate-400">No comments yet.</p>
               ) : (
                 <ul className="space-y-3">
-                  {comments.map((comment) => (
+                  {userComments.map((comment) => (
                     <li
                       key={comment.id}
                       className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 dark:border-slate-700 dark:bg-slate-900/50"
@@ -464,11 +495,6 @@ export default function LeadViewModal({
                       </p>
                       <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
                         {comment.author || 'Unknown'} · {formatDate(comment.createdAt)}
-                        {comment.isSystem && (
-                          <span className="ml-2 rounded-full bg-slate-200 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-slate-600 dark:bg-slate-700 dark:text-slate-300">
-                            System
-                          </span>
-                        )}
                       </p>
                     </li>
                   ))}

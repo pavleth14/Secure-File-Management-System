@@ -4,8 +4,8 @@ import { formatLeadDisplayDate } from '../../utils/leadDateFormat';
 import { useContextMenu } from '../../hooks/useContextMenu';
 import LeadCommentsCell from './LeadCommentsCell';
 import LeadRingCentralCell from './LeadRingCentralCell';
+import LeadStatusHistoryCell from './LeadStatusHistoryCell';
 import LeadPhoneCell from './LeadPhoneCell';
-import LeadStatusIndicator from './LeadStatusIndicator';
 import { formatLeadDisplayEmail } from '../../utils/leadEmailFormat';
 
 const COLUMNS = [
@@ -64,6 +64,7 @@ export default function LeadBoardTable({
   const { openContextMenu, contextMenuNode } = useContextMenu();
   const [openCommentsLeadId, setOpenCommentsLeadId] = useState(null);
   const [openRingCentralLeadId, setOpenRingCentralLeadId] = useState(null);
+  const [openStatusLeadId, setOpenStatusLeadId] = useState(null);
 
   const handleSort = (key) => {
     const resolvedKey =
@@ -79,6 +80,7 @@ export default function LeadBoardTable({
   const handleViewLead = (lead, options) => {
     setOpenCommentsLeadId(null);
     setOpenRingCentralLeadId(null);
+    setOpenStatusLeadId(null);
     onViewLead?.(lead, options);
   };
 
@@ -216,13 +218,17 @@ export default function LeadBoardTable({
                   className="hover:bg-slate-50 dark:hover:bg-slate-700/50"
                   onContextMenu={(event) => openContextMenu(event, buildMenuItems(lead))}
                 >
-                  <td className="px-4 py-3 text-sm">
-                    <LeadStatusIndicator
-                      statusName={lead.status}
-                      processingStep={lead.processingStep}
-                      statusColorMap={statusColorMap}
-                    />
-                  </td>
+                  <LeadStatusHistoryCell
+                    lead={lead}
+                    statusColorMap={statusColorMap}
+                    open={openStatusLeadId === lead.id}
+                    onToggle={(leadId) => {
+                      setOpenCommentsLeadId(null);
+                      setOpenRingCentralLeadId(null);
+                      setOpenStatusLeadId((current) => (current === leadId ? null : leadId));
+                    }}
+                    onClose={() => setOpenStatusLeadId(null)}
+                  />
                   {showRecruiterAfterStatus && (
                     <td className="whitespace-nowrap px-4 py-3 text-sm">
                       {lead.assignedRecruiter?.name || '—'}
@@ -263,6 +269,7 @@ export default function LeadBoardTable({
                     open={openCommentsLeadId === lead.id}
                     onToggle={(leadId) => {
                       setOpenRingCentralLeadId(null);
+                      setOpenStatusLeadId(null);
                       setOpenCommentsLeadId((current) => (current === leadId ? null : leadId));
                     }}
                     onClose={() => setOpenCommentsLeadId(null)}
@@ -281,6 +288,7 @@ export default function LeadBoardTable({
                     open={openRingCentralLeadId === lead.id}
                     onToggle={(leadId) => {
                       setOpenCommentsLeadId(null);
+                      setOpenStatusLeadId(null);
                       setOpenRingCentralLeadId((current) => (current === leadId ? null : leadId));
                     }}
                     onClose={() => setOpenRingCentralLeadId(null)}
