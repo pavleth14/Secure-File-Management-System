@@ -22,6 +22,7 @@ export const SHEET_NAME_TO_DRIVER_TYPE = {
   tbf_form_team: 'Team',
   tbf_form_local: 'Local',
   'Leads 2026': 'Solo',
+  Leads: 'Solo',
 };
 
 function resolveDriverTypeFromPosition(position) {
@@ -180,7 +181,9 @@ export async function ingestSheetLead(payload) {
   const lastName = String(columns.last_name || '').trim();
   const email = normalizeEmail(columns.email);
   const phone = normalizePhone(columns.phone_number);
-  const stateCity = String(columns.state || '').trim();
+  const stateCity = String(
+    columns.state || columns.state_city || columns.statecity || ''
+  ).trim();
 
   if (!firstName || !lastName) {
     const err = new Error('first_name and last_name are required');
@@ -236,7 +239,7 @@ export async function ingestSheetLead(payload) {
   const assignedRecruiter = await getRoundRobinAssignment(driverType);
   const recruiter = await User.findById(assignedRecruiter).select('name');
   const actorUserId = await getIngestActorUserId();
-  const timestamp = parseCreatedTime(columns.created_time);
+  const timestamp = parseCreatedTime(columns.created_time || columns.date);
 
   let leadData = {
     firstName,
@@ -247,7 +250,7 @@ export async function ingestSheetLead(payload) {
     status: DEFAULT_LEAD_STATUS,
     driverType,
     source,
-    date: formatLeadDateIso(columns.created_time, timestamp),
+    date: formatLeadDateIso(columns.date || columns.created_time, timestamp),
     assignedRecruiter,
     importedAt: timestamp,
     createdAt: timestamp,

@@ -12,6 +12,7 @@
  * 4. Add time trigger for syncNewSheetRows every 5 minutes
  *
  * Website leads: see google-sheets-website-apply-now.gs (Apply Now spreadsheet)
+ * Daily bulk leads: see google-sheets-daily-bulk.gs (separate spreadsheet)
  */
 
 const SHEET_CONFIG = [

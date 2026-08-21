@@ -36,6 +36,8 @@ import {
 
 const PERSONAL_INFO_FIELDS = ['firstName', 'lastName', 'phone', 'email', 'stateCity'];
 const IMMUTABLE_FIELDS = ['source', 'createdAt', 'updatedAt', 'importedAt'];
+/** Recent comments loaded on board list — enough to resolve latest user comment after system entries */
+const LIST_MODE_COMMENT_SLICE = 50;
 const MAX_COMMENT_LENGTH = 2000;
 
 export function canViewLead(user, lead) {
@@ -95,6 +97,17 @@ function formatComment(comment) {
   };
 }
 
+function findLatestUserComment(comments) {
+  let latest = null;
+  for (const comment of comments || []) {
+    if (comment?.isSystem) continue;
+    if (!latest || new Date(comment.createdAt).getTime() > new Date(latest.createdAt).getTime()) {
+      latest = comment;
+    }
+  }
+  return latest ? formatComment(latest) : null;
+}
+
 function formatExtraFields(extraFields) {
   if (!extraFields) return {};
   if (extraFields instanceof Map) {
@@ -149,6 +162,7 @@ export function formatLead(lead) {
         }
       : null,
     comments: (lead.comments || []).map(formatComment),
+    latestUserComment: findLatestUserComment(lead.comments),
     ringCentralEvents: (lead.ringCentralEvents || []).map(formatRingCentralEvent),
     firstCalledAt: lead.firstCalledAt || null,
     extraFields: formatExtraFields(lead.extraFields),
@@ -358,7 +372,10 @@ async function queryLeadListSortedByProcessingStep(filter, options) {
 
   let query = Lead.find({ _id: { $in: ids } });
   if (listMode) {
-    query = query.select({ comments: { $slice: -1 }, ringCentralEvents: { $slice: -1 } });
+    query = query.select({
+      comments: { $slice: -LIST_MODE_COMMENT_SLICE },
+      ringCentralEvents: { $slice: -1 },
+    });
   }
 
   const leads = await populateLead(query);
@@ -393,7 +410,10 @@ async function queryLeadList(filter, options) {
     .limit(safeLimit);
 
   if (listMode) {
-    query = query.select({ comments: { $slice: -1 }, ringCentralEvents: { $slice: -1 } });
+    query = query.select({
+      comments: { $slice: -LIST_MODE_COMMENT_SLICE },
+      ringCentralEvents: { $slice: -1 },
+    });
   }
 
   const [totalCount, leads] = await Promise.all([Lead.countDocuments(filter), populateLead(query)]);
@@ -468,7 +488,10 @@ export async function getLeadById(leadId, { listMode = false } = {}) {
 
   let query = Lead.findById(leadId);
   if (listMode) {
-    query = query.select({ comments: { $slice: -1 }, ringCentralEvents: { $slice: -1 } });
+    query = query.select({
+      comments: { $slice: -LIST_MODE_COMMENT_SLICE },
+      ringCentralEvents: { $slice: -1 },
+    });
   }
   return populateLead(query);
 }

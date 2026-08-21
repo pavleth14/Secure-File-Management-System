@@ -169,7 +169,7 @@ export default function LeadCommentsCell({
 
   const canAddComment = !readOnly && Boolean(onSubmitComment);
 
-  const latestComment = getLatestUserComment(lead.comments);
+  const latestComment = lead.latestUserComment || getLatestUserComment(lead.comments);
   const sortedComments = sortCommentsNewestFirst(getUserComments(comments));
 
   useEffect(() => {
