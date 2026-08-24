@@ -19,6 +19,7 @@ import {
   archiveLeadsForDeletedRecruiter,
   countActiveLeadsForRecruiter,
 } from '../services/leadService.js';
+import { assertValidPassword } from '../utils/passwordValidation.js';
 
 const router = Router();
 
@@ -68,6 +69,12 @@ router.post('/', async (req, res, next) => {
 
     if (!isValidEmail(email)) {
       return res.status(400).json({ message: EMAIL_INVALID_MESSAGE });
+    }
+
+    try {
+      assertValidPassword(password);
+    } catch (err) {
+      return res.status(err.status || 400).json({ message: err.message });
     }
 
     const assignedRole = role || ROLES.USER;
@@ -199,8 +206,10 @@ router.put('/:id', async (req, res, next) => {
     }
 
     if (password) {
-      if (password.length < 8) {
-        return res.status(400).json({ message: 'Password must be at least 8 characters' });
+      try {
+        assertValidPassword(password);
+      } catch (err) {
+        return res.status(err.status || 400).json({ message: err.message });
       }
       target.passwordHash = await bcrypt.hash(password, 12);
     }
@@ -276,6 +285,7 @@ router.put('/:id', async (req, res, next) => {
     };
 
     if (password) {
+      await RefreshToken.deleteMany({ userId: target._id });
       await auditLog({
         user: req.user,
         action: AUDIT_ACTIONS.PASSWORD_RESET,

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import api from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import { isValidEmail, EMAIL_INVALID_MESSAGE } from '../utils/emailValidation';
+import ChangePasswordForm from '../components/ChangePasswordForm';
 
 export default function UsersPage() {
   const { isSuperAdmin } = useAuth();
@@ -12,7 +13,6 @@ export default function UsersPage() {
   const [success, setSuccess] = useState('');
   const [showForm, setShowForm] = useState(false);
   const [passwordUser, setPasswordUser] = useState(null);
-  const [newPassword, setNewPassword] = useState('');
   const [form, setForm] = useState({
     name: '',
     email: '',
@@ -110,24 +110,11 @@ export default function UsersPage() {
     }
   };
 
-  const handlePasswordSubmit = async (e) => {
-    e.preventDefault();
-    if (!passwordUser || newPassword.length < 8) {
-      setError('Password must be at least 8 characters');
-      return;
-    }
-    try {
-      await api.put(`/users/${passwordUser.id}`, { password: newPassword });
-      setPasswordUser(null);
-      setNewPassword('');
-      setSuccess(`Password updated for ${passwordUser.name}.`);
-      setError('');
-    } catch (err) {
-      setError(err.response?.data?.message || 'Failed to change password');
-    }
+  const handleAdminPasswordReset = async ({ newPassword }) => {
+    await api.put(`/users/${passwordUser.id}`, { password: newPassword });
   };
 
-  const handleRecruitingFlagChange = async (userId, field, value) => {
+  const handleDelete = async (userId, userName) => {
     try {
       await api.put(`/users/${userId}`, { [field]: value });
       await load();
@@ -198,42 +185,33 @@ export default function UsersPage() {
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
           onClick={() => setPasswordUser(null)}
         >
-          <form
-            onSubmit={handlePasswordSubmit}
+          <div
             onClick={(e) => e.stopPropagation()}
             className="w-full max-w-md rounded-xl bg-white p-6 shadow-xl dark:bg-slate-800"
           >
-            <h2 className="mb-1 text-lg font-semibold text-slate-900 dark:text-slate-100">Change password</h2>
-            <p className="mb-4 text-sm text-slate-500 dark:text-slate-400">{passwordUser.name} ({passwordUser.email})</p>
-            <input
-              type="password"
-              value={newPassword}
-              onChange={(e) => setNewPassword(e.target.value)}
-              placeholder="New password (min 8 characters)"
-              required
-              minLength={8}
-              className="mb-4 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 placeholder-slate-400 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 dark:placeholder-slate-500"
-              autoFocus
+            <p className="mb-4 text-sm text-slate-500 dark:text-slate-400">
+              {passwordUser.name} ({passwordUser.email})
+            </p>
+            <ChangePasswordForm
+              title="Reset password"
+              description="Assign a new login password for this user. They will need to sign in again."
+              submitLabel="Save password"
+              compact
+              onSubmit={handleAdminPasswordReset}
+              onSuccess={() => {
+                setSuccess(`Password updated for ${passwordUser.name}.`);
+                setError('');
+                setPasswordUser(null);
+              }}
             />
-            <div className="flex gap-2">
-              <button
-                type="submit"
-                className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700"
-              >
-                Save password
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setPasswordUser(null);
-                  setNewPassword('');
-                }}
-                className="rounded-lg border border-slate-300 px-4 py-2 text-sm hover:bg-slate-50 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-700"
-              >
-                Cancel
-              </button>
-            </div>
-          </form>
+            <button
+              type="button"
+              onClick={() => setPasswordUser(null)}
+              className="mt-3 w-full rounded-lg border border-slate-300 px-4 py-2 text-sm hover:bg-slate-50 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-700"
+            >
+              Cancel
+            </button>
+          </div>
         </div>
       )}
 
@@ -605,7 +583,6 @@ export default function UsersPage() {
                       type="button"
                       onClick={() => {
                         setPasswordUser(user);
-                        setNewPassword('');
                         setSuccess('');
                       }}
                       className="mr-3 text-sm text-brand-600 hover:underline dark:text-brand-400"

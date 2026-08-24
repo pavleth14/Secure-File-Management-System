@@ -38,6 +38,7 @@ import {
   EMAIL_INVALID_MESSAGE,
 } from '../utils/emailValidation.js';
 import { formatUserResponse } from '../utils/userFormat.js';
+import { assertValidPassword } from '../utils/passwordValidation.js';
 
 const router = Router();
 
@@ -114,6 +115,12 @@ router.post('/register', authLimiter, authMiddleware, async (req, res, next) => 
 
     if (password.length < 8) {
       return res.status(400).json({ message: 'Password must be at least 8 characters' });
+    }
+
+    try {
+      assertValidPassword(password);
+    } catch (err) {
+      return res.status(err.status || 400).json({ message: err.message });
     }
 
     const assignedRole = role || ROLES.USER;
@@ -382,6 +389,55 @@ router.get('/me', authMiddleware, async (req, res, next) => {
       .populate('groupId', 'name')
       .populate('dispatchBoardId', 'name boardNumber');
     res.json({ user: sanitizeUser(user) });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post('/change-password', authMiddleware, authLimiter, async (req, res, next) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({ message: 'Current password and new password are required' });
+    }
+
+    try {
+      assertValidPassword(newPassword);
+    } catch (err) {
+      return res.status(err.status || 400).json({ message: err.message });
+    }
+
+    const user = await User.findById(req.user._id);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    const validCurrent = await bcrypt.compare(currentPassword, user.passwordHash);
+    if (!validCurrent) {
+      return res.status(400).json({ message: 'Current password is incorrect' });
+    }
+
+    const sameAsOld = await bcrypt.compare(newPassword, user.passwordHash);
+    if (sameAsOld) {
+      return res.status(400).json({ message: 'New password must be different from current password' });
+    }
+
+    user.passwordHash = await bcrypt.hash(newPassword, 12);
+    await user.save();
+
+    await auditLog({
+      user,
+      action: AUDIT_ACTIONS.PASSWORD_CHANGE,
+      category: AUDIT_CATEGORIES.AUTH,
+      targetType: TARGET_TYPES.USER,
+      targetId: user._id,
+      targetName: user.name,
+      details: `${buildActorLabel(user)} changed their password`,
+      req,
+    });
+
+    res.json({ message: 'Password updated successfully' });
   } catch (err) {
     next(err);
   }
