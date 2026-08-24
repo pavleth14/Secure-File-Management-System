@@ -114,7 +114,7 @@ export default function UsersPage() {
     await api.put(`/users/${passwordUser.id}`, { password: newPassword });
   };
 
-  const handleDelete = async (userId, userName) => {
+  const handleRecruitingFlagChange = async (userId, field, value) => {
     try {
       await api.put(`/users/${userId}`, { [field]: value });
       await load();
