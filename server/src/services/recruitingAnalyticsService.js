@@ -42,7 +42,69 @@ async function countStatusTransitions(status, from, to) {
     category: AUDIT_CATEGORIES.RECRUITING,
     timestamp: { $gte: from, $lte: to },
     'newValues.status': status,
+    $or: [{ 'oldValues.status': { $exists: false } }, { 'oldValues.status': { $ne: status } }],
   });
+}
+
+async function getProcessingEntryAnalytics(from, to) {
+  const rows = await AuditLog.aggregate([
+    {
+      $match: {
+        action: AUDIT_ACTIONS.LEAD_STATUS_CHANGE,
+        category: AUDIT_CATEGORIES.RECRUITING,
+        timestamp: { $gte: from, $lte: to },
+        'newValues.status': 'Processing',
+        $or: [
+          { 'oldValues.status': { $exists: false } },
+          { 'oldValues.status': { $ne: 'Processing' } },
+        ],
+      },
+    },
+    {
+      $group: {
+        _id: '$userId',
+        count: { $sum: 1 },
+        drivers: { $push: '$targetName' },
+        usernames: { $addToSet: '$username' },
+      },
+    },
+    { $sort: { count: -1 } },
+  ]);
+
+  const recruiterIds = rows
+    .map((row) => row._id)
+    .filter((id) => id != null)
+    .map((id) => id.toString());
+
+  const recruiters = recruiterIds.length
+    ? await User.find({ _id: { $in: recruiterIds } }).select('name').lean()
+    : [];
+  const recruiterNameMap = Object.fromEntries(
+    recruiters.map((recruiter) => [recruiter._id.toString(), recruiter.name])
+  );
+
+  const byRecruiter = rows
+    .map((row) => {
+      const recruiterId = row._id?.toString?.() || null;
+      const fallbackName = row.usernames?.[0] || 'System';
+      return {
+        recruiterId,
+        recruiterName: recruiterId
+          ? recruiterNameMap[recruiterId] || fallbackName
+          : fallbackName,
+        count: row.count,
+        drivers: (row.drivers || []).filter(Boolean),
+      };
+    })
+    .sort((a, b) => {
+      const byCount = b.count - a.count;
+      if (byCount !== 0) return byCount;
+      return a.recruiterName.localeCompare(b.recruiterName);
+    });
+
+  const total = byRecruiter.reduce((sum, row) => sum + row.count, 0);
+
+  return { total, byRecruiter };
 }
 
 async function countDisqualificationsByStatus(statuses, from, to) {
@@ -317,9 +379,9 @@ export async function getRecruitingAnalytics(user, options = {}) {
 
   const { from, to, fromStr, toStr } = parsePeriodBounds(options.from, options.to);
 
-  const [processingCount, hiredCount, recruiterDisqualified, safetyDisqualified, processingSteps] =
+  const [processingEntry, hiredCount, recruiterDisqualified, safetyDisqualified, processingSteps] =
     await Promise.all([
-      countStatusTransitions('Processing', from, to),
+      getProcessingEntryAnalytics(from, to),
       countStatusTransitions('Hired', from, to),
       countDisqualificationsByStatus(RECRUITER_DISQUALIFICATION_STATUSES, from, to),
       countDisqualificationsByStatus(SAFETY_DISQUALIFICATION_STATUSES, from, to),
@@ -336,7 +398,8 @@ export async function getRecruitingAnalytics(user, options = {}) {
       timezone: 'America/Chicago',
     },
     processing: {
-      count: processingCount,
+      count: processingEntry.total,
+      byRecruiter: processingEntry.byRecruiter,
     },
     disqualified: {
       recruiter: recruiterDisqualified,
