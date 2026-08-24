@@ -2,9 +2,11 @@
  * Daily bulk leads spreadsheet → TBF recruiting app
  *
  * Required columns (row 1 headers):
- *   first_name | last_name | email | phone_number | date | state
+ *   first_name | last_name | phone_number | date
  *
  * Optional:
+ *   email        — if empty, app assigns a unique placeholder (shown as N/A)
+ *   state        — State / City in app (can be empty)
  *   id           — unique lead id (recommended); auto-generated if empty
  *   driver_type  — Solo | Owner Operator | Team | Local
  *   position     — maps to driver type if driver_type empty
@@ -46,10 +48,8 @@ const SHEET_HEADERS = [
 const REQUIRED_FIELDS = [
   'first_name',
   'last_name',
-  'email',
   'phone_number',
   'date',
-  'state',
 ];
 
 const CORE_FIELDS = new Set([
@@ -110,19 +110,46 @@ function setLastProcessedRow_(sheetName, rowNumber) {
 function mapPositionToDriverType_(position) {
   const value = String(position || '').trim().toLowerCase();
   if (!value) return null;
-  if (value === 'company' || value.includes('solo')) return 'Solo';
+  if (value === 'company' || value.includes('company') || value.includes('solo')) return 'Solo';
   if (value.includes('owner')) return 'Owner Operator';
   if (value.includes('team')) return 'Team';
   if (value.includes('local')) return 'Local';
   return null;
 }
 
+function normalizeDriverTypeAlias_(value) {
+  const normalized = String(value || '').trim();
+  if (!normalized) return '';
+  const mapped = mapPositionToDriverType_(normalized);
+  if (mapped) return mapped;
+  return normalized;
+}
+
 function resolveDriverType_(columns, defaultDriverType) {
-  const explicit = String(columns.driver_type || '').trim();
+  const explicit = normalizeDriverTypeAlias_(columns.driver_type);
   if (explicit) return explicit;
   const fromPosition = mapPositionToDriverType_(columns.position);
   if (fromPosition) return fromPosition;
   return defaultDriverType || 'Solo';
+}
+
+function normalizeCellValue_(key, value) {
+  if (value === null || value === undefined || value === '') return null;
+
+  if (key === 'phone_number' || key === 'phone') {
+    if (typeof value === 'number' && Number.isFinite(value)) {
+      return String(Math.round(value));
+    }
+    return String(value).trim();
+  }
+
+  if (key === 'date' || key === 'created_time') {
+    if (value instanceof Date && !Number.isNaN(value.getTime())) {
+      return Utilities.formatDate(value, Session.getScriptTimeZone(), 'yyyy-MM-dd');
+    }
+  }
+
+  return String(value).trim();
 }
 
 function resolveMetaLeadId_(columns, spreadsheetId, sheetName, rowNumber) {
@@ -138,9 +165,9 @@ function rowToObject_(headers, rowValues) {
   for (let i = 0; i < headers.length; i += 1) {
     const key = headers[i];
     if (!key) continue;
-    const value = rowValues[i];
-    if (value === '' || value === null || value === undefined) continue;
-    obj[key] = String(value).trim();
+    const normalized = normalizeCellValue_(key, rowValues[i]);
+    if (!normalized) continue;
+    obj[key] = normalized;
   }
 
   if (!obj.phone_number && obj.phone) {
@@ -178,30 +205,35 @@ function buildPayload_(columns, spreadsheetId, sheetName, rowNumber, config, sou
   const metaLeadId = resolveMetaLeadId_(columns, spreadsheetId, sheetName, rowNumber);
   const driverType = resolveDriverType_(columns, config.defaultDriverType);
 
-  const core = {};
-  const extraFields = {};
+  const core = {
+    first_name: String(columns.first_name || '').trim(),
+    last_name: String(columns.last_name || '').trim(),
+    phone_number: String(columns.phone_number || columns.phone || '').trim(),
+    date: String(columns.date || '').trim(),
+  };
 
+  if (columns.email) {
+    core.email = String(columns.email).trim();
+  }
+
+  if (columns.state || columns.state_city) {
+    core.state = String(columns.state || columns.state_city).trim();
+  }
+
+  if (columns.driver_type) {
+    core.driver_type = normalizeDriverTypeAlias_(columns.driver_type);
+  }
+
+  const extraFields = {};
   Object.keys(columns).forEach(function (key) {
     if (ID_ALIASES.indexOf(key) !== -1) return;
-    if (CORE_FIELDS.has(key)) {
-      if (key === 'phone' || key === 'state_city') return;
-      core[key] = columns[key];
-    } else {
-      extraFields[key] = columns[key];
-    }
+    if (CORE_FIELDS.has(key)) return;
+    extraFields[key] = columns[key];
   });
 
-  if (!core.phone_number && columns.phone_number) {
-    core.phone_number = columns.phone_number;
-  }
-
-  if (!core.state && columns.state) {
-    core.state = columns.state;
-  }
-
   // API uses created_time for timestamps; date column is the lead date in the app
-  if (columns.date && !core.created_time) {
-    core.created_time = columns.date;
+  if (core.date) {
+    core.created_time = core.date;
   }
 
   return {
@@ -301,7 +333,14 @@ function ingestBulkSheetRows_(sheet, config, options) {
       break;
     } else {
       errors += 1;
-      Logger.log('[%s row %s] ERROR %s: %s', sheetName, rowNumber, result.code, result.body);
+      Logger.log(
+        '[%s row %s] ERROR %s: %s | payload columns=%s',
+        sheetName,
+        rowNumber,
+        result.code,
+        result.body,
+        JSON.stringify(payload.columns)
+      );
     }
 
     maxProcessedRow = rowNumber;
@@ -379,5 +418,6 @@ function onOpen() {
     .addItem('Setup header row', 'setupBulkSheetHeaders')
     .addSeparator()
     .addItem('Sync all rows (historical)', 'syncAllHistoricalBulkRows')
+    .addItem('Reset sync pointer', 'resetBulkSyncPointer')
     .addToUi();
 }

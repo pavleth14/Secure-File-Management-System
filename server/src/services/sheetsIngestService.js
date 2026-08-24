@@ -13,6 +13,7 @@ import { prependReassignmentCommentToLeadData } from './leadReassignmentService.
 import { getRoundRobinAssignment } from './roundRobinService.js';
 import { findDuplicateLead, handleLeadDuplicateError } from './leadService.js';
 import { formatLeadDateIso } from '../utils/leadDateFormat.js';
+import { generateImportPlaceholderEmail } from '../utils/importPlaceholderEmail.js';
 import { notifyNewLeadSlack } from './slackNotificationService.js';
 import { backfillRingCentralEventsForLead } from './ringCentralEventService.js';
 
@@ -179,7 +180,9 @@ export async function ingestSheetLead(payload) {
   const columns = payload.columns || {};
   const firstName = String(columns.first_name || '').trim();
   const lastName = String(columns.last_name || '').trim();
-  const email = normalizeEmail(columns.email);
+  const emailRaw = String(columns.email || '').trim();
+  const emailMissing = !emailRaw;
+  const email = emailMissing ? generateImportPlaceholderEmail() : normalizeEmail(emailRaw);
   const phone = normalizePhone(columns.phone_number);
   const stateCity = String(
     columns.state || columns.state_city || columns.statecity || ''
@@ -191,13 +194,13 @@ export async function ingestSheetLead(payload) {
     throw err;
   }
 
-  if (!email || !phone) {
-    const err = new Error('email and phone_number are required');
+  if (!phone) {
+    const err = new Error('phone_number is required');
     err.status = 400;
     throw err;
   }
 
-  if (!validator.isEmail(email, { allow_utf8_local_part: false })) {
+  if (!emailMissing && !validator.isEmail(email, { allow_utf8_local_part: false })) {
     const err = new Error('Invalid email format');
     err.status = 400;
     throw err;
@@ -214,7 +217,9 @@ export async function ingestSheetLead(payload) {
   const { source } = presentation;
   await assertValidLeadSource(source);
 
-  const duplicate = await findDuplicateLead(email, phone);
+  const duplicate = emailMissing
+    ? await Lead.findOne({ phone }).select('email phone')
+    : await findDuplicateLead(email, phone);
   if (duplicate) {
     const raceSkip = await recordSyncRow({
       metaLeadId,
@@ -324,7 +329,9 @@ export async function ingestSheetLead(payload) {
   } catch (err) {
     const duplicateErr = handleLeadDuplicateError(err);
     if (duplicateErr) {
-      const existingLead = await findDuplicateLead(email, phone);
+      const existingLead = emailMissing
+        ? await Lead.findOne({ phone }).select('email phone')
+        : await findDuplicateLead(email, phone);
       await recordSyncRow({
         metaLeadId,
         spreadsheetId: payload.spreadsheetId,
