@@ -2,28 +2,16 @@ import { Lead } from '../models/Lead.js';
 import { User } from '../models/User.js';
 import { isRingCentralEnabled, RINGCENTRAL_BACKFILL_DAYS } from '../config/ringCentralConfig.js';
 import { normalizeUsPhoneDigits, toE164UsPhone } from '../utils/usPhone.js';
-import { getActiveLeadStatusNames } from './leadStatusService.js';
 import {
   fetchCallLogRecords,
   fetchCallLogByTelephonySessionId,
   fetchSmsRecords,
 } from './ringCentralApiService.js';
 
-const DEFERRED_CALL_RETRY_DELAYS_MS = [15_000, 45_000, 90_000];
+const DEFERRED_CALL_RETRY_DELAYS_MS = [15_000, 45_000, 90_000, 180_000, 300_000];
+const DEFERRED_CALL_PENDING_TTL_MS = 360_000;
 const IGNORED_DISCONNECT_REASONS = new Set(['CallerInputRedirect', 'BlindTransfer']);
 const pendingDeferredCallWrites = new Set();
-
-let activeStatusCache = { names: null, expiresAt: 0 };
-
-async function getCachedActiveStatusNames() {
-  const now = Date.now();
-  if (activeStatusCache.names && now < activeStatusCache.expiresAt) {
-    return activeStatusCache.names;
-  }
-  const names = await getActiveLeadStatusNames();
-  activeStatusCache = { names, expiresAt: now + 60_000 };
-  return names;
-}
 
 export function formatCallDuration(seconds) {
   const safe = Math.max(0, Number(seconds) || 0);
@@ -44,10 +32,32 @@ function formatRecruiterLabel(userDoc, extensionId) {
   return 'Unknown';
 }
 
+/** Map RingCentral webhook / call-log codes to readable outcome labels. */
+export function normalizeCallResult(raw) {
+  const value = String(raw || '').trim();
+  if (!value) return 'Unknown';
+
+  const lower = value.toLowerCase();
+  if (lower.includes('connected') || lower === 'accepted' || lower === 'call connected') {
+    return 'Call connected';
+  }
+  if (lower.includes('missed') || lower === 'no answer' || lower === 'noanswer') {
+    return 'Missed';
+  }
+  if (lower.includes('voicemail') || lower === 'voice mail') {
+    return 'Voicemail';
+  }
+  if (lower.includes('busy')) return 'Busy';
+  if (lower.includes('rejected') || lower.includes('declined')) return 'Declined';
+  if (lower === 'disconnected' || lower === 'gone') return 'Disconnected';
+
+  return value;
+}
+
 export function buildCallEventText({ direction, durationSec, result, recruiterName }) {
   const label = direction === 'Inbound' ? 'Inbound call' : 'Outbound call';
   const duration = formatCallDuration(durationSec);
-  const outcome = result?.trim() || 'Unknown';
+  const outcome = normalizeCallResult(result);
   return `${label} · ${duration} · ${outcome} — ${recruiterName}`;
 }
 
@@ -77,12 +87,25 @@ export async function findUserByRingCentralExtension(extensionId, extensionNumbe
 export async function findLeadByPhoneNumber(phoneNumber) {
   const digits = normalizeUsPhoneDigits(phoneNumber);
   if (!digits) return null;
-  return Lead.findOne({ phoneDigits: digits });
-}
 
-async function isLeadInActiveStatus(lead) {
-  const activeNames = await getCachedActiveStatusNames();
-  return activeNames.includes(lead.status);
+  const byDigits = await Lead.findOne({ phoneDigits: digits });
+  if (byDigits) return byDigits;
+
+  const legacyCandidates = await Lead.find({
+    $or: [{ phoneDigits: { $exists: false } }, { phoneDigits: '' }],
+    phone: { $regex: digits.slice(-7) },
+  })
+    .select('phone phoneDigits')
+    .limit(20);
+
+  for (const candidate of legacyCandidates) {
+    if (normalizeUsPhoneDigits(candidate.phone) !== digits) continue;
+    await Lead.updateOne({ _id: candidate._id }, { $set: { phoneDigits: digits } });
+    candidate.phoneDigits = digits;
+    return candidate;
+  }
+
+  return null;
 }
 
 function getExtensionFromParty(party, direction) {
@@ -128,7 +151,7 @@ function parseCallLogRecord(record) {
       }
     }
   }
-  const result = record?.result || record?.reason || 'Unknown';
+  const result = normalizeCallResult(record?.result || record?.reason || 'Unknown');
   const extensionId = getExtensionFromCallRecord(record);
   const externalPhone = getExternalPhoneFromCallRecord(record);
   const occurredAt = record?.startTime ? new Date(record.startTime) : new Date();
@@ -207,9 +230,8 @@ async function tryWriteCallEventFromCallLog(context) {
   }
 
   const lead = await findLeadByPhoneNumber(context.externalPhone);
-  if (!lead) return false;
-
-  if (!(await isLeadInActiveStatus(lead))) {
+  if (!lead) {
+    console.warn('[ringcentral] call log write skipped — no lead for phone', context.externalPhone);
     return false;
   }
 
@@ -234,7 +256,7 @@ async function tryWriteCallEventFromCallLog(context) {
     type: 'call',
     direction: context.direction,
     durationSec: parsed.durationSec,
-    result: parsed.result || context.fallbackResult || 'Unknown',
+    result: parsed.result || normalizeCallResult(context.fallbackResult) || 'Unknown',
     extensionId: context.extensionId || parsed.extensionId,
     externalPhone: context.externalPhone,
     occurredAt: parsed.occurredAt || context.occurredAt,
@@ -242,17 +264,50 @@ async function tryWriteCallEventFromCallLog(context) {
     callLogSynced: true,
   };
 
-  const result = await appendEventToLead(lead, eventData, { skipActiveCheck: true });
+  const result = await appendEventToLead(lead, eventData);
   if (result.added || result.updated) {
     console.log(
       '[ringcentral] Call event saved from call log',
       context.ringCentralEventId,
-      `${eventData.durationSec}s`
+      `${eventData.durationSec}s`,
+      lead._id.toString()
     );
     return true;
   }
 
   return false;
+}
+
+/** Record call immediately from webhook so UI shows activity before call log sync. */
+async function writeProvisionalCallEvent(context) {
+  if (!context?.externalPhone || !context?.ringCentralEventId) return;
+
+  const lead = await findLeadByPhoneNumber(context.externalPhone);
+  if (!lead) {
+    console.warn('[ringcentral] provisional call skipped — no lead for phone', context.externalPhone);
+    return;
+  }
+
+  const eventData = {
+    type: 'call',
+    direction: context.direction,
+    durationSec: 0,
+    result: normalizeCallResult(context.fallbackResult),
+    extensionId: context.extensionId,
+    externalPhone: context.externalPhone,
+    occurredAt: context.occurredAt,
+    ringCentralEventId: context.ringCentralEventId,
+    callLogSynced: false,
+  };
+
+  const result = await appendEventToLead(lead, eventData);
+  if (result.added) {
+    console.log(
+      '[ringcentral] Provisional call event saved',
+      context.ringCentralEventId,
+      lead._id.toString()
+    );
+  }
 }
 
 function scheduleDeferredCallEventRecording(context) {
@@ -261,6 +316,10 @@ function scheduleDeferredCallEventRecording(context) {
     return;
   }
   pendingDeferredCallWrites.add(key);
+
+  writeProvisionalCallEvent(context).catch((err) => {
+    console.error('[ringcentral] provisional call write failed', key, err.message);
+  });
 
   console.log(
     '[ringcentral] Deferred call write scheduled',
@@ -282,7 +341,7 @@ function scheduleDeferredCallEventRecording(context) {
     }, delayMs);
   }
 
-  setTimeout(() => pendingDeferredCallWrites.delete(key), 120_000);
+  setTimeout(() => pendingDeferredCallWrites.delete(key), DEFERRED_CALL_PENDING_TTL_MS);
 }
 
 /** Repair call events that were saved with unknown duration (legacy 0s rows). */
@@ -321,11 +380,7 @@ export async function repairStaleCallEventDurations(leadId) {
   return { repaired };
 }
 
-async function appendEventToLead(lead, eventData, { skipActiveCheck = false } = {}) {
-  if (!skipActiveCheck && !(await isLeadInActiveStatus(lead))) {
-    return { added: false, reason: 'inactive_status' };
-  }
-
+async function appendEventToLead(lead, eventData) {
   if (!eventData.ringCentralEventId) {
     return { added: false, reason: 'missing_event_id' };
   }
@@ -428,7 +483,7 @@ async function appendEventToLead(lead, eventData, { skipActiveCheck = false } = 
   return { added: true };
 }
 
-export async function recordRingCentralEventForPhone(eventData, options = {}) {
+export async function recordRingCentralEventForPhone(eventData) {
   if (!eventData?.externalPhone) {
     return { added: false, reason: 'no_phone' };
   }
@@ -438,7 +493,7 @@ export async function recordRingCentralEventForPhone(eventData, options = {}) {
     return { added: false, reason: 'lead_not_found' };
   }
 
-  return appendEventToLead(lead, eventData, options);
+  return appendEventToLead(lead, eventData);
 }
 
 export async function backfillRingCentralEventsForLead(leadId) {
@@ -465,11 +520,7 @@ export async function backfillRingCentralEventsForLead(leadId) {
     for (const record of callRecords) {
       const parsed = parseCallLogRecord(record);
       if (!parsed.ringCentralEventId) continue;
-      const result = await appendEventToLead(
-        lead,
-        { ...parsed, callLogSynced: true },
-        { skipActiveCheck: true }
-      );
+      const result = await appendEventToLead(lead, { ...parsed, callLogSynced: true });
       if (result.added) added += 1;
     }
   } catch (err) {
@@ -529,7 +580,7 @@ async function processSmsNotificationBody(body) {
   for (const record of records) {
     const parsed = parseSmsRecord({ ...record, extensionId });
     if (!parsed.ringCentralEventId) continue;
-    await recordRingCentralEventForPhone(parsed, { skipActiveCheck: false });
+    await recordRingCentralEventForPhone(parsed);
   }
 }
 
