@@ -348,33 +348,19 @@ export default function RecruiterBoardPage() {
 
   return (
     <div>
-      <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">{boardLabel}</h1>
-          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-            {isGlobalBoard
-              ? 'All active leads across every recruiter board.'
-              : canManageLeads
-                ? 'Viewing recruiter board as recruiting manager.'
-                : boardReadOnly
-                  ? 'View-only access to this recruiter board.'
-                  : isRecruitingModuleUser
-                    ? 'Viewing recruiter board.'
-                    : 'Your assigned leads.'}
-          </p>
-        </div>
-        {canAddManualLead ? (
-          <button
-            type="button"
-            onClick={() => {
-              setCreateLeadError('');
-              setCreateLeadOpen(true);
-            }}
-            className="shrink-0 rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700"
-          >
-            Add Lead
-          </button>
-        ) : null}
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">{boardLabel}</h1>
+        <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+          {isGlobalBoard
+            ? 'All active leads across every recruiter board.'
+            : canManageLeads
+              ? 'Viewing recruiter board as recruiting manager.'
+              : boardReadOnly
+                ? 'View-only access to this recruiter board.'
+                : isRecruitingModuleUser
+                  ? 'Viewing recruiter board.'
+                  : 'Your assigned leads.'}
+        </p>
       </div>
 
       {actionError && (
@@ -395,8 +381,22 @@ export default function RecruiterBoardPage() {
         showRecruiterFilter={isGlobalBoard}
       />
 
-      <div className="mb-4 flex justify-end">
-        <LeadActivityTabs value={activityGroup} onChange={setActivityGroup} />
+      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center">
+        {canAddManualLead ? (
+          <button
+            type="button"
+            onClick={() => {
+              setCreateLeadError('');
+              setCreateLeadOpen(true);
+            }}
+            className="w-fit rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700"
+          >
+            Add Lead
+          </button>
+        ) : null}
+        <div className="sm:ml-auto">
+          <LeadActivityTabs value={activityGroup} onChange={setActivityGroup} />
+        </div>
       </div>
 
       <LeadBoardTable
