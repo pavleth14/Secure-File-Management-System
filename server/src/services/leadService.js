@@ -6,6 +6,7 @@ import {
   LEAD_PERSONAL_INFO_EDIT_WINDOW_MS,
   LEAD_COMMENT_EDIT_WINDOW_MS,
   DEFAULT_LEAD_STATUS,
+  MANUAL_LEAD_SOURCE,
 } from '../config/recruitingConstants.js';
 import { assertValidLeadSource } from './leadSourceService.js';
 import {
@@ -25,6 +26,7 @@ import { appendReassignmentComment } from './leadReassignmentService.js';
 import { auditLeadStatusChanged, auditLeadProcessingStepChanged } from './recruitingAuditService.js';
 import { isRecruitingModuleUser, canMutateLead, canViewLeadOnRecruiterBoard } from '../utils/recruitingPermissions.js';
 import { formatLeadDateIso } from '../utils/leadDateFormat.js';
+import { generateImportPlaceholderEmail } from '../utils/importPlaceholderEmail.js';
 import { notifyNewLeadSlack } from './slackNotificationService.js';
 import { buildLeadSearchOrConditions } from '../utils/leadPhoneSearch.js';
 import { normalizeUsPhoneDigits } from '../utils/usPhone.js';
@@ -528,22 +530,30 @@ export async function createLead(user, payload, { req } = {}) {
     status,
     driverType,
     source,
+    date,
     assignedRecruiterId,
   } = payload;
 
-  if (!firstName || !lastName || !phone || !email || !driverType || !source) {
-    const err = new Error('firstName, lastName, phone, email, driverType, and source are required');
+  if (!firstName?.trim() || !lastName?.trim() || !phone?.trim()) {
+    const err = new Error('firstName, lastName, and phone are required');
     err.status = 400;
     throw err;
   }
 
-  assertValidLeadEmail(email);
-  assertEnumValue(driverType, DRIVER_TYPES, 'driver type');
-  await assertValidLeadSource(source);
-
-  if (status !== undefined) {
-    await assertValidLeadStatus(status);
+  const emailRaw = String(email || '').trim();
+  const emailMissing = !emailRaw;
+  if (!emailMissing) {
+    assertValidLeadEmail(emailRaw);
   }
+
+  const resolvedDriverType = driverType || 'Solo';
+  assertEnumValue(resolvedDriverType, DRIVER_TYPES, 'driver type');
+
+  const resolvedSource = source || MANUAL_LEAD_SOURCE;
+  await assertValidLeadSource(resolvedSource);
+
+  const resolvedStatus = status || DEFAULT_LEAD_STATUS;
+  await assertValidLeadStatus(resolvedStatus);
 
   let assignedRecruiter = user._id;
 
@@ -562,12 +572,23 @@ export async function createLead(user, payload, { req } = {}) {
     throw err;
   }
 
-  const normalizedEmail = normalizeEmail(email);
+  const normalizedEmail = emailMissing
+    ? generateImportPlaceholderEmail()
+    : normalizeEmail(emailRaw);
   const normalizedPhone = normalizePhone(phone);
 
-  await assertNoDuplicateLead(normalizedEmail, normalizedPhone);
+  if (emailMissing) {
+    const duplicateByPhone = await Lead.findOne({ phone: normalizedPhone }).select('_id');
+    if (duplicateByPhone) {
+      const err = new Error('A lead with this phone number already exists');
+      err.status = 409;
+      throw err;
+    }
+  } else {
+    await assertNoDuplicateLead(normalizedEmail, normalizedPhone);
+  }
 
-  const initialStatus = status || DEFAULT_LEAD_STATUS;
+  const createdAt = new Date();
   const leadDoc = {
     firstName: firstName.trim(),
     lastName: lastName.trim(),
@@ -575,17 +596,20 @@ export async function createLead(user, payload, { req } = {}) {
     phoneDigits: normalizeUsPhoneDigits(normalizedPhone),
     email: normalizedEmail,
     stateCity: stateCity?.trim() || '',
-    status: initialStatus,
-    driverType,
-    source,
+    status: resolvedStatus,
+    driverType: resolvedDriverType,
+    source: resolvedSource,
+    date: date ? formatLeadDateIso(date, createdAt) : formatLeadDateIso(null, createdAt),
     assignedRecruiter,
     comments: [],
+    createdAt,
+    updatedAt: createdAt,
   };
 
   appendStatusChangeComment(leadDoc, {
     userId: user._id,
     oldStatus: null,
-    newStatus: initialStatus,
+    newStatus: resolvedStatus,
   });
 
   const lead = await Lead.create(leadDoc);
@@ -596,12 +620,12 @@ export async function createLead(user, payload, { req } = {}) {
       lead,
       req,
       oldStatus: null,
-      newStatus: initialStatus,
+      newStatus: resolvedStatus,
     });
   }
 
   const createdLead = await getLeadById(lead._id);
-  notifyNewLeadSlack(createdLead, { sourceLabel: source });
+  notifyNewLeadSlack(createdLead, { sourceLabel: resolvedSource });
   backfillRingCentralEventsForLead(lead._id).catch((err) => {
     console.error('[ringcentral] createLead backfill failed', lead._id, err.message);
   });

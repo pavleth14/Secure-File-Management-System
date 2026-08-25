@@ -11,6 +11,7 @@ import LeadBoardTable from '../components/recruiting/LeadBoardTable';
 import LeadViewModal from '../components/recruiting/LeadViewModal';
 import AddCommentModal from '../components/recruiting/AddCommentModal';
 import AssignLeadModal from '../components/recruiting/AssignLeadModal';
+import CreateLeadModal from '../components/recruiting/CreateLeadModal';
 
 const GLOBAL_BOARD_USER_ID = 'global';
 
@@ -101,6 +102,9 @@ export default function RecruiterBoardPage() {
   const [scrollToComments, setScrollToComments] = useState(false);
   const [commentLead, setCommentLead] = useState(null);
   const [assignLead, setAssignLead] = useState(null);
+  const [createLeadOpen, setCreateLeadOpen] = useState(false);
+  const [createLeadSubmitting, setCreateLeadSubmitting] = useState(false);
+  const [createLeadError, setCreateLeadError] = useState('');
   const [commentSubmitting, setCommentSubmitting] = useState(false);
   const [assignSubmitting, setAssignSubmitting] = useState(false);
 
@@ -307,6 +311,29 @@ export default function RecruiterBoardPage() {
     setScrollToComments(Boolean(options.scrollToComments));
   };
 
+  const canAddManualLead = !isGlobalBoard && !boardReadOnly;
+
+  const handleCreateLead = async (payload) => {
+    setCreateLeadSubmitting(true);
+    setCreateLeadError('');
+    setActionError('');
+    try {
+      const body = {
+        ...payload,
+        ...(canManageLeads ? { assignedRecruiterId: userId } : {}),
+      };
+      await api.post('/recruiting/leads', body);
+      setCreateLeadOpen(false);
+      await loadLeads();
+    } catch (err) {
+      const message = err.response?.data?.message || 'Failed to create lead';
+      setCreateLeadError(message);
+      setActionError(message);
+    } finally {
+      setCreateLeadSubmitting(false);
+    }
+  };
+
   if (boardLoading) {
     return <div className="text-slate-500 dark:text-slate-400">Loading board...</div>;
   }
@@ -321,19 +348,33 @@ export default function RecruiterBoardPage() {
 
   return (
     <div>
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">{boardLabel}</h1>
-        <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-          {isGlobalBoard
-            ? 'All active leads across every recruiter board.'
-            : canManageLeads
-              ? 'Viewing recruiter board as recruiting manager.'
-              : boardReadOnly
-                ? 'View-only access to this recruiter board.'
-                : isRecruitingModuleUser
-                  ? 'Viewing recruiter board.'
-                  : 'Your assigned leads.'}
-        </p>
+      <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">{boardLabel}</h1>
+          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+            {isGlobalBoard
+              ? 'All active leads across every recruiter board.'
+              : canManageLeads
+                ? 'Viewing recruiter board as recruiting manager.'
+                : boardReadOnly
+                  ? 'View-only access to this recruiter board.'
+                  : isRecruitingModuleUser
+                    ? 'Viewing recruiter board.'
+                    : 'Your assigned leads.'}
+          </p>
+        </div>
+        {canAddManualLead ? (
+          <button
+            type="button"
+            onClick={() => {
+              setCreateLeadError('');
+              setCreateLeadOpen(true);
+            }}
+            className="shrink-0 rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700"
+          >
+            Add Lead
+          </button>
+        ) : null}
       </div>
 
       {actionError && (
@@ -434,6 +475,19 @@ export default function RecruiterBoardPage() {
         submitting={assignSubmitting}
         onConfirm={handleAssignLead}
         onCancel={() => setAssignLead(null)}
+      />
+
+      <CreateLeadModal
+        open={createLeadOpen}
+        sources={sourceNames}
+        submitting={createLeadSubmitting}
+        error={createLeadError}
+        onSave={handleCreateLead}
+        onCancel={() => {
+          if (createLeadSubmitting) return;
+          setCreateLeadOpen(false);
+          setCreateLeadError('');
+        }}
       />
     </div>
   );

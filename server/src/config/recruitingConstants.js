@@ -86,7 +86,10 @@ export const LEAD_SOURCES = [
   'Planet L',
   'Hiring Open',
   'Website',
+  'Custom',
 ];
+
+export const MANUAL_LEAD_SOURCE = 'Custom';
 
 export const LEAD_PERSONAL_INFO_EDIT_WINDOW_MS = 24 * 60 * 60 * 1000;
 export const LEAD_COMMENT_EDIT_WINDOW_MS = 24 * 60 * 60 * 1000;
