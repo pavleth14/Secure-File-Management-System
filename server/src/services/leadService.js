@@ -34,6 +34,7 @@ import {
   backfillRingCentralEventsForLead,
   formatRingCentralEvent,
   repairStaleCallEventDurations,
+  scheduleRepairForLeadsWithUnsyncedCalls,
 } from './ringCentralEventService.js';
 
 const PERSONAL_INFO_FIELDS = ['firstName', 'lastName', 'phone', 'email', 'stateCity'];
@@ -384,6 +385,10 @@ async function queryLeadListSortedByProcessingStep(filter, options) {
   const leadsById = new Map(leads.map((lead) => [lead._id.toString(), lead]));
   const orderedLeads = ids.map((id) => leadsById.get(id.toString())).filter(Boolean);
 
+  if (listMode) {
+    scheduleRepairForLeadsWithUnsyncedCalls(orderedLeads);
+  }
+
   return {
     leads: orderedLeads,
     page: safePage,
@@ -419,6 +424,10 @@ async function queryLeadList(filter, options) {
   }
 
   const [totalCount, leads] = await Promise.all([Lead.countDocuments(filter), populateLead(query)]);
+
+  if (listMode) {
+    scheduleRepairForLeadsWithUnsyncedCalls(leads);
+  }
 
   return {
     leads,

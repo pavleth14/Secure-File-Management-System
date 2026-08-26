@@ -402,6 +402,37 @@ export async function repairStaleCallEventDurations(leadId) {
   return { repaired };
 }
 
+/** When loading a board page, re-queue any visible leads still waiting on call log data. */
+export function scheduleRepairForLeadsWithUnsyncedCalls(leads) {
+  if (!isRingCentralEnabled() || !Array.isArray(leads) || !leads.length) return;
+
+  for (const lead of leads) {
+    const events = lead.ringCentralEvents || [];
+    const event = events[events.length - 1];
+    if (!event || event.type !== 'call' || event.callLogSynced) continue;
+
+    const telephonySessionId = parseSessionIdFromEventId(event.ringCentralEventId);
+    if (!telephonySessionId) continue;
+
+    const context = {
+      telephonySessionId,
+      extensionId: event.extensionId,
+      direction: event.direction,
+      externalPhone: lead.phone,
+      ringCentralEventId: event.ringCentralEventId,
+      fallbackResult: event.result,
+      occurredAt: event.occurredAt,
+    };
+
+    enqueueCallLogSync(context).catch((err) => {
+      console.warn('[ringcentral] list repair enqueue failed', event.ringCentralEventId, err.message);
+    });
+    syncCallEventFromCallLog(context).catch((err) => {
+      console.warn('[ringcentral] list repair sync failed', event.ringCentralEventId, err.message);
+    });
+  }
+}
+
 async function appendEventToLead(lead, eventData) {
   if (!eventData.ringCentralEventId) {
     return { added: false, reason: 'missing_event_id' };
