@@ -8,6 +8,10 @@ import {
   deleteRingCentralSubscription,
 } from './ringCentralApiService.js';
 import { migrateLeadPhoneDigits } from './ringCentralEventService.js';
+import {
+  reconcileCallLogSyncQueue,
+  startRingCentralCallSyncWorker,
+} from './ringCentralCallSyncService.js';
 
 export async function ensureRingCentralWebhookSubscription() {
   if (!isRingCentralEnabled()) {
@@ -64,5 +68,15 @@ export async function initializeRingCentralIntegration() {
     console.error(
       '[ringcentral] Ensure webhook URL is reachable and returns Validation-Token header'
     );
+  }
+
+  try {
+    const reconciled = await reconcileCallLogSyncQueue();
+    if (reconciled.enqueued) {
+      console.log('[ringcentral] Reconciled unsynced call events on startup', reconciled.enqueued);
+    }
+    startRingCentralCallSyncWorker();
+  } catch (err) {
+    console.warn('[ringcentral] Call log sync worker startup failed', err.message);
   }
 }

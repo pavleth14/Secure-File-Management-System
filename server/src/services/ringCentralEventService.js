@@ -7,11 +7,10 @@ import {
   fetchCallLogByTelephonySessionId,
   fetchSmsRecords,
 } from './ringCentralApiService.js';
+import { enqueueCallLogSync } from './ringCentralCallSyncService.js';
+import { RingCentralCallSync } from '../models/RingCentralCallSync.js';
 
-const DEFERRED_CALL_RETRY_DELAYS_MS = [15_000, 45_000, 90_000, 180_000, 300_000];
-const DEFERRED_CALL_PENDING_TTL_MS = 360_000;
 const IGNORED_DISCONNECT_REASONS = new Set(['CallerInputRedirect', 'BlindTransfer']);
-const pendingDeferredCallWrites = new Set();
 
 export function formatCallDuration(seconds) {
   const safe = Math.max(0, Number(seconds) || 0);
@@ -205,11 +204,36 @@ function parseSessionIdFromEventId(ringCentralEventId) {
   return parts[2] || null;
 }
 
-async function fetchAuthoritativeCallLogRecord({ telephonySessionId, extensionId, direction }) {
-  const records = await fetchCallLogByTelephonySessionId({
+async function fetchAuthoritativeCallLogRecord({
+  telephonySessionId,
+  extensionId,
+  direction,
+  externalPhone,
+  occurredAt,
+}) {
+  let records = await fetchCallLogByTelephonySessionId({
     telephonySessionId,
     extensionId,
   });
+
+  if (!records.length && externalPhone && occurredAt) {
+    const phoneE164 = toE164UsPhone(externalPhone);
+    if (phoneE164) {
+      const windowStart = new Date(new Date(occurredAt).getTime() - 15 * 60 * 1000);
+      const windowEnd = new Date(new Date(occurredAt).getTime() + 15 * 60 * 1000);
+      const byPhone = await fetchCallLogRecords({
+        phoneNumber: phoneE164,
+        dateFrom: windowStart.toISOString(),
+        dateTo: windowEnd.toISOString(),
+        perPage: 50,
+      });
+      records = byPhone.filter((record) => {
+        const sessionId = String(record?.telephonySessionId || record?.sessionId || '');
+        return sessionId && sessionId === String(telephonySessionId);
+      });
+    }
+  }
+
   if (!records.length) return null;
 
   const directionalMatch = records.find((record) => {
@@ -220,11 +244,19 @@ async function fetchAuthoritativeCallLogRecord({ telephonySessionId, extensionId
   return directionalMatch || records[0];
 }
 
+async function markCallLogSyncComplete(ringCentralEventId) {
+  if (!ringCentralEventId) return;
+  await RingCentralCallSync.updateOne(
+    { ringCentralEventId, syncedAt: null },
+    { $set: { syncedAt: new Date(), lastError: null } }
+  );
+}
+
 /**
  * Write call event only after RingCentral Call Log returns the session (accurate duration).
  * Returns true when written or already stored with authoritative data.
  */
-async function tryWriteCallEventFromCallLog(context) {
+export async function syncCallEventFromCallLog(context) {
   if (!isRingCentralEnabled() || !context?.externalPhone || !context?.telephonySessionId) {
     return false;
   }
@@ -239,6 +271,7 @@ async function tryWriteCallEventFromCallLog(context) {
     (event) => event.ringCentralEventId === context.ringCentralEventId
   );
   if (existing?.callLogSynced) {
+    await markCallLogSyncComplete(context.ringCentralEventId);
     return true;
   }
 
@@ -246,6 +279,8 @@ async function tryWriteCallEventFromCallLog(context) {
     telephonySessionId: context.telephonySessionId,
     extensionId: context.extensionId,
     direction: context.direction,
+    externalPhone: context.externalPhone,
+    occurredAt: context.occurredAt,
   });
   if (!record) {
     return false;
@@ -266,6 +301,7 @@ async function tryWriteCallEventFromCallLog(context) {
 
   const result = await appendEventToLead(lead, eventData);
   if (result.added || result.updated) {
+    await markCallLogSyncComplete(context.ringCentralEventId);
     console.log(
       '[ringcentral] Call event saved from call log',
       context.ringCentralEventId,
@@ -311,37 +347,23 @@ async function writeProvisionalCallEvent(context) {
 }
 
 function scheduleDeferredCallEventRecording(context) {
-  const key = context.ringCentralEventId;
-  if (!key || pendingDeferredCallWrites.has(key)) {
-    return;
-  }
-  pendingDeferredCallWrites.add(key);
-
   writeProvisionalCallEvent(context).catch((err) => {
-    console.error('[ringcentral] provisional call write failed', key, err.message);
+    console.error('[ringcentral] provisional call write failed', context.ringCentralEventId, err.message);
   });
 
-  console.log(
-    '[ringcentral] Deferred call write scheduled',
-    key,
-    `retries at ${DEFERRED_CALL_RETRY_DELAYS_MS.map((ms) => `${ms / 1000}s`).join(', ')}`
-  );
+  enqueueCallLogSync(context)
+    .then((entry) => {
+      if (entry) {
+        console.log('[ringcentral] Call log sync queued', context.ringCentralEventId);
+      }
+    })
+    .catch((err) => {
+      console.error('[ringcentral] call log sync enqueue failed', context.ringCentralEventId, err.message);
+    });
 
-  for (const delayMs of DEFERRED_CALL_RETRY_DELAYS_MS) {
-    setTimeout(() => {
-      tryWriteCallEventFromCallLog(context)
-        .then((written) => {
-          if (written) {
-            pendingDeferredCallWrites.delete(key);
-          }
-        })
-        .catch((err) => {
-          console.error('[ringcentral] deferred call write failed', key, err.message);
-        });
-    }, delayMs);
-  }
-
-  setTimeout(() => pendingDeferredCallWrites.delete(key), DEFERRED_CALL_PENDING_TTL_MS);
+  syncCallEventFromCallLog(context).catch((err) => {
+    console.error('[ringcentral] immediate call log sync failed', context.ringCentralEventId, err.message);
+  });
 }
 
 /** Repair call events that were saved with unknown duration (legacy 0s rows). */
@@ -373,7 +395,7 @@ export async function repairStaleCallEventDurations(leadId) {
       occurredAt: event.occurredAt,
     };
 
-    const written = await tryWriteCallEventFromCallLog(context);
+    const written = await syncCallEventFromCallLog(context);
     if (written) repaired += 1;
   }
 
