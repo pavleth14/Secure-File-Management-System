@@ -1,6 +1,5 @@
 import { getRingCentralServer } from '../config/ringCentralConfig.js';
 import {
-  markRingCentralRateLimited,
   waitForRingCentralRateLimit,
 } from '../utils/ringCentralRateLimiter.js';
 
@@ -103,7 +102,12 @@ async function parseRingCentralResponse(response) {
     err.status = response.status;
     err.body = body;
     if (response.status === 429) {
-      markRingCentralRateLimited(60_000);
+      const { parseRetryAfterMs, markRingCentralRateLimited } = await import(
+        '../utils/ringCentralRateLimiter.js'
+      );
+      const retryAfterMs =
+        parseRetryAfterMs(response.headers.get('Retry-After')) ?? 120_000;
+      markRingCentralRateLimited(retryAfterMs);
     }
     throw err;
   }

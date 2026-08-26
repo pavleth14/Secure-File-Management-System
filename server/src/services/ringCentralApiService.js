@@ -60,6 +60,7 @@ export async function fetchCallLogByTelephonySessionId({
   telephonySessionId,
   extensionId,
   perPage = 10,
+  tryExtensionFallback = false,
 } = {}) {
   if (!telephonySessionId) return [];
 
@@ -69,16 +70,24 @@ export async function fetchCallLogByTelephonySessionId({
     perPage: String(perPage),
   });
 
-  const paths = [`/restapi/v1.0/account/~/call-log?${params.toString()}`];
-  if (extensionId) {
-    paths.push(
-      `/restapi/v1.0/account/~/extension/${extensionId}/call-log?${params.toString()}`
-    );
+  const accountPath = `/restapi/v1.0/account/~/call-log?${params.toString()}`;
+
+  try {
+    const data = await ringCentralApiRequest(accountPath);
+    if (data?.records?.length) {
+      return data.records;
+    }
+  } catch (err) {
+    if (err.status === 429) {
+      throw err;
+    }
+    console.warn('[ringcentral] account call-log lookup failed', err.message);
   }
 
-  for (const path of paths) {
+  if (tryExtensionFallback && extensionId) {
+    const extensionPath = `/restapi/v1.0/account/~/extension/${extensionId}/call-log?${params.toString()}`;
     try {
-      const data = await ringCentralApiRequest(path);
+      const data = await ringCentralApiRequest(extensionPath);
       if (data?.records?.length) {
         return data.records;
       }
@@ -86,7 +95,7 @@ export async function fetchCallLogByTelephonySessionId({
       if (err.status === 429) {
         throw err;
       }
-      console.warn('[ringcentral] call-log session lookup failed', path, err.message);
+      console.warn('[ringcentral] extension call-log lookup failed', err.message);
     }
   }
 

@@ -18,6 +18,7 @@ const ringCentralCallSyncSchema = new mongoose.Schema(
 );
 
 ringCentralCallSyncSchema.index({ syncedAt: 1, nextAttemptAt: 1 });
+ringCentralCallSyncSchema.index({ telephonySessionId: 1, syncedAt: 1 });
 
 export const RingCentralCallSync = mongoose.model(
   'RingCentralCallSync',

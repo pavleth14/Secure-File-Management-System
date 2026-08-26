@@ -233,12 +233,14 @@ async function fetchAuthoritativeCallLogRecord({
   externalPhone,
   occurredAt,
   allowPhoneFallback = false,
+  tryExtensionFallback = false,
 }) {
   let records;
   try {
     records = await fetchCallLogByTelephonySessionId({
       telephonySessionId,
       extensionId,
+      tryExtensionFallback,
     });
   } catch (err) {
     if (err.status === 429) {
@@ -320,6 +322,7 @@ export async function syncCallEventFromCallLog(context) {
       externalPhone: context.externalPhone,
       occurredAt: context.occurredAt,
       allowPhoneFallback: Boolean(context.allowPhoneFallback),
+      tryExtensionFallback: Boolean(context.tryExtensionFallback),
     });
   } catch (err) {
     if (err.status === 429) {
@@ -400,15 +403,22 @@ export async function repairStaleCallEventDurations(leadId) {
     const telephonySessionId = parseSessionIdFromEventId(event.ringCentralEventId);
     if (!telephonySessionId) continue;
 
-    await enqueueCallLogSync({
+    const pendingForSession = await RingCentralCallSync.findOne({
       telephonySessionId,
-      extensionId: event.extensionId,
-      direction: event.direction,
-      externalPhone: lead.phone,
-      ringCentralEventId: event.ringCentralEventId,
-      fallbackResult: event.result,
-      occurredAt: event.occurredAt,
+      syncedAt: null,
     });
+
+    if (!pendingForSession) {
+      await enqueueCallLogSync({
+        telephonySessionId,
+        extensionId: event.extensionId,
+        direction: event.direction,
+        externalPhone: lead.phone,
+        ringCentralEventId: event.ringCentralEventId,
+        fallbackResult: event.result,
+        occurredAt: event.occurredAt,
+      });
+    }
     repaired += 1;
   }
 

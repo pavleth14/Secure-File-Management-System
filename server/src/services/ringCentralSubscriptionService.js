@@ -9,8 +9,7 @@ import {
 } from './ringCentralApiService.js';
 import { migrateLeadPhoneDigits } from './ringCentralEventService.js';
 import {
-  reconcileCallLogSyncQueue,
-  startRingCentralCallSyncWorker,
+  initializeRingCentralCallSync,
 } from './ringCentralCallSyncService.js';
 
 export async function ensureRingCentralWebhookSubscription() {
@@ -71,11 +70,7 @@ export async function initializeRingCentralIntegration() {
   }
 
   try {
-    const reconciled = await reconcileCallLogSyncQueue();
-    if (reconciled.enqueued || reconciled.cleaned) {
-      console.log('[ringcentral] Startup reconcile', reconciled);
-    }
-    startRingCentralCallSyncWorker();
+    await initializeRingCentralCallSync();
   } catch (err) {
     console.warn('[ringcentral] Call log sync worker startup failed', err.message);
   }
