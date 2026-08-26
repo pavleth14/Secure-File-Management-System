@@ -72,8 +72,8 @@ export async function initializeRingCentralIntegration() {
 
   try {
     const reconciled = await reconcileCallLogSyncQueue();
-    if (reconciled.enqueued) {
-      console.log('[ringcentral] Reconciled unsynced call events on startup', reconciled.enqueued);
+    if (reconciled.enqueued || reconciled.cleaned) {
+      console.log('[ringcentral] Startup reconcile', reconciled);
     }
     startRingCentralCallSyncWorker();
   } catch (err) {

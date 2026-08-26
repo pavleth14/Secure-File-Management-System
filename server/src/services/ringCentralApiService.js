@@ -69,13 +69,12 @@ export async function fetchCallLogByTelephonySessionId({
     perPage: String(perPage),
   });
 
-  const paths = [];
+  const paths = [`/restapi/v1.0/account/~/call-log?${params.toString()}`];
   if (extensionId) {
     paths.push(
       `/restapi/v1.0/account/~/extension/${extensionId}/call-log?${params.toString()}`
     );
   }
-  paths.push(`/restapi/v1.0/account/~/call-log?${params.toString()}`);
 
   for (const path of paths) {
     try {
@@ -84,6 +83,9 @@ export async function fetchCallLogByTelephonySessionId({
         return data.records;
       }
     } catch (err) {
+      if (err.status === 429) {
+        throw err;
+      }
       console.warn('[ringcentral] call-log session lookup failed', path, err.message);
     }
   }

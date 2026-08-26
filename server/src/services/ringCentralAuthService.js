@@ -1,4 +1,8 @@
 import { getRingCentralServer } from '../config/ringCentralConfig.js';
+import {
+  markRingCentralRateLimited,
+  waitForRingCentralRateLimit,
+} from '../utils/ringCentralRateLimiter.js';
 
 let cachedToken = null;
 let tokenExpiresAt = 0;
@@ -49,6 +53,8 @@ export async function getRingCentralAccessToken({ forceRefresh = false } = {}) {
 }
 
 export async function ringCentralApiRequest(path, options = {}) {
+  await waitForRingCentralRateLimit();
+
   const token = await getRingCentralAccessToken();
   const url = path.startsWith('http') ? path : `${getRingCentralServer()}${path}`;
 
@@ -96,6 +102,9 @@ async function parseRingCentralResponse(response) {
     const err = new Error(`RingCentral API error (${response.status}): ${message}`);
     err.status = response.status;
     err.body = body;
+    if (response.status === 429) {
+      markRingCentralRateLimited(60_000);
+    }
     throw err;
   }
 
