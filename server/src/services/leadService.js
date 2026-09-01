@@ -625,7 +625,10 @@ export async function createLead(user, payload, { req } = {}) {
   }
 
   const createdLead = await getLeadById(lead._id);
-  notifyNewLeadSlack(createdLead, { sourceLabel: resolvedSource });
+  const assignedToSelf = assignedRecruiter.toString() === user._id.toString();
+  if (!assignedToSelf) {
+    notifyNewLeadSlack(createdLead, { sourceLabel: resolvedSource });
+  }
   backfillRingCentralEventsForLead(lead._id).catch((err) => {
     console.error('[ringcentral] createLead backfill failed', lead._id, err.message);
   });
