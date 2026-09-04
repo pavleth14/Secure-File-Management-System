@@ -74,6 +74,7 @@ const leadSchema = new mongoose.Schema(
       default: DEFAULT_LEAD_STATUS,
     },
     rejectionReason: { type: String, trim: true, default: null },
+    hiredDate: { type: String, trim: true, default: null },
     processingStep: { type: String, trim: true, default: null },
     processingStepIndex: { type: Number, default: null },
     processingStepHistory: { type: [processingStepHistorySchema], default: [] },

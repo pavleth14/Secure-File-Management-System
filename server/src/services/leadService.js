@@ -145,6 +145,7 @@ export function formatLead(lead) {
     stateCity: lead.stateCity,
     status: lead.status,
     rejectionReason: lead.rejectionReason || null,
+    hiredDate: formatLeadDateIso(lead.hiredDate) || null,
     processingStep: lead.processingStep || null,
     processingStepIndex: lead.processingStepIndex ?? null,
     processingStepHistory: (lead.processingStepHistory || []).map(formatProcessingStepHistoryEntry),
@@ -715,11 +716,32 @@ async function validateLeadUpdate(user, lead, updates) {
   }
 
   const effectiveStatus = updates.status !== undefined ? updates.status : lead.status;
+  const willBecomeHired =
+    updates.status === 'Hired' ||
+    updates.processingStep === PROCESSING_STEP_HIRED_KEY;
+  const nextStatusForValidation = willBecomeHired ? 'Hired' : effectiveStatus;
+
   if (effectiveStatus === 'Rejected') {
     const reason =
       updates.rejectionReason !== undefined ? updates.rejectionReason : lead.rejectionReason;
     if (!reason || !String(reason).trim()) {
       const err = new Error('Rejection reason is required when status is Rejected');
+      err.status = 400;
+      throw err;
+    }
+  }
+
+  if (nextStatusForValidation === 'Hired') {
+    const rawHiredDate =
+      updates.hiredDate !== undefined ? updates.hiredDate : lead.hiredDate;
+    if (!rawHiredDate || !String(rawHiredDate).trim()) {
+      const err = new Error('Hired date is required when status is Hired');
+      err.status = 400;
+      throw err;
+    }
+    const normalizedHiredDate = formatLeadDateIso(rawHiredDate);
+    if (!normalizedHiredDate) {
+      const err = new Error('Invalid hired date');
       err.status = 400;
       throw err;
     }
@@ -770,6 +792,12 @@ export async function updateLead(user, lead, updates, { req } = {}) {
   if (updates.email !== undefined) lead.email = nextEmail;
   if (updates.stateCity !== undefined) lead.stateCity = updates.stateCity.trim();
 
+  if (updates.hiredDate !== undefined) {
+    lead.hiredDate = updates.hiredDate
+      ? formatLeadDateIso(updates.hiredDate)
+      : null;
+  }
+
   if (updates.processingStep !== undefined) {
     const nextStep = updates.processingStep ? String(updates.processingStep).trim() : null;
     const previousStep = lead.processingStep || null;
@@ -814,12 +842,19 @@ export async function updateLead(user, lead, updates, { req } = {}) {
             ? updates.rejectionReason
             : lead.rejectionReason
           : null;
+      const hiredDateForComment =
+        nextStatus === 'Hired'
+          ? updates.hiredDate !== undefined
+            ? formatLeadDateIso(updates.hiredDate)
+            : lead.hiredDate
+          : null;
 
       appendStatusChangeComment(lead, {
         userId: user._id,
         oldStatus,
         newStatus: nextStatus,
         rejectionReason: rejectionReasonForComment,
+        hiredDate: hiredDateForComment,
       });
 
       if (req) {
@@ -830,6 +865,7 @@ export async function updateLead(user, lead, updates, { req } = {}) {
           oldStatus,
           newStatus: nextStatus,
           rejectionReason: rejectionReasonForComment,
+          hiredDate: hiredDateForComment,
         });
       }
     }
@@ -837,6 +873,9 @@ export async function updateLead(user, lead, updates, { req } = {}) {
     lead.status = nextStatus;
     if (nextStatus !== 'Rejected') {
       lead.rejectionReason = null;
+    }
+    if (nextStatus !== 'Hired') {
+      lead.hiredDate = null;
     }
     if (nextStatus !== 'Processing') {
       lead.processingStep = null;

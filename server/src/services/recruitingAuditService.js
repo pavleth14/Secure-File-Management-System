@@ -72,11 +72,21 @@ export async function auditLeadStatusChanged({
   oldStatus,
   newStatus,
   rejectionReason = null,
+  hiredDate = null,
 }) {
   const trimmedReason = rejectionReason ? String(rejectionReason).trim() : '';
+  const trimmedHiredDate = hiredDate ? String(hiredDate).trim() : '';
   const details = oldStatus
     ? `${buildActorLabel(user)} changed status from ${oldStatus} to ${newStatus} for ${leadLabel(lead)}`
     : `${buildActorLabel(user)} set status to ${newStatus} for ${leadLabel(lead)}`;
+
+  let detailSuffix = '';
+  if (trimmedReason) {
+    detailSuffix += ` (Reason: ${trimmedReason})`;
+  }
+  if (trimmedHiredDate) {
+    detailSuffix += ` (Hired date: ${trimmedHiredDate})`;
+  }
 
   await auditLog({
     user,
@@ -85,11 +95,12 @@ export async function auditLeadStatusChanged({
     targetType: TARGET_TYPES.LEAD,
     targetId: lead._id || lead.id,
     targetName: leadLabel(lead),
-    details: trimmedReason ? `${details} (Reason: ${trimmedReason})` : details,
+    details: `${details}${detailSuffix}`,
     oldValues: oldStatus ? { status: oldStatus } : {},
     newValues: {
       status: newStatus,
       ...(trimmedReason ? { rejectionReason: trimmedReason } : {}),
+      ...(trimmedHiredDate ? { hiredDate: trimmedHiredDate } : {}),
     },
     req,
   });

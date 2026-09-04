@@ -1,10 +1,19 @@
-export function buildStatusChangeCommentText({ oldStatus, newStatus, rejectionReason }) {
+export function buildStatusChangeCommentText({
+  oldStatus,
+  newStatus,
+  rejectionReason,
+  hiredDate,
+}) {
   const trimmedReason = rejectionReason ? String(rejectionReason).trim() : '';
+  const trimmedHiredDate = hiredDate ? String(hiredDate).trim() : '';
 
   if (oldStatus && oldStatus !== newStatus) {
     let text = `Status changed from ${oldStatus} to ${newStatus}.`;
     if (trimmedReason) {
       text += ` Reason: ${trimmedReason}`;
+    }
+    if (trimmedHiredDate) {
+      text += ` Hired date: ${trimmedHiredDate}`;
     }
     return text;
   }
@@ -13,6 +22,9 @@ export function buildStatusChangeCommentText({ oldStatus, newStatus, rejectionRe
     let text = `Status set to ${newStatus}.`;
     if (trimmedReason) {
       text += ` Reason: ${trimmedReason}`;
+    }
+    if (trimmedHiredDate) {
+      text += ` Hired date: ${trimmedHiredDate}`;
     }
     return text;
   }
@@ -25,9 +37,15 @@ export function buildStatusChangeCommentSubdoc({
   oldStatus,
   newStatus,
   rejectionReason,
+  hiredDate,
   timestamp = new Date(),
 }) {
-  const text = buildStatusChangeCommentText({ oldStatus, newStatus, rejectionReason });
+  const text = buildStatusChangeCommentText({
+    oldStatus,
+    newStatus,
+    rejectionReason,
+    hiredDate,
+  });
   if (!text) return null;
 
   return {
@@ -41,13 +59,14 @@ export function buildStatusChangeCommentSubdoc({
 
 export function appendStatusChangeComment(
   lead,
-  { userId, oldStatus, newStatus, rejectionReason, timestamp = new Date() }
+  { userId, oldStatus, newStatus, rejectionReason, hiredDate, timestamp = new Date() }
 ) {
   const comment = buildStatusChangeCommentSubdoc({
     userId,
     oldStatus,
     newStatus,
     rejectionReason,
+    hiredDate,
     timestamp,
   });
   if (!comment) return false;
@@ -61,13 +80,14 @@ export function appendStatusChangeComment(
 
 export function prependStatusCommentsToLeadData(
   leadData,
-  { userId, oldStatus, newStatus, rejectionReason, timestamp = new Date() }
+  { userId, oldStatus, newStatus, rejectionReason, hiredDate, timestamp = new Date() }
 ) {
   const comment = buildStatusChangeCommentSubdoc({
     userId,
     oldStatus,
     newStatus,
     rejectionReason,
+    hiredDate,
     timestamp,
   });
   if (!comment) return leadData;

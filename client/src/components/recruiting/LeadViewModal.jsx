@@ -38,6 +38,20 @@ const EDITABLE_FIELDS = [
 
 const REJECTION_DROPDOWN_OPTIONS = [...REJECTION_REASONS, REJECTION_REASON_CUSTOM];
 
+function todayDateInput() {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+function toDateInput(value) {
+  if (!value) return '';
+  const formatted = formatLeadDisplayDate(value);
+  return formatted === '—' ? '' : formatted;
+}
+
 const inputClass =
   'mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100';
 
@@ -62,6 +76,7 @@ function buildDraft(lead) {
     phone: lead?.phone || '',
     stateCity: lead?.stateCity || '',
     email: lead?.email || '',
+    hiredDate: toDateInput(lead?.hiredDate),
     ...parseRejectionDraft(lead),
   };
 }
@@ -92,6 +107,16 @@ function getDraftChanges(original, draft) {
     }
   } else if (originalReason) {
     changes.rejectionReason = null;
+  }
+
+  const originalHiredDate = toDateInput(original.hiredDate);
+  const draftHiredDate = draft.hiredDate.trim();
+  if (draft.status === 'Hired') {
+    if (draftHiredDate !== originalHiredDate) {
+      changes.hiredDate = draftHiredDate;
+    }
+  } else if (originalHiredDate) {
+    changes.hiredDate = null;
   }
 
   const originalStep = resolveLeadProcessingStep(original) || '';
@@ -157,6 +182,7 @@ export default function LeadViewModal({
 
   const canSave = Boolean(onSave) && !readOnly;
   const isRejected = draft.status === 'Rejected';
+  const isHired = draft.status === 'Hired';
   const isProcessing = draft.status === 'Processing';
   const hasProcessingHistory = (displayLead?.processingStepHistory || []).length > 0;
   const canEditProcessingSteps = isProcessing && fieldPermissions.status;
@@ -237,12 +263,21 @@ export default function LeadViewModal({
     if (field === 'status' && value === 'Rejected') {
       setEditingFields((current) => ({ ...current, rejectionReason: true }));
     }
+    if (field === 'status' && value === 'Hired') {
+      setEditingFields((current) => ({ ...current, hiredDate: true }));
+    }
 
     setDraft((prev) => {
       const next = { ...prev, [field]: value };
       if (field === 'status' && value !== 'Rejected') {
         next.rejectionReasonPreset = '';
         next.customRejectionReason = '';
+      }
+      if (field === 'status' && value === 'Hired') {
+        next.hiredDate = prev.hiredDate || todayDateInput();
+      }
+      if (field === 'status' && value !== 'Hired') {
+        next.hiredDate = '';
       }
       if (field === 'status' && value !== 'Processing') {
         next.processingStep = '';
@@ -252,12 +287,18 @@ export default function LeadViewModal({
   };
 
   const handleProcessingStepChange = (stepKey) => {
+    if (stepKey === PROCESSING_STEP_HIRED_KEY) {
+      setEditingFields((current) => ({ ...current, hiredDate: true }));
+    }
+
     setDraft((prev) => {
       const next = { ...prev, processingStep: stepKey };
       if (stepKey === PROCESSING_STEP_HIRED_KEY) {
         next.status = 'Hired';
+        next.hiredDate = prev.hiredDate || todayDateInput();
       } else if (prev.status === 'Hired') {
         next.status = 'Processing';
+        next.hiredDate = '';
       }
       return next;
     });
@@ -287,6 +328,11 @@ export default function LeadViewModal({
       }
     }
 
+    if (draft.status === 'Hired' && !draft.hiredDate.trim()) {
+      setError('Please select a hired date.');
+      return;
+    }
+
     const changes = getDraftChanges(displayLead, draft);
     if (Object.keys(changes).length === 0) {
       onClose();
@@ -309,6 +355,9 @@ export default function LeadViewModal({
   const rejectionDisplayValue = isRejected
     ? resolveRejectionReason(draft) || '—'
     : displayLead.rejectionReason || '—';
+  const hiredDateDisplayValue = isHired
+    ? formatLeadDisplayDate(draft.hiredDate)
+    : formatLeadDisplayDate(displayLead.hiredDate);
 
   return (
     <div
@@ -390,6 +439,17 @@ export default function LeadViewModal({
                   onEdit={() => startEditing('rejectionReason')}
                   onPresetChange={(value) => updateDraft('rejectionReasonPreset', value)}
                   onCustomChange={(value) => updateDraft('customRejectionReason', value)}
+                  className="sm:col-span-2"
+                />
+              )}
+              {isHired && (
+                <HiredDateField
+                  editable={fieldPermissions.status}
+                  editing={Boolean(editingFields.hiredDate)}
+                  value={draft.hiredDate}
+                  displayValue={hiredDateDisplayValue}
+                  onEdit={() => startEditing('hiredDate')}
+                  onChange={(value) => updateDraft('hiredDate', value)}
                   className="sm:col-span-2"
                 />
               )}
@@ -546,6 +606,48 @@ function DetailField({ label, value, className = '' }) {
         {label}
       </dt>
       <dd className="mt-1 text-sm text-slate-900 dark:text-slate-100">{value || '—'}</dd>
+    </div>
+  );
+}
+
+function HiredDateField({
+  editable,
+  editing,
+  value,
+  displayValue,
+  onEdit,
+  onChange,
+  className = '',
+}) {
+  return (
+    <div className={className}>
+      <div className="flex items-start justify-between gap-2">
+        <dt className="text-xs font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400">
+          Hired date
+        </dt>
+        {editable && !editing && (
+          <button
+            type="button"
+            onClick={onEdit}
+            className="inline-flex shrink-0 items-center gap-1 text-xs font-medium text-brand-600 hover:text-brand-700 dark:text-brand-400 dark:hover:text-brand-300"
+            aria-label="Edit hired date"
+          >
+            <span aria-hidden>✎</span>
+            Edit
+          </button>
+        )}
+      </div>
+
+      {editable && editing ? (
+        <input
+          type="date"
+          value={value}
+          onChange={(event) => onChange(event.target.value)}
+          className={inputClass}
+        />
+      ) : (
+        <dd className="mt-1 text-sm text-slate-900 dark:text-slate-100">{displayValue}</dd>
+      )}
     </div>
   );
 }
