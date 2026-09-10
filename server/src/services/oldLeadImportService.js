@@ -10,30 +10,48 @@ import {
   validateImportComments,
   formatCommentsPreview,
   resolveImportEmail,
-  buildImportDuplicateFilter,
 } from './leadImportService.js';
+import {
+  buildOldLeadDuplicateFilter,
+  normalizeLeadContactPhoneDigits,
+} from '../utils/leadDuplicateContact.js';
+import { buildPhoneDigitSearchRegex } from '../utils/leadPhoneSearch.js';
 import { getLeadSourceNames } from './leadSourceService.js';
 import { getLeadStatusNames } from './leadStatusService.js';
 import { formatLeadDateIso } from '../utils/leadDateFormat.js';
 
 async function loadExistingOldLeadContactKeys(rows) {
   const emails = rows.map((row) => row.normalizedEmail).filter(Boolean);
-  const phones = rows.map((row) => row.normalizedPhone).filter(Boolean);
+  const phoneDigitsList = rows
+    .map((row) => row.normalizedPhoneDigits || normalizeLeadContactPhoneDigits(row.normalizedPhone))
+    .filter(Boolean);
 
-  if (!emails.length && !phones.length) {
-    return { emails: new Set(), phones: new Set() };
+  if (!emails.length && !phoneDigitsList.length) {
+    return { emails: new Set(), phoneDigits: new Set() };
   }
 
-  const existing = await OldLead.find({
-    $or: [
-      ...(emails.length ? [{ email: { $in: emails } }] : []),
-      ...(phones.length ? [{ phone: { $in: phones } }] : []),
-    ],
-  }).select('email phone');
+  const orConditions = [
+    ...(emails.length ? [{ email: { $in: emails } }] : []),
+  ];
+
+  for (const digits of phoneDigitsList) {
+    const phoneRegex = buildPhoneDigitSearchRegex(digits);
+    if (phoneRegex) {
+      orConditions.push({ phone: phoneRegex });
+    }
+  }
+
+  const existing = await OldLead.find(
+    orConditions.length ? { $or: orConditions } : {}
+  ).select('email phone');
 
   return {
     emails: new Set(existing.map((lead) => lead.email)),
-    phones: new Set(existing.map((lead) => lead.phone)),
+    phoneDigits: new Set(
+      existing
+        .map((lead) => normalizeLeadContactPhoneDigits(lead.phone))
+        .filter(Boolean)
+    ),
   };
 }
 
@@ -74,6 +92,7 @@ export async function previewOldLeadImport(manager, fileBuffer, fileName = '') {
       emailMissing: validation.emailMissing,
       normalizedEmail: validation.normalizedEmail,
       normalizedPhone: validation.normalizedPhone,
+      normalizedPhoneDigits: validation.normalizedPhoneDigits,
       resolvedStatus: validation.status,
       resolvedDriverType: validation.driverType,
       resolvedSource: validation.source,
@@ -84,7 +103,7 @@ export async function previewOldLeadImport(manager, fileBuffer, fileName = '') {
   });
 
   const existingKeys = await loadExistingOldLeadContactKeys(validatedRows);
-  const seenInFile = { emails: new Set(), phones: new Set() };
+  const seenInFile = { emails: new Set(), phoneDigits: new Set() };
   const rows = validatedRows.map((row) => applyDuplicateChecks(row, existingKeys, seenInFile));
 
   const previewId = randomUUID();
@@ -152,7 +171,7 @@ export async function confirmOldLeadImport(manager, previewId, selectedRowNumber
   let skippedDuplicates = 0;
   let invalidRows = 0;
   const importTimestamp = new Date();
-  const seenInBatch = { emails: new Set(), phones: new Set() };
+  const seenInBatch = { emails: new Set(), phoneDigits: new Set() };
 
   for (const row of selectedRows) {
     if (!row.isValid) {
@@ -160,17 +179,28 @@ export async function confirmOldLeadImport(manager, previewId, selectedRowNumber
       continue;
     }
 
+    const rowPhoneDigits =
+      row.normalizedPhoneDigits ||
+      normalizeLeadContactPhoneDigits(row.normalizedPhone);
+
     if (
-      (row.normalizedEmail && seenInBatch.emails.has(row.normalizedEmail)) ||
-      (row.normalizedPhone && seenInBatch.phones.has(row.normalizedPhone))
+      (row.normalizedEmail &&
+        !row.emailMissing &&
+        seenInBatch.emails.has(row.normalizedEmail)) ||
+      (rowPhoneDigits && seenInBatch.phoneDigits.has(rowPhoneDigits))
     ) {
       skippedDuplicates += 1;
       continue;
     }
 
-    const duplicate = await OldLead.findOne(
-      buildImportDuplicateFilter(row.normalizedEmail, row.normalizedPhone, row.emailMissing)
-    ).select('_id');
+    const duplicateFilter = buildOldLeadDuplicateFilter(
+      row.normalizedEmail,
+      row.normalizedPhone,
+      row.emailMissing
+    );
+    const duplicate = duplicateFilter
+      ? await OldLead.findOne(duplicateFilter).select('_id')
+      : null;
 
     if (duplicate) {
       skippedDuplicates += 1;
@@ -180,7 +210,7 @@ export async function confirmOldLeadImport(manager, previewId, selectedRowNumber
     if (row.normalizedEmail && !row.emailMissing) {
       seenInBatch.emails.add(row.normalizedEmail);
     }
-    if (row.normalizedPhone) seenInBatch.phones.add(row.normalizedPhone);
+    if (rowPhoneDigits) seenInBatch.phoneDigits.add(rowPhoneDigits);
 
     const resolvedEmail = resolveImportEmail(row.normalizedEmail, row.emailMissing);
 

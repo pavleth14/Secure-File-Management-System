@@ -3,7 +3,8 @@ import { Lead } from '../models/Lead.js';
 import { User } from '../models/User.js';
 import { DEFAULT_LEAD_STATUS } from '../config/recruitingConstants.js';
 import { getRoundRobinAssignments } from './roundRobinService.js';
-import { handleLeadDuplicateError } from './leadService.js';
+import { findDuplicateLead, handleLeadDuplicateError } from './leadService.js';
+import { normalizeUsPhoneDigits } from '../utils/usPhone.js';
 import { prependStatusCommentsToLeadData } from './leadStatusChangeService.js';
 import { prependReassignmentCommentToLeadData } from './leadReassignmentService.js';
 import { auditLeadStatusChanged } from './recruitingAuditService.js';
@@ -190,9 +191,7 @@ async function assignSingleOldLead(user, oldLeadId, recruiterId, req = null) {
     throw err;
   }
 
-  const existingLead = await Lead.findOne({
-    $or: [{ email: oldLead.email }, { phone: oldLead.phone }],
-  }).select('_id email phone');
+  const existingLead = await findDuplicateLead(oldLead.email, oldLead.phone);
 
   if (existingLead) {
     const err = new Error('A lead with this email or phone already exists in the system');
@@ -208,6 +207,7 @@ async function assignSingleOldLead(user, oldLeadId, recruiterId, req = null) {
     firstName: oldLead.firstName,
     lastName: oldLead.lastName,
     phone: oldLead.phone,
+    phoneDigits: normalizeUsPhoneDigits(oldLead.phone),
     email: oldLead.email,
     stateCity: oldLead.stateCity || '',
     status: initialStatus,

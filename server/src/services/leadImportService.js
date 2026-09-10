@@ -8,7 +8,7 @@ import {
   DRIVER_TYPES,
   DEFAULT_LEAD_STATUS,
 } from '../config/recruitingConstants.js';
-import { handleLeadDuplicateError } from './leadService.js';
+import { findDuplicateLead, handleLeadDuplicateError } from './leadService.js';
 import { getLeadSourceNames } from './leadSourceService.js';
 import { getLeadStatusNames } from './leadStatusService.js';
 import { prependStatusCommentsToLeadData } from './leadStatusChangeService.js';
@@ -20,6 +20,12 @@ import { backfillRingCentralEventsForLead } from './ringCentralEventService.js';
 import {
   generateImportPlaceholderEmail,
 } from '../utils/importPlaceholderEmail.js';
+import {
+  buildImportDuplicateFilter,
+  getLeadDuplicateContactReason,
+  normalizeLeadContactPhoneDigits,
+} from '../utils/leadDuplicateContact.js';
+import { buildPhoneDigitSearchRegex } from '../utils/leadPhoneSearch.js';
 
 const IMPORT_COMMENT_AUTHOR_LABEL = 'Importing Recruiting Manager';
 const MAX_IMPORT_COMMENTS = 10;
@@ -147,14 +153,6 @@ function resolveImportEmail(normalizedEmail, emailMissing) {
     return generateImportPlaceholderEmail();
   }
   return normalizedEmail;
-}
-
-function buildImportDuplicateFilter(normalizedEmail, normalizedPhone, emailMissing = false) {
-  const conditions = [{ phone: normalizedPhone }];
-  if (!emailMissing && normalizedEmail) {
-    conditions.unshift({ email: normalizedEmail });
-  }
-  return { $or: conditions };
 }
 
 function parseCsvBuffer(buffer) {
@@ -289,6 +287,7 @@ function validateMappedRow(row, importDate, allowedSources, allowedStatuses) {
     emailMissing,
     normalizedEmail: row.email ? normalizeEmail(row.email) : '',
     normalizedPhone: row.phone ? normalizePhone(row.phone) : '',
+    normalizedPhoneDigits: row.phone ? normalizeLeadContactPhoneDigits(row.phone) : '',
     status: row.status && allowedStatuses.includes(row.status) ? row.status : DEFAULT_LEAD_STATUS,
     driverType: row.driverType,
     source: row.source,
@@ -297,22 +296,45 @@ function validateMappedRow(row, importDate, allowedSources, allowedStatuses) {
 
 async function loadExistingContactKeys(rows) {
   const emails = rows.map((row) => row.normalizedEmail).filter(Boolean);
-  const phones = rows.map((row) => row.normalizedPhone).filter(Boolean);
+  const phoneDigitsList = rows
+    .map((row) => row.normalizedPhoneDigits || normalizeLeadContactPhoneDigits(row.normalizedPhone))
+    .filter(Boolean);
 
-  if (!emails.length && !phones.length) {
-    return { emails: new Set(), phones: new Set() };
+  if (!emails.length && !phoneDigitsList.length) {
+    return { emails: new Set(), phoneDigits: new Set() };
   }
 
-  const existingLeads = await Lead.find({
-    $or: [
-      ...(emails.length ? [{ email: { $in: emails } }] : []),
-      ...(phones.length ? [{ phone: { $in: phones } }] : []),
-    ],
-  }).select('email phone');
+  const orConditions = [
+    ...(emails.length ? [{ email: { $in: emails } }] : []),
+    ...(phoneDigitsList.length ? [{ phoneDigits: { $in: phoneDigitsList } }] : []),
+  ];
+
+  for (const digits of phoneDigitsList) {
+    const phoneRegex = buildPhoneDigitSearchRegex(digits);
+    if (phoneRegex) {
+      orConditions.push({
+        $and: [
+          { $or: [{ phoneDigits: { $exists: false } }, { phoneDigits: '' }] },
+          { phone: phoneRegex },
+        ],
+      });
+    }
+  }
+
+  const existingLeads = await Lead.find({ $or: orConditions }).select(
+    'email phone phoneDigits'
+  );
 
   return {
     emails: new Set(existingLeads.map((lead) => lead.email)),
-    phones: new Set(existingLeads.map((lead) => lead.phone)),
+    phoneDigits: new Set(
+      existingLeads
+        .map(
+          (lead) =>
+            lead.phoneDigits || normalizeLeadContactPhoneDigits(lead.phone)
+        )
+        .filter(Boolean)
+    ),
   };
 }
 
@@ -320,8 +342,10 @@ function applyDuplicateChecks(row, existingKeys, seenInFile) {
   const warnings = [...row.warnings];
   let isDuplicate = false;
   let duplicateReason = '';
+  const rowPhoneDigits =
+    row.normalizedPhoneDigits || normalizeLeadContactPhoneDigits(row.normalizedPhone);
 
-  if (row.normalizedEmail) {
+  if (row.normalizedEmail && !row.emailMissing) {
     if (existingKeys.emails.has(row.normalizedEmail)) {
       isDuplicate = true;
       duplicateReason = 'email';
@@ -335,17 +359,17 @@ function applyDuplicateChecks(row, existingKeys, seenInFile) {
     }
   }
 
-  if (row.normalizedPhone) {
-    if (existingKeys.phones.has(row.normalizedPhone)) {
+  if (rowPhoneDigits) {
+    if (existingKeys.phoneDigits.has(rowPhoneDigits)) {
       isDuplicate = true;
       duplicateReason = duplicateReason || 'phone';
       warnings.push('Phone already exists');
-    } else if (seenInFile.phones.has(row.normalizedPhone)) {
+    } else if (seenInFile.phoneDigits.has(rowPhoneDigits)) {
       isDuplicate = true;
       duplicateReason = duplicateReason || 'phone_in_file';
       warnings.push('Duplicate phone within CSV');
     } else {
-      seenInFile.phones.add(row.normalizedPhone);
+      seenInFile.phoneDigits.add(rowPhoneDigits);
     }
   }
 
@@ -413,6 +437,7 @@ export async function previewLeadImport(
       emailMissing: validation.emailMissing,
       normalizedEmail: validation.normalizedEmail,
       normalizedPhone: validation.normalizedPhone,
+      normalizedPhoneDigits: validation.normalizedPhoneDigits,
       resolvedStatus: validation.status,
       resolvedDriverType: validation.driverType,
       resolvedSource: validation.source,
@@ -423,7 +448,7 @@ export async function previewLeadImport(
   });
 
   const existingKeys = await loadExistingContactKeys(validatedRows);
-  const seenInFile = { emails: new Set(), phones: new Set() };
+  const seenInFile = { emails: new Set(), phoneDigits: new Set() };
 
   const rows = validatedRows.map((row) => applyDuplicateChecks(row, existingKeys, seenInFile));
 
@@ -456,6 +481,7 @@ export async function previewLeadImport(
       resolvedSource: row.resolvedSource,
       normalizedEmail: row.normalizedEmail,
       normalizedPhone: row.normalizedPhone,
+      normalizedPhoneDigits: row.normalizedPhoneDigits,
       emailMissing: Boolean(row.emailMissing),
       parsedCreatedAt: row.parsedCreatedAt,
       errors: row.errors,
@@ -509,16 +535,22 @@ async function revalidateRowForImport(row) {
   }
 
   const emailMissing = Boolean(row.emailMissing);
-  const duplicate = await Lead.findOne(
-    buildImportDuplicateFilter(row.normalizedEmail, row.normalizedPhone, emailMissing)
-  ).select('_id email phone');
+  const duplicate = await findDuplicateLead(
+    emailMissing ? '' : row.normalizedEmail,
+    row.normalizedPhone
+  );
 
   if (duplicate) {
-    const reason =
-      !emailMissing && duplicate.email === row.normalizedEmail
-        ? 'Email already exists'
-        : 'Phone already exists';
-    return { ok: false, errors: [reason], duplicate: true };
+    const reason = getLeadDuplicateContactReason(duplicate, {
+      email: emailMissing ? '' : row.normalizedEmail,
+      phone: row.normalizedPhone,
+      emailMissing,
+    });
+    return {
+      ok: false,
+      errors: [reason === 'email' ? 'Email already exists' : 'Phone already exists'],
+      duplicate: true,
+    };
   }
 
   const resolvedEmail = resolveImportEmail(row.normalizedEmail, emailMissing);
@@ -567,12 +599,18 @@ export async function confirmLeadImport(manager, previewId, selectedRowNumbers =
   const importTimestamp = new Date();
 
   const rowsToImport = [];
-  const seenInBatch = { emails: new Set(), phones: new Set() };
+  const seenInBatch = { emails: new Set(), phoneDigits: new Set() };
 
   for (const row of selectedRows) {
+    const rowPhoneDigits =
+      row.normalizedPhoneDigits ||
+      normalizeLeadContactPhoneDigits(row.normalizedPhone);
+
     if (
-      (row.normalizedEmail && seenInBatch.emails.has(row.normalizedEmail)) ||
-      (row.normalizedPhone && seenInBatch.phones.has(row.normalizedPhone))
+      (row.normalizedEmail &&
+        !row.emailMissing &&
+        seenInBatch.emails.has(row.normalizedEmail)) ||
+      (rowPhoneDigits && seenInBatch.phoneDigits.has(rowPhoneDigits))
     ) {
       skippedDuplicates += 1;
       continue;
@@ -588,8 +626,10 @@ export async function confirmLeadImport(manager, previewId, selectedRowNumbers =
       continue;
     }
 
-    if (row.normalizedEmail) seenInBatch.emails.add(row.normalizedEmail);
-    if (row.normalizedPhone) seenInBatch.phones.add(row.normalizedPhone);
+    if (row.normalizedEmail && !row.emailMissing) {
+      seenInBatch.emails.add(row.normalizedEmail);
+    }
+    if (rowPhoneDigits) seenInBatch.phoneDigits.add(rowPhoneDigits);
     rowsToImport.push({ row, payload: validation.payload });
   }
 

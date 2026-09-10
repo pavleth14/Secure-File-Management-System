@@ -16,6 +16,7 @@ import { formatLeadDateIso } from '../utils/leadDateFormat.js';
 import { generateImportPlaceholderEmail } from '../utils/importPlaceholderEmail.js';
 import { notifyNewLeadSlack } from './slackNotificationService.js';
 import { backfillRingCentralEventsForLead } from './ringCentralEventService.js';
+import { normalizeUsPhoneDigits } from '../utils/usPhone.js';
 
 export const SHEET_NAME_TO_DRIVER_TYPE = {
   tbf_form_company: 'Solo',
@@ -217,9 +218,7 @@ export async function ingestSheetLead(payload) {
   const { source } = presentation;
   await assertValidLeadSource(source);
 
-  const duplicate = emailMissing
-    ? await Lead.findOne({ phone }).select('email phone')
-    : await findDuplicateLead(email, phone);
+  const duplicate = await findDuplicateLead(email, phone);
   if (duplicate) {
     const raceSkip = await recordSyncRow({
       metaLeadId,
@@ -246,10 +245,13 @@ export async function ingestSheetLead(payload) {
   const actorUserId = await getIngestActorUserId();
   const timestamp = parseCreatedTime(columns.created_time || columns.date);
 
+  const phoneDigits = normalizeUsPhoneDigits(phone);
+
   let leadData = {
     firstName,
     lastName,
     phone,
+    phoneDigits,
     email,
     stateCity,
     status: DEFAULT_LEAD_STATUS,
@@ -329,9 +331,7 @@ export async function ingestSheetLead(payload) {
   } catch (err) {
     const duplicateErr = handleLeadDuplicateError(err);
     if (duplicateErr) {
-      const existingLead = emailMissing
-        ? await Lead.findOne({ phone }).select('email phone')
-        : await findDuplicateLead(email, phone);
+      const existingLead = await findDuplicateLead(email, phone);
       await recordSyncRow({
         metaLeadId,
         spreadsheetId: payload.spreadsheetId,

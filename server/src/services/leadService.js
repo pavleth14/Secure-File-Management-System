@@ -31,6 +31,11 @@ import { notifyNewLeadSlack } from './slackNotificationService.js';
 import { buildLeadSearchOrConditions } from '../utils/leadPhoneSearch.js';
 import { normalizeUsPhoneDigits } from '../utils/usPhone.js';
 import {
+  getLeadDuplicateContactReason,
+  isMissingLeadEmail,
+  buildLeadDuplicateFilter,
+} from '../utils/leadDuplicateContact.js';
+import {
   backfillRingCentralEventsForLead,
   formatRingCentralEvent,
   repairStaleCallEventDurations,
@@ -215,31 +220,36 @@ async function assertRecruiterUser(userId) {
 }
 
 export async function findDuplicateLead(email, phone, excludeLeadId = null) {
-  const normalizedEmail = normalizeEmail(email);
-  const normalizedPhone = normalizePhone(phone);
+  const filter = buildLeadDuplicateFilter({
+    email,
+    phone,
+    emailMissing: isMissingLeadEmail(email),
+    excludeLeadId,
+  });
+  if (!filter) {
+    return null;
+  }
 
-  const orConditions = [{ email: normalizedEmail }, { phone: normalizedPhone }];
-  const filter = excludeLeadId
-    ? { $or: orConditions, _id: { $ne: excludeLeadId } }
-    : { $or: orConditions };
-
-  return Lead.findOne(filter).select('email phone');
+  return Lead.findOne(filter).select('email phone phoneDigits');
 }
 
 export async function assertNoDuplicateLead(email, phone, excludeLeadId = null) {
   const duplicate = await findDuplicateLead(email, phone, excludeLeadId);
   if (!duplicate) return;
 
-  const normalizedEmail = normalizeEmail(email);
-  const normalizedPhone = normalizePhone(phone);
+  const reason = getLeadDuplicateContactReason(duplicate, {
+    email,
+    phone,
+    emailMissing: isMissingLeadEmail(email),
+  });
 
-  if (duplicate.email === normalizedEmail) {
+  if (reason === 'email') {
     const err = new Error('A lead with this email already exists');
     err.status = 409;
     throw err;
   }
 
-  if (duplicate.phone === normalizedPhone) {
+  if (reason === 'phone') {
     const err = new Error('A lead with this phone number already exists');
     err.status = 409;
     throw err;
@@ -578,16 +588,7 @@ export async function createLead(user, payload, { req } = {}) {
     : normalizeEmail(emailRaw);
   const normalizedPhone = normalizePhone(phone);
 
-  if (emailMissing) {
-    const duplicateByPhone = await Lead.findOne({ phone: normalizedPhone }).select('_id');
-    if (duplicateByPhone) {
-      const err = new Error('A lead with this phone number already exists');
-      err.status = 409;
-      throw err;
-    }
-  } else {
-    await assertNoDuplicateLead(normalizedEmail, normalizedPhone);
-  }
+  await assertNoDuplicateLead(normalizedEmail, normalizedPhone);
 
   const createdAt = new Date();
   const leadDoc = {
@@ -1137,7 +1138,7 @@ export function handleLeadDuplicateError(err) {
     duplicateErr.status = 409;
     return duplicateErr;
   }
-  if (keyPattern.phone) {
+  if (keyPattern.phone || keyPattern.phoneDigits) {
     const duplicateErr = new Error('A lead with this phone number already exists');
     duplicateErr.status = 409;
     return duplicateErr;
