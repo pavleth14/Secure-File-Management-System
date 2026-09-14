@@ -9,6 +9,7 @@ import {
   DEFAULT_LEAD_STATUS,
 } from '../config/recruitingConstants.js';
 import { findDuplicateLead, handleLeadDuplicateError } from './leadService.js';
+import { recordDuplicateLeadAttemptSafe } from './duplicateLeadService.js';
 import { getLeadSourceNames } from './leadSourceService.js';
 import { getLeadStatusNames } from './leadStatusService.js';
 import { prependStatusCommentsToLeadData } from './leadStatusChangeService.js';
@@ -546,6 +547,23 @@ async function revalidateRowForImport(row) {
       phone: row.normalizedPhone,
       emailMissing,
     });
+    await recordDuplicateLeadAttemptSafe(
+      {
+        firstName: row.firstName,
+        lastName: row.lastName,
+        phone: row.normalizedPhone,
+        email: resolveImportEmail(row.normalizedEmail, emailMissing),
+        stateCity: row.stateCity,
+        driverType: row.resolvedDriverType,
+        source: row.resolvedSource,
+        date: formatLeadDateIso(row.date, row.parsedCreatedAt) || '',
+        emailMissing,
+        ingestionSource: 'csv_import',
+        ingestionMeta: { importPreviewId: row.previewId || null },
+        receivedAt: row.parsedCreatedAt,
+      },
+      duplicate
+    );
     return {
       ok: false,
       errors: [reason === 'email' ? 'Email already exists' : 'Phone already exists'],
@@ -736,6 +754,23 @@ export async function confirmLeadImport(manager, previewId, selectedRowNumbers =
     } catch (err) {
       const duplicateErr = handleLeadDuplicateError(err);
       if (duplicateErr) {
+        const existingLead = await findDuplicateLead(payload.email, payload.phone);
+        if (existingLead) {
+          await recordDuplicateLeadAttemptSafe(
+            {
+              firstName: payload.firstName,
+              lastName: payload.lastName,
+              phone: payload.phone,
+              email: payload.email,
+              stateCity: payload.stateCity,
+              driverType: payload.driverType,
+              source: payload.source,
+              date: payload.date,
+              ingestionSource: 'csv_import',
+            },
+            existingLead
+          );
+        }
         skippedDuplicates += 1;
       } else {
         invalidRows += 1;

@@ -12,6 +12,7 @@ import LeadViewModal from '../components/recruiting/LeadViewModal';
 import AddCommentModal from '../components/recruiting/AddCommentModal';
 import AssignLeadModal from '../components/recruiting/AssignLeadModal';
 import CreateLeadModal from '../components/recruiting/CreateLeadModal';
+import DuplicateLeadsModal from '../components/recruiting/DuplicateLeadsModal';
 
 const GLOBAL_BOARD_USER_ID = 'global';
 
@@ -117,6 +118,7 @@ export default function RecruiterBoardPage() {
   const [createLeadError, setCreateLeadError] = useState('');
   const [commentSubmitting, setCommentSubmitting] = useState(false);
   const [assignSubmitting, setAssignSubmitting] = useState(false);
+  const [duplicateLeadsOpen, setDuplicateLeadsOpen] = useState(false);
 
   const activeRecruiters = useMemo(
     () => recruiters.filter((recruiter) => !recruiter.name.includes('(Inactive)')),
@@ -358,19 +360,30 @@ export default function RecruiterBoardPage() {
 
   return (
     <div>
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">{boardLabel}</h1>
-        <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-          {isGlobalBoard
-            ? 'All active leads across every recruiter board.'
-            : canManageLeads
-              ? 'Viewing recruiter board as recruiting manager.'
-              : boardReadOnly
-                ? 'View-only access to this recruiter board.'
-                : isRecruitingModuleUser
-                  ? 'Viewing recruiter board.'
-                  : 'Your assigned leads.'}
-        </p>
+      <div className="mb-6 flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">{boardLabel}</h1>
+          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+            {isGlobalBoard
+              ? 'All active leads across every recruiter board.'
+              : canManageLeads
+                ? 'Viewing recruiter board as recruiting manager.'
+                : boardReadOnly
+                  ? 'View-only access to this recruiter board.'
+                  : isRecruitingModuleUser
+                    ? 'Viewing recruiter board.'
+                    : 'Your assigned leads.'}
+          </p>
+        </div>
+        {isGlobalBoard && canManageLeads ? (
+          <button
+            type="button"
+            onClick={() => setDuplicateLeadsOpen(true)}
+            className="shrink-0 rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-700"
+          >
+            Duplicate Leads
+          </button>
+        ) : null}
       </div>
 
       {actionError && (
@@ -487,6 +500,11 @@ export default function RecruiterBoardPage() {
         submitting={assignSubmitting}
         onConfirm={handleAssignLead}
         onCancel={() => setAssignLead(null)}
+      />
+
+      <DuplicateLeadsModal
+        open={duplicateLeadsOpen}
+        onClose={() => setDuplicateLeadsOpen(false)}
       />
 
       <CreateLeadModal

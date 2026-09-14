@@ -4,6 +4,7 @@ import { User } from '../models/User.js';
 import { DEFAULT_LEAD_STATUS } from '../config/recruitingConstants.js';
 import { getRoundRobinAssignments } from './roundRobinService.js';
 import { findDuplicateLead, handleLeadDuplicateError } from './leadService.js';
+import { recordDuplicateLeadAttemptSafe } from './duplicateLeadService.js';
 import { normalizeUsPhoneDigits } from '../utils/usPhone.js';
 import { prependStatusCommentsToLeadData } from './leadStatusChangeService.js';
 import { prependReassignmentCommentToLeadData } from './leadReassignmentService.js';
@@ -194,6 +195,21 @@ async function assignSingleOldLead(user, oldLeadId, recruiterId, req = null) {
   const existingLead = await findDuplicateLead(oldLead.email, oldLead.phone);
 
   if (existingLead) {
+    await recordDuplicateLeadAttemptSafe(
+      {
+        firstName: oldLead.firstName,
+        lastName: oldLead.lastName,
+        phone: oldLead.phone,
+        email: oldLead.email,
+        stateCity: oldLead.stateCity || '',
+        driverType: oldLead.driverType,
+        source: OLD_LEAD_SOURCE,
+        date: oldLead.date || '',
+        ingestionSource: 'old_lead',
+        ingestionMeta: { oldLeadId: oldLead._id },
+      },
+      existingLead
+    );
     const err = new Error('A lead with this email or phone already exists in the system');
     err.status = 409;
     throw err;

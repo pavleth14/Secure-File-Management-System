@@ -20,6 +20,7 @@ import oldLeadRoutes from './oldLeadRoutes.js';
 import roundRobinRoutes from './roundRobinRoutes.js';
 import analyticsRoutes from './analyticsRoutes.js';
 import sheetsIngestRoutes from './sheetsIngestRoutes.js';
+import duplicateLeadRoutes from './duplicateLeadRoutes.js';
 
 const router = Router();
 
@@ -143,6 +144,7 @@ router.get('/boards/:userId', requireRecruitingAccess, async (req, res, next) =>
   }
 });
 
+router.use('/duplicate-leads', duplicateLeadRoutes);
 router.use('/leads', leadRoutes);
 router.use('/import', importRoutes);
 router.use('/old-leads', oldLeadRoutes);

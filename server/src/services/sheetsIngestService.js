@@ -12,6 +12,7 @@ import { prependStatusCommentsToLeadData } from './leadStatusChangeService.js';
 import { prependReassignmentCommentToLeadData } from './leadReassignmentService.js';
 import { getRoundRobinAssignment } from './roundRobinService.js';
 import { findDuplicateLead, handleLeadDuplicateError } from './leadService.js';
+import { recordDuplicateLeadAttemptSafe } from './duplicateLeadService.js';
 import { formatLeadDateIso } from '../utils/leadDateFormat.js';
 import { generateImportPlaceholderEmail } from '../utils/importPlaceholderEmail.js';
 import { notifyNewLeadSlack } from './slackNotificationService.js';
@@ -220,6 +221,29 @@ export async function ingestSheetLead(payload) {
 
   const duplicate = await findDuplicateLead(email, phone);
   if (duplicate) {
+    await recordDuplicateLeadAttemptSafe(
+      {
+        firstName,
+        lastName,
+        phone,
+        email,
+        stateCity,
+        driverType,
+        source,
+        date: formatLeadDateIso(columns.date || columns.created_time, parseCreatedTime(columns.created_time || columns.date)),
+        emailMissing,
+        ingestionSource: 'sheets',
+        ingestionMeta: {
+          spreadsheetId: payload.spreadsheetId,
+          sheetName,
+          rowNumber: payload.rowNumber,
+          metaLeadId,
+        },
+        receivedAt: parseCreatedTime(columns.created_time || columns.date),
+      },
+      duplicate
+    );
+
     const raceSkip = await recordSyncRow({
       metaLeadId,
       spreadsheetId: payload.spreadsheetId,
@@ -332,6 +356,30 @@ export async function ingestSheetLead(payload) {
     const duplicateErr = handleLeadDuplicateError(err);
     if (duplicateErr) {
       const existingLead = await findDuplicateLead(email, phone);
+      if (existingLead) {
+        await recordDuplicateLeadAttemptSafe(
+          {
+            firstName,
+            lastName,
+            phone,
+            email,
+            stateCity,
+            driverType,
+            source,
+            date: formatLeadDateIso(columns.date || columns.created_time, timestamp),
+            emailMissing,
+            ingestionSource: 'sheets',
+            ingestionMeta: {
+              spreadsheetId: payload.spreadsheetId,
+              sheetName,
+              rowNumber: payload.rowNumber,
+              metaLeadId,
+            },
+            receivedAt: timestamp,
+          },
+          existingLead
+        );
+      }
       await recordSyncRow({
         metaLeadId,
         spreadsheetId: payload.spreadsheetId,

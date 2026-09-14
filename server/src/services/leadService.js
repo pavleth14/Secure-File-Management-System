@@ -25,6 +25,7 @@ import {
 } from './processingStepService.js';
 import { appendReassignmentComment } from './leadReassignmentService.js';
 import { auditLeadStatusChanged, auditLeadProcessingStepChanged } from './recruitingAuditService.js';
+import { recordDuplicateLeadAttemptSafe } from './duplicateLeadService.js';
 import { isRecruitingModuleUser, canMutateLead, canViewLeadOnRecruiterBoard } from '../utils/recruitingPermissions.js';
 import { formatLeadDateIso } from '../utils/leadDateFormat.js';
 import { generateImportPlaceholderEmail } from '../utils/importPlaceholderEmail.js';
@@ -234,9 +235,18 @@ export async function findDuplicateLead(email, phone, excludeLeadId = null) {
   return Lead.findOne(filter).select('email phone phoneDigits');
 }
 
-export async function assertNoDuplicateLead(email, phone, excludeLeadId = null) {
+export async function assertNoDuplicateLead(
+  email,
+  phone,
+  excludeLeadId = null,
+  { attempt = null } = {}
+) {
   const duplicate = await findDuplicateLead(email, phone, excludeLeadId);
   if (!duplicate) return;
+
+  if (attempt) {
+    await recordDuplicateLeadAttemptSafe({ ...attempt, email, phone }, duplicate);
+  }
 
   const reason = getLeadDuplicateContactReason(duplicate, {
     email,
@@ -604,7 +614,19 @@ export async function createLead(user, payload, { req } = {}) {
     : normalizeEmail(emailRaw);
   const normalizedPhone = normalizePhone(phone);
 
-  await assertNoDuplicateLead(normalizedEmail, normalizedPhone);
+  await assertNoDuplicateLead(normalizedEmail, normalizedPhone, null, {
+    attempt: {
+      firstName,
+      lastName,
+      phone: normalizedPhone,
+      stateCity,
+      driverType: resolvedDriverType,
+      source: resolvedSource,
+      date: date ? formatLeadDateIso(date, new Date()) : '',
+      emailMissing,
+      ingestionSource: 'manual',
+    },
+  });
 
   const createdAt = new Date();
   const leadDoc = {
