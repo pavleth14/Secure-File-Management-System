@@ -29,23 +29,19 @@ export default function DuplicateLeadsModal({ open, onClose }) {
     page: 1,
     limit: 50,
     sortOccurrences: 'recent',
-    minOccurrences: '',
-    maxOccurrences: '',
   });
 
   const loadDuplicateLeads = useCallback(async () => {
     setLoading(true);
     setError('');
     try {
-      const params = {
-        page: filters.page,
-        limit: filters.limit,
-        sortOccurrences: filters.sortOccurrences,
-      };
-      if (filters.minOccurrences) params.minOccurrences = filters.minOccurrences;
-      if (filters.maxOccurrences) params.maxOccurrences = filters.maxOccurrences;
-
-      const { data } = await api.get('/recruiting/duplicate-leads', { params });
+      const { data } = await api.get('/recruiting/duplicate-leads', {
+        params: {
+          page: filters.page,
+          limit: filters.limit,
+          sortOccurrences: filters.sortOccurrences,
+        },
+      });
       setDuplicateLeads(data.duplicateLeads || []);
       setTotalCount(data.totalCount || 0);
       setTotalPages(data.totalPages || 1);
@@ -67,8 +63,6 @@ export default function DuplicateLeadsModal({ open, onClose }) {
         page: 1,
         limit: 50,
         sortOccurrences: 'recent',
-        minOccurrences: '',
-        maxOccurrences: '',
       });
       setError('');
     }
@@ -82,12 +76,8 @@ export default function DuplicateLeadsModal({ open, onClose }) {
     setDownloading(true);
     setError('');
     try {
-      const params = { sortOccurrences: filters.sortOccurrences };
-      if (filters.minOccurrences) params.minOccurrences = filters.minOccurrences;
-      if (filters.maxOccurrences) params.maxOccurrences = filters.maxOccurrences;
-
       const response = await api.get('/recruiting/duplicate-leads/export', {
-        params,
+        params: { sortOccurrences: filters.sortOccurrences },
         responseType: 'blob',
       });
 
@@ -158,30 +148,6 @@ export default function DuplicateLeadsModal({ open, onClose }) {
                   </option>
                 ))}
               </select>
-            </label>
-
-            <label className="block text-sm text-slate-600 dark:text-slate-400">
-              Min applications
-              <input
-                type="number"
-                min="1"
-                value={filters.minOccurrences}
-                onChange={(event) => updateFilter('minOccurrences', event.target.value)}
-                placeholder="e.g. 3"
-                className="mt-1 block w-full min-w-[120px] rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm dark:border-slate-600 dark:bg-slate-900"
-              />
-            </label>
-
-            <label className="block text-sm text-slate-600 dark:text-slate-400">
-              Max applications
-              <input
-                type="number"
-                min="1"
-                value={filters.maxOccurrences}
-                onChange={(event) => updateFilter('maxOccurrences', event.target.value)}
-                placeholder="e.g. 6"
-                className="mt-1 block w-full min-w-[120px] rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm dark:border-slate-600 dark:bg-slate-900"
-              />
             </label>
 
             <button
