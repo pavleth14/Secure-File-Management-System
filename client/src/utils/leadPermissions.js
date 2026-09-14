@@ -74,6 +74,22 @@ export function canEditPersonalInfo(
   return editWindow;
 }
 
+export function getLeadAssignedRecruiterId(lead) {
+  return (
+    lead?.assignedRecruiterId?.toString?.() ||
+    lead?.assignedRecruiter?.id?.toString?.() ||
+    lead?.assignedRecruiter?._id?.toString?.() ||
+    lead?.assignedRecruiter?.toString?.() ||
+    null
+  );
+}
+
+export function isLeadAssignedToUser(lead, currentUserId) {
+  const assignedId = getLeadAssignedRecruiterId(lead);
+  const userId = currentUserId?.toString?.() || null;
+  return Boolean(assignedId && userId && assignedId === userId);
+}
+
 export function canEditStatus(
   lead,
   { isRecruitingManager = false, isRecruiter = false, isOwnBoard = false, readOnly = false } = {}
@@ -81,6 +97,20 @@ export function canEditStatus(
   if (readOnly) return false;
   if (isRecruitingManager) return true;
   return Boolean(isRecruiter && isOwnBoard);
+}
+
+/** Hired date can be corrected on assigned Hired leads (including from Global Board). */
+export function canEditHiredDate(
+  lead,
+  {
+    isRecruitingManager = false,
+    isRecruiter = false,
+    currentUserId = null,
+  } = {}
+) {
+  if (lead?.status !== 'Hired') return false;
+  if (isRecruitingManager) return true;
+  return Boolean(isRecruiter && isLeadAssignedToUser(lead, currentUserId));
 }
 
 export function canEditDriverType(

@@ -463,11 +463,12 @@ export default function RecruiterBoardPage() {
           setViewLead(null);
           setScrollToComments(false);
         }}
-        onSave={boardReadOnly ? undefined : handleUpdateLead}
+        onSave={boardReadOnly && !isRecruiter ? undefined : handleUpdateLead}
         isRecruitingManager={canManageLeads}
         isRecruiter={isRecruiter}
         isOwnBoard={isGlobalBoard ? canManageLeads : isOwnBoard}
         readOnly={boardReadOnly}
+        currentUserId={loggedInUserId}
         scrollToComments={scrollToComments}
       />
 

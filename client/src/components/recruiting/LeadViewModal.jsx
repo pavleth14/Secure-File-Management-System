@@ -6,6 +6,7 @@ import {
   canEditDriverType,
   canEditPersonalInfo,
   canEditStatus,
+  canEditHiredDate,
   getSystemComments,
   getUserComments,
   sortCommentsNewestFirst,
@@ -153,6 +154,7 @@ export default function LeadViewModal({
   isRecruiter = false,
   isOwnBoard = false,
   readOnly = false,
+  currentUserId = null,
   scrollToComments = false,
 }) {
   const { statusNames, statusColorMap } = useLeadStatuses();
@@ -166,8 +168,8 @@ export default function LeadViewModal({
   const commentsSectionRef = useRef(null);
 
   const permissionContext = useMemo(
-    () => ({ isRecruitingManager, isRecruiter, isOwnBoard, readOnly }),
-    [isRecruitingManager, isRecruiter, isOwnBoard, readOnly]
+    () => ({ isRecruitingManager, isRecruiter, isOwnBoard, readOnly, currentUserId }),
+    [isRecruitingManager, isRecruiter, isOwnBoard, readOnly, currentUserId]
   );
 
   const displayLead = fullLead || lead;
@@ -184,10 +186,11 @@ export default function LeadViewModal({
       phone: canEditPersonalInfo(displayLead, permissionContext),
       stateCity: canEditPersonalInfo(displayLead, permissionContext),
       email: canEditPersonalInfo(displayLead, permissionContext),
+      hiredDate: canEditHiredDate(displayLead, permissionContext),
     };
   }, [displayLead, permissionContext]);
 
-  const canSave = Boolean(onSave) && !readOnly;
+  const canSave = Boolean(onSave) && (!readOnly || fieldPermissions.hiredDate);
   const isRejected = draft.status === 'Rejected';
   const isHired = draft.status === 'Hired';
   const hasProcessingHistory = (displayLead?.processingStepHistory || []).length > 0;
@@ -452,7 +455,7 @@ export default function LeadViewModal({
               )}
               {isHired && (
                 <HiredDateField
-                  editable={fieldPermissions.status}
+                  editable={fieldPermissions.hiredDate}
                   editing={Boolean(editingFields.hiredDate)}
                   value={draft.hiredDate}
                   displayValue={hiredDateDisplayValue}
