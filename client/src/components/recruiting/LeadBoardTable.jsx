@@ -13,6 +13,7 @@ const COLUMNS = [
   { key: 'driverType', label: 'Type of Driver' },
   { key: 'source', label: 'Source' },
   { key: 'date', label: 'Date' },
+  { key: 'hiredDate', label: 'Hired Date' },
   { key: 'firstName', label: 'First Name' },
   { key: 'lastName', label: 'Last Name' },
   { key: 'phone', label: 'Phone' },
@@ -238,6 +239,9 @@ export default function LeadBoardTable({
                   <td className="px-4 py-3 text-sm">{lead.source || '—'}</td>
                   <td className="whitespace-nowrap px-4 py-3 text-sm">
                     {formatLeadDisplayDate(lead.date, lead.createdAt)}
+                  </td>
+                  <td className="whitespace-nowrap px-4 py-3 text-sm">
+                    {formatLeadDisplayDate(lead.hiredDate)}
                   </td>
                   <td className="px-4 py-3 text-sm">{lead.firstName || '—'}</td>
                   <td className="px-4 py-3 text-sm">{lead.lastName || '—'}</td>

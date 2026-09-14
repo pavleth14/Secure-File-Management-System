@@ -4,7 +4,9 @@
   "type": "module",
   "scripts": {
     "dev": "node --watch src/index.js",
-    "start": "node src/index.js"
+    "start": "node src/index.js",
+    "backfill:hired-dates": "node scripts/backfill-hired-dates.js",
+    "backfill:hired-dates:dry-run": "node scripts/backfill-hired-dates.js --dry-run"
   },
   "dependencies": {
     "bcrypt": "^5.1.1",

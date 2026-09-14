@@ -272,6 +272,7 @@ function escapeRegex(value) {
 const LEAD_SORT_FIELDS = {
   status: 'status',
   date: 'date',
+  hiredDate: 'hiredDate',
   createdAt: 'createdAt',
   name: 'lastName',
   firstName: 'firstName',
@@ -295,6 +296,8 @@ function applyLeadListFilters(filter, options) {
     source,
     dateFrom,
     dateTo,
+    hiredDateFrom,
+    hiredDateTo,
   } = options;
 
   const trimmedSearch = String(search || '').trim();
@@ -329,6 +332,16 @@ function applyLeadListFilters(filter, options) {
       if (dateTo) {
         filter.date.$lte = dateTo;
       }
+    }
+  }
+
+  if (hiredDateFrom || hiredDateTo) {
+    filter.hiredDate = {};
+    if (hiredDateFrom) {
+      filter.hiredDate.$gte = hiredDateFrom;
+    }
+    if (hiredDateTo) {
+      filter.hiredDate.$lte = hiredDateTo;
     }
   }
 }
@@ -451,6 +464,8 @@ export async function listActiveLeads(user, options = {}) {
     source,
     dateFrom,
     dateTo,
+    hiredDateFrom,
+    hiredDateTo,
     sortBy = 'createdAt',
     sortDir = 'desc',
     activityGroup,

@@ -21,6 +21,11 @@ function buildQueryParams(filters, recruiterId, activityGroup, isGlobalBoard) {
     filters.customStart,
     filters.customEnd
   );
+  const { dateFrom: hiredDateFrom, dateTo: hiredDateTo } = getLeadDateRange(
+    filters.hiredDatePreset,
+    filters.customHiredStart,
+    filters.customHiredEnd
+  );
 
   const params = {
     page: filters.page,
@@ -41,6 +46,8 @@ function buildQueryParams(filters, recruiterId, activityGroup, isGlobalBoard) {
   if (filters.source) params.source = filters.source;
   if (dateFrom) params.dateFrom = dateFrom;
   if (dateTo) params.dateTo = dateTo;
+  if (hiredDateFrom) params.hiredDateFrom = hiredDateFrom;
+  if (hiredDateTo) params.hiredDateTo = hiredDateTo;
 
   if (!filters.status && activityGroup && activityGroup !== 'all') {
     params.activityGroup = activityGroup;
@@ -92,6 +99,9 @@ export default function RecruiterBoardPage() {
     datePreset: 'all',
     customStart: '',
     customEnd: '',
+    hiredDatePreset: 'all',
+    customHiredStart: '',
+    customHiredEnd: '',
     page: 1,
     limit: 25,
     sortBy: 'date',
@@ -379,6 +389,7 @@ export default function RecruiterBoardPage() {
         statuses={statusNames}
         recruiters={activeRecruiters}
         showRecruiterFilter={isGlobalBoard}
+        showHiredDateFilter
       />
 
       <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center">

@@ -13,6 +13,7 @@
  *
  * Website leads: see google-sheets-website-apply-now.gs (Apply Now spreadsheet)
  * Daily bulk leads: see google-sheets-daily-bulk.gs (separate spreadsheet)
+ * Facebook NO EMAIL form (separate spreadsheet): google-sheets-sync-facebook-no-email.gs
  */
 
 const SHEET_CONFIG = [

@@ -17,6 +17,7 @@ export default function LeadBoardToolbar({
   statuses = LEAD_STATUSES,
   recruiters = [],
   showRecruiterFilter = false,
+  showHiredDateFilter = false,
 }) {
   return (
     <div className="mb-4 space-y-4 rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-800">
@@ -117,6 +118,53 @@ export default function LeadBoardToolbar({
             />
           </label>
         </div>
+      )}
+
+      {showHiredDateFilter && (
+        <>
+          <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,2fr)]">
+            <label className="block text-sm text-slate-600 dark:text-slate-400">
+              Hired date
+              <select
+                value={filters.hiredDatePreset || 'all'}
+                onChange={(event) => onFilterChange('hiredDatePreset', event.target.value)}
+                className={`${selectClass} mt-1 w-full`}
+              >
+                {LEAD_DATE_PRESETS.map((preset) => (
+                  <option key={preset.value} value={preset.value}>
+                    {preset.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <p className="self-end text-sm text-slate-500 dark:text-slate-400">
+              Filters by hire date (when the driver was hired), not the lead date column.
+            </p>
+          </div>
+
+          {filters.hiredDatePreset === 'custom' && (
+            <div className="grid gap-3 sm:grid-cols-2">
+              <label className="block text-sm text-slate-600 dark:text-slate-400">
+                Hired date from
+                <input
+                  type="date"
+                  value={filters.customHiredStart || ''}
+                  onChange={(event) => onFilterChange('customHiredStart', event.target.value)}
+                  className={`${selectClass} mt-1 w-full`}
+                />
+              </label>
+              <label className="block text-sm text-slate-600 dark:text-slate-400">
+                Hired date to
+                <input
+                  type="date"
+                  value={filters.customHiredEnd || ''}
+                  onChange={(event) => onFilterChange('customHiredEnd', event.target.value)}
+                  className={`${selectClass} mt-1 w-full`}
+                />
+              </label>
+            </div>
+          )}
+        </>
       )}
 
       <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-slate-500 dark:text-slate-400">
