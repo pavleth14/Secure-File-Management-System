@@ -7,13 +7,13 @@ import {
 const selectClass =
   'rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100';
 
-const labelClass = 'mb-1 block text-sm text-slate-600 dark:text-slate-400';
+const labelClass = 'mb-1 block truncate text-sm text-slate-600 dark:text-slate-400';
 
-function getGridClass(showRecruiterFilter, showHiredDateFilter) {
+function getFilterColumnCount(showRecruiterFilter, showHiredDateFilter) {
   let filterCount = 4;
   if (showRecruiterFilter) filterCount += 1;
   if (showHiredDateFilter) filterCount += 1;
-  return `grid gap-3 lg:grid-cols-[minmax(0,2fr)_repeat(${filterCount},minmax(0,1fr))]`;
+  return filterCount;
 }
 
 function FilterField({ label, children }) {
@@ -37,9 +37,17 @@ export default function LeadBoardToolbar({
   showRecruiterFilter = false,
   showHiredDateFilter = false,
 }) {
+  const filterColumnCount = getFilterColumnCount(showRecruiterFilter, showHiredDateFilter);
+
   return (
     <div className="mb-4 space-y-4 rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-800">
-      <div className={getGridClass(showRecruiterFilter, showHiredDateFilter)}>
+      <div className="overflow-x-auto">
+        <div
+          className="grid min-w-[960px] gap-3"
+          style={{
+            gridTemplateColumns: `minmax(0, 2fr) repeat(${filterColumnCount}, minmax(0, 1fr))`,
+          }}
+        >
         <FilterField label="Filter by search">
           <input
             type="search"
@@ -141,6 +149,7 @@ export default function LeadBoardToolbar({
             ))}
           </select>
         </FilterField>
+        </div>
       </div>
 
       {filters.datePreset === 'custom' && (
