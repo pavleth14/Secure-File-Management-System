@@ -2,6 +2,7 @@ import {
   PROCESSING_STEPS,
   PROCESSING_STEP_KEYS,
   PROCESSING_STEP_HIRED_KEY,
+  PROCESSING_PROGRESS_STATUSES,
 } from '../config/recruitingConstants.js';
 
 export function getProcessingStepLabel(stepKey) {
@@ -11,6 +12,10 @@ export function getProcessingStepLabel(stepKey) {
 
 export function isValidProcessingStep(stepKey) {
   return PROCESSING_STEP_KEYS.includes(stepKey);
+}
+
+export function canEditProcessingProgress(status) {
+  return PROCESSING_PROGRESS_STATUSES.includes(status);
 }
 
 export function validateProcessingStepTransition(oldStep, newStep) {
@@ -26,7 +31,7 @@ export function validateProcessingStepTransition(oldStep, newStep) {
 
 /** Display/sort index: Step 0 = no step yet, Step 1–8 = selected processing step. */
 export function resolveProcessingStepIndex(status, processingStep) {
-  if (status !== 'Processing') return null;
+  if (!canEditProcessingProgress(status)) return null;
   if (!processingStep) return 0;
   const stepIndex = PROCESSING_STEP_KEYS.indexOf(processingStep);
   if (stepIndex === -1) return 0;

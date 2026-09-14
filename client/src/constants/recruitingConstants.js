@@ -95,3 +95,6 @@ export const PROCESSING_STEPS = [
 export const PROCESSING_STEP_KEYS = PROCESSING_STEPS.map((step) => step.key);
 
 export const PROCESSING_STEP_HIRED_KEY = 'hired';
+
+/** Statuses where the processing progress bar can still be updated. */
+export const PROCESSING_PROGRESS_STATUSES = ['Processing', 'Approved'];

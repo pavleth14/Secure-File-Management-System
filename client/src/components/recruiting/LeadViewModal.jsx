@@ -16,6 +16,7 @@ import {
   REJECTION_REASONS,
   REJECTION_REASON_CUSTOM,
   PROCESSING_STEP_HIRED_KEY,
+  PROCESSING_PROGRESS_STATUSES,
 } from '../../constants/recruitingConstants';
 import { useLeadStatuses } from '../../hooks/useRecruitingData';
 import LeadStatusIndicator from './LeadStatusIndicator';
@@ -128,9 +129,15 @@ function getDraftChanges(original, draft) {
     draftStep !== originalStep
   ) {
     changes.processingStep = PROCESSING_STEP_HIRED_KEY;
-  } else if (draft.status === 'Processing' && draftStep !== originalStep) {
+  } else if (
+    PROCESSING_PROGRESS_STATUSES.includes(draft.status) &&
+    draftStep !== originalStep
+  ) {
     changes.processingStep = draftStep || null;
-  } else if (draft.status !== 'Processing' && original.processingStep) {
+  } else if (
+    !PROCESSING_PROGRESS_STATUSES.includes(draft.status) &&
+    original.processingStep
+  ) {
     changes.processingStep = null;
   }
 
@@ -183,10 +190,11 @@ export default function LeadViewModal({
   const canSave = Boolean(onSave) && !readOnly;
   const isRejected = draft.status === 'Rejected';
   const isHired = draft.status === 'Hired';
-  const isProcessing = draft.status === 'Processing';
   const hasProcessingHistory = (displayLead?.processingStepHistory || []).length > 0;
-  const canEditProcessingSteps = isProcessing && fieldPermissions.status;
-  const showProcessingSection = isProcessing || hasProcessingHistory;
+  const canEditProcessingSteps =
+    PROCESSING_PROGRESS_STATUSES.includes(draft.status) && fieldPermissions.status;
+  const showProcessingSection =
+    PROCESSING_PROGRESS_STATUSES.includes(draft.status) || hasProcessingHistory;
   const effectiveProcessingStep = useMemo(() => {
     if (draft.processingStep) {
       return draft.processingStep;
@@ -279,7 +287,7 @@ export default function LeadViewModal({
       if (field === 'status' && value !== 'Hired') {
         next.hiredDate = '';
       }
-      if (field === 'status' && value !== 'Processing') {
+      if (field === 'status' && !PROCESSING_PROGRESS_STATUSES.includes(value)) {
         next.processingStep = '';
       }
       return next;

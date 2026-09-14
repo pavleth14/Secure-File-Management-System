@@ -19,6 +19,7 @@ import {
   validateProcessingStepTransition,
   isValidProcessingStep,
   resolveProcessingStepIndex,
+  canEditProcessingProgress,
   PROCESSING_STEP_HIRED_KEY,
   PROCESSING_STEP_KEYS,
 } from './processingStepService.js';
@@ -772,8 +773,14 @@ async function validateLeadUpdate(user, lead, updates) {
     }
     const effectiveProcessingStatus =
       updates.status !== undefined ? updates.status : lead.status;
-    if (step && effectiveProcessingStatus !== 'Processing' && step !== PROCESSING_STEP_HIRED_KEY) {
-      const err = new Error('Processing steps can only be set while status is Processing');
+    if (
+      step &&
+      !canEditProcessingProgress(effectiveProcessingStatus) &&
+      step !== PROCESSING_STEP_HIRED_KEY
+    ) {
+      const err = new Error(
+        'Processing steps can only be set while status is Processing or Approved'
+      );
       err.status = 400;
       throw err;
     }
@@ -893,7 +900,7 @@ export async function updateLead(user, lead, updates, { req } = {}) {
     if (nextStatus !== 'Hired') {
       lead.hiredDate = null;
     }
-    if (nextStatus !== 'Processing') {
+    if (!canEditProcessingProgress(nextStatus)) {
       lead.processingStep = null;
     }
   }

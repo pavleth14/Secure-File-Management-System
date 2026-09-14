@@ -12,7 +12,11 @@ export default function LeadStatusIndicator({
 
   const color = statusColorMap[statusName] || DEFAULT_STATUS_COLOR;
 
-  if (statusName === 'Processing') {
+  const showProcessingStep =
+    statusName === 'Processing' ||
+    (statusName === 'Approved' && Boolean(processingStep));
+
+  if (showProcessingStep) {
     const stepNumber = getProcessingStepDisplayNumber(processingStep);
 
     return (
