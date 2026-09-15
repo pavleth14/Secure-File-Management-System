@@ -263,6 +263,26 @@ async function assignSingleOldLead(user, oldLeadId, recruiterId, req = null) {
   try {
     lead = await Lead.create(leadData);
   } catch (err) {
+    if (err?.code === 11000) {
+      const existingLead = await findDuplicateLead(oldLead.email, oldLead.phone);
+      if (existingLead) {
+        await recordDuplicateLeadAttemptSafe(
+          {
+            firstName: oldLead.firstName,
+            lastName: oldLead.lastName,
+            phone: oldLead.phone,
+            email: oldLead.email,
+            stateCity: oldLead.stateCity || '',
+            driverType: oldLead.driverType,
+            source: OLD_LEAD_SOURCE,
+            date: oldLead.date || '',
+            ingestionSource: 'old_lead',
+            ingestionMeta: { oldLeadId: oldLead._id },
+          },
+          existingLead
+        );
+      }
+    }
     const duplicateErr = handleLeadDuplicateError(err);
     if (duplicateErr) throw duplicateErr;
     throw err;

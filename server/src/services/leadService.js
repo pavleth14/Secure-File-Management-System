@@ -232,7 +232,24 @@ export async function findDuplicateLead(email, phone, excludeLeadId = null) {
     return null;
   }
 
-  return Lead.findOne(filter).select('email phone phoneDigits');
+  return Lead.findOne(filter).select('_id email phone phoneDigits firstName lastName');
+}
+
+export async function recordDuplicateLeadOnUniqueError(
+  err,
+  { email, phone, attempt }
+) {
+  if (err?.code !== 11000 || !attempt) {
+    return false;
+  }
+
+  const duplicate = await findDuplicateLead(email, phone);
+  if (!duplicate) {
+    return false;
+  }
+
+  await recordDuplicateLeadAttemptSafe({ ...attempt, email, phone }, duplicate);
+  return true;
 }
 
 export async function assertNoDuplicateLead(
@@ -652,7 +669,31 @@ export async function createLead(user, payload, { req } = {}) {
     newStatus: resolvedStatus,
   });
 
-  const lead = await Lead.create(leadDoc);
+  const duplicateAttempt = {
+    firstName,
+    lastName,
+    phone: normalizedPhone,
+    stateCity,
+    driverType: resolvedDriverType,
+    source: resolvedSource,
+    date: date ? formatLeadDateIso(date, createdAt) : '',
+    emailMissing,
+    ingestionSource: 'manual',
+  };
+
+  let lead;
+  try {
+    lead = await Lead.create(leadDoc);
+  } catch (err) {
+    await recordDuplicateLeadOnUniqueError(err, {
+      email: normalizedEmail,
+      phone: normalizedPhone,
+      attempt: duplicateAttempt,
+    });
+    const duplicateErr = handleLeadDuplicateError(err);
+    if (duplicateErr) throw duplicateErr;
+    throw err;
+  }
 
   if (req) {
     await auditLeadStatusChanged({
@@ -828,7 +869,20 @@ export async function updateLead(user, lead, updates, { req } = {}) {
     updates.phone !== undefined ? normalizePhone(updates.phone) : lead.phone;
 
   if (updates.email !== undefined || updates.phone !== undefined) {
-    await assertNoDuplicateLead(nextEmail, nextPhone, lead._id);
+    await assertNoDuplicateLead(nextEmail, nextPhone, lead._id, {
+      attempt: {
+        firstName: lead.firstName,
+        lastName: lead.lastName,
+        phone: nextPhone,
+        email: nextEmail,
+        stateCity: lead.stateCity,
+        driverType: lead.driverType,
+        source: lead.source,
+        date: lead.date,
+        emailMissing: isMissingLeadEmail(nextEmail),
+        ingestionSource: 'manual',
+      },
+    });
   }
 
   if (updates.firstName !== undefined) lead.firstName = updates.firstName.trim();

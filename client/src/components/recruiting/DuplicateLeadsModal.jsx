@@ -120,7 +120,8 @@ export default function DuplicateLeadsModal({ open, onClose }) {
               Duplicate Leads
             </h2>
             <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-              Rejected duplicate submissions are stored here and do not appear on the board.
+              Repeat applications blocked by phone or email match. The original lead stays on the
+              board; Times Applied includes that first successful application.
             </p>
           </div>
           <button
@@ -229,8 +230,8 @@ export default function DuplicateLeadsModal({ open, onClose }) {
 
         <div className="flex items-center justify-between gap-3 border-t border-slate-200 px-5 py-4 dark:border-slate-700">
           <p className="text-sm text-slate-500 dark:text-slate-400">
-            {totalCount} duplicate attempt{totalCount !== 1 ? 's' : ''} · Page {filters.page} of{' '}
-            {totalPages}
+            {totalCount} contact{totalCount !== 1 ? 's' : ''} with repeat applications · Page{' '}
+            {filters.page} of {totalPages}
           </p>
           <div className="flex gap-2">
             <button

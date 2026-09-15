@@ -156,6 +156,29 @@ function resolveImportEmail(normalizedEmail, emailMissing) {
   return normalizedEmail;
 }
 
+async function recordImportDuplicateRow(row, matchedLead) {
+  if (!matchedLead?._id) return;
+
+  const emailMissing = Boolean(row.emailMissing);
+  await recordDuplicateLeadAttemptSafe(
+    {
+      firstName: row.firstName,
+      lastName: row.lastName,
+      phone: row.normalizedPhone,
+      email: resolveImportEmail(row.normalizedEmail, emailMissing),
+      stateCity: row.stateCity,
+      driverType: row.resolvedDriverType,
+      source: row.resolvedSource,
+      date: formatLeadDateIso(row.date, row.parsedCreatedAt) || '',
+      emailMissing,
+      ingestionSource: 'csv_import',
+      ingestionMeta: { importPreviewId: row.previewId || null },
+      receivedAt: row.parsedCreatedAt,
+    },
+    matchedLead
+  );
+}
+
 function parseCsvBuffer(buffer) {
   const workbook = XLSX.read(buffer, { type: 'buffer', raw: true, cellDates: false });
   const sheetName = workbook.SheetNames[0];
@@ -618,18 +641,30 @@ export async function confirmLeadImport(manager, previewId, selectedRowNumbers =
 
   const rowsToImport = [];
   const seenInBatch = { emails: new Set(), phoneDigits: new Set() };
+  const deferredInBatchDuplicates = [];
 
   for (const row of selectedRows) {
     const rowPhoneDigits =
       row.normalizedPhoneDigits ||
       normalizeLeadContactPhoneDigits(row.normalizedPhone);
 
-    if (
-      (row.normalizedEmail &&
-        !row.emailMissing &&
-        seenInBatch.emails.has(row.normalizedEmail)) ||
-      (rowPhoneDigits && seenInBatch.phoneDigits.has(rowPhoneDigits))
-    ) {
+    const batchEmailDuplicate =
+      row.normalizedEmail &&
+      !row.emailMissing &&
+      seenInBatch.emails.has(row.normalizedEmail);
+    const batchPhoneDuplicate =
+      rowPhoneDigits && seenInBatch.phoneDigits.has(rowPhoneDigits);
+
+    if (batchEmailDuplicate || batchPhoneDuplicate) {
+      const existingLead = await findDuplicateLead(
+        row.emailMissing ? '' : row.normalizedEmail,
+        row.normalizedPhone
+      );
+      if (existingLead) {
+        await recordImportDuplicateRow(row, existingLead);
+      } else {
+        deferredInBatchDuplicates.push({ row, rowPhoneDigits });
+      }
       skippedDuplicates += 1;
       continue;
     }
@@ -775,6 +810,16 @@ export async function confirmLeadImport(manager, previewId, selectedRowNumbers =
       } else {
         invalidRows += 1;
       }
+    }
+  }
+
+  for (const { row, rowPhoneDigits } of deferredInBatchDuplicates) {
+    const existingLead = await findDuplicateLead(
+      row.emailMissing ? '' : row.normalizedEmail,
+      row.normalizedPhone
+    );
+    if (existingLead) {
+      await recordImportDuplicateRow(row, existingLead);
     }
   }
 

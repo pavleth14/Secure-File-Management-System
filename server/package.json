@@ -6,7 +6,9 @@
     "dev": "node --watch src/index.js",
     "start": "node src/index.js",
     "backfill:hired-dates": "node scripts/backfill-hired-dates.js",
-    "backfill:hired-dates:dry-run": "node scripts/backfill-hired-dates.js --dry-run"
+    "backfill:hired-dates:dry-run": "node scripts/backfill-hired-dates.js --dry-run",
+    "backfill:duplicate-leads": "node scripts/backfill-duplicate-leads.js",
+    "backfill:duplicate-leads:dry-run": "node scripts/backfill-duplicate-leads.js --dry-run"
   },
   "dependencies": {
     "bcrypt": "^5.1.1",

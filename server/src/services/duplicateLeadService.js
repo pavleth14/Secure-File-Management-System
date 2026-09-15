@@ -21,7 +21,12 @@ export function buildDuplicateContactKey({ email, phone, emailMissing = false })
   return `unknown:${normalizedEmail || phone || 'contact'}`;
 }
 
-function formatDuplicateLeadRow(doc, submissionCount) {
+/** Total applications = original board lead + rejected duplicate attempts. */
+export function getTotalTimesApplied(rejectedAttemptCount) {
+  return Math.max((rejectedAttemptCount || 0) + 1, 1);
+}
+
+function formatDuplicateLeadRow(doc, rejectedAttemptCount) {
   const matchedLead = doc.matchedLeadId;
   return {
     id: doc._id,
@@ -35,7 +40,9 @@ function formatDuplicateLeadRow(doc, submissionCount) {
     date: doc.date || '',
     duplicateReason: doc.duplicateReason,
     contactKey: doc.contactKey,
-    submissionCount,
+    rejectedAttemptCount,
+    submissionCount: getTotalTimesApplied(rejectedAttemptCount),
+    duplicateAttemptCount: rejectedAttemptCount,
     ingestionSource: doc.ingestionSource,
     receivedAt: doc.receivedAt,
     matchedLead: matchedLead
@@ -85,14 +92,14 @@ export async function recordDuplicateLeadAttempt(attempt, matchedLead) {
   });
 }
 
-async function getSubmissionCountMap() {
+async function getRejectedAttemptCountMap() {
   const grouped = await DuplicateLead.aggregate([
-    { $group: { _id: '$contactKey', submissionCount: { $sum: 1 } } },
+    { $group: { _id: '$contactKey', rejectedAttemptCount: { $sum: 1 } } },
   ]);
 
   const map = new Map();
   for (const entry of grouped) {
-    map.set(entry._id, entry.submissionCount);
+    map.set(entry._id, entry.rejectedAttemptCount);
   }
   return map;
 }
@@ -102,9 +109,10 @@ function filterContactKeys(countMap, { minOccurrences, maxOccurrences }) {
   const max = maxOccurrences ? parseInt(maxOccurrences, 10) : null;
 
   return [...countMap.entries()]
-    .filter(([, count]) => {
-      if (min && count < min) return false;
-      if (max && count > max) return false;
+    .filter(([, rejectedCount]) => {
+      const totalApplied = getTotalTimesApplied(rejectedCount);
+      if (min && totalApplied < min) return false;
+      if (max && totalApplied > max) return false;
       return true;
     })
     .map(([contactKey]) => contactKey);
@@ -122,7 +130,7 @@ export async function listDuplicateLeads(options = {}) {
   const safeLimit = Math.min(Math.max(parseInt(limit, 10) || 50, 1), 200);
   const safePage = Math.max(parseInt(page, 10) || 1, 1);
 
-  const countMap = await getSubmissionCountMap();
+  const countMap = await getRejectedAttemptCountMap();
   const allowedContactKeys = filterContactKeys(countMap, { minOccurrences, maxOccurrences });
 
   if (!allowedContactKeys.length) {
@@ -140,7 +148,14 @@ export async function listDuplicateLeads(options = {}) {
     .sort({ receivedAt: -1 })
     .lean();
 
-  let rows = docs.map((doc) =>
+  const latestByContactKey = new Map();
+  for (const doc of docs) {
+    if (!latestByContactKey.has(doc.contactKey)) {
+      latestByContactKey.set(doc.contactKey, doc);
+    }
+  }
+
+  let rows = [...latestByContactKey.values()].map((doc) =>
     formatDuplicateLeadRow(doc, countMap.get(doc.contactKey) || 1)
   );
 
@@ -155,6 +170,10 @@ export async function listDuplicateLeads(options = {}) {
       (a, b) =>
         a.submissionCount - b.submissionCount ||
         new Date(b.receivedAt).getTime() - new Date(a.receivedAt).getTime()
+    );
+  } else {
+    rows.sort(
+      (a, b) => new Date(b.receivedAt).getTime() - new Date(a.receivedAt).getTime()
     );
   }
 
