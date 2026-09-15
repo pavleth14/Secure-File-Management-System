@@ -8,7 +8,8 @@
     "backfill:hired-dates": "node scripts/backfill-hired-dates.js",
     "backfill:hired-dates:dry-run": "node scripts/backfill-hired-dates.js --dry-run",
     "backfill:duplicate-leads": "node scripts/backfill-duplicate-leads.js",
-    "backfill:duplicate-leads:dry-run": "node scripts/backfill-duplicate-leads.js --dry-run"
+    "backfill:duplicate-leads:dry-run": "node scripts/backfill-duplicate-leads.js --dry-run",
+    "ringcentral:recreate-webhook": "node scripts/recreate-ringcentral-webhook.js"
   },
   "dependencies": {
     "bcrypt": "^5.1.1",

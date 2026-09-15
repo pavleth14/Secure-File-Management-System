@@ -23,22 +23,31 @@ export async function ensureRingCentralWebhookSubscription() {
   const matching = existing.filter(
     (sub) =>
       sub?.deliveryMode?.transportType === 'WebHook' &&
-      sub?.deliveryMode?.address === webhookUrl &&
-      sub?.status !== 'Cancelled'
+      sub?.deliveryMode?.address === webhookUrl
   );
 
-  for (const sub of matching.slice(1)) {
+  const healthy = matching.filter((sub) => sub?.status === 'Active');
+
+  for (const sub of matching) {
+    if (sub?.status === 'Active' && healthy[0]?.id === sub.id) {
+      continue;
+    }
+
     try {
       await deleteRingCentralSubscription(sub.id);
-      console.log('[ringcentral] Removed duplicate subscription', sub.id);
+      console.log(
+        '[ringcentral] Removed stale webhook subscription',
+        sub.id,
+        sub.status || 'unknown'
+      );
     } catch (err) {
-      console.warn('[ringcentral] Failed to remove duplicate subscription', sub.id, err.message);
+      console.warn('[ringcentral] Failed to remove subscription', sub.id, err.message);
     }
   }
 
-  if (matching.length > 0) {
-    console.log('[ringcentral] Webhook subscription already active', matching[0].id);
-    return matching[0];
+  if (healthy.length > 0) {
+    console.log('[ringcentral] Webhook subscription already active', healthy[0].id);
+    return healthy[0];
   }
 
   const created = await createRingCentralWebhookSubscription();
