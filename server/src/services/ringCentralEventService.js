@@ -600,7 +600,10 @@ async function processTelephonySessionBody(body) {
     if (!externalPhone) continue;
 
     const lead = await findLeadByPhoneNumber(externalPhone);
-    if (!lead) continue;
+    if (!lead) {
+      console.log('[ringcentral] Telephony webhook ignored — no lead for phone', externalPhone);
+      continue;
+    }
 
     const extensionId = getExtensionFromParty(party, direction);
     const fallbackResult =

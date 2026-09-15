@@ -103,6 +103,7 @@ export async function enqueueCallLogSync(context) {
   const { findLeadByPhoneNumber } = await import('./ringCentralEventService.js');
   const lead = await findLeadByPhoneNumber(context.externalPhone);
   if (!lead) {
+    console.log('[ringcentral] Call sync skipped — no lead for phone', context.externalPhone);
     return null;
   }
 
@@ -137,6 +138,13 @@ export async function enqueueCallLogSync(context) {
       { $setOnInsert: doc },
       { upsert: true, new: true }
     );
+    if (entry?.attempts === 0 && !entry?.syncedAt) {
+      console.log('[ringcentral] Call log sync enqueued', {
+        sessionId,
+        leadId: lead._id.toString(),
+        direction: doc.direction,
+      });
+    }
     return entry;
   } catch (err) {
     if (err.code === 11000) {

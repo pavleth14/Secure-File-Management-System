@@ -1,9 +1,6 @@
 import dotenv from 'dotenv';
-import {
-  listRingCentralSubscriptions,
-  deleteRingCentralSubscription,
-} from '../src/services/ringCentralApiService.js';
-import { ensureRingCentralWebhookSubscription } from '../src/services/ringCentralSubscriptionService.js';
+import { listRingCentralSubscriptions } from '../src/services/ringCentralApiService.js';
+import { recreateRingCentralWebhookSubscription } from '../src/services/ringCentralSubscriptionService.js';
 import { getRingCentralWebhookUrl, isRingCentralEnabled } from '../src/config/ringCentralConfig.js';
 
 dotenv.config();
@@ -30,30 +27,11 @@ async function main() {
   const before = await listRingCentralSubscriptions();
   console.log('[recreate-ringcentral-webhook] subscriptions before:', before.map(summarizeSubscription));
 
-  const stale = before.filter(
-    (sub) =>
-      sub?.deliveryMode?.transportType === 'WebHook' &&
-      sub?.deliveryMode?.address === webhookUrl &&
-      sub?.status !== 'Active'
-  );
-
-  for (const sub of stale) {
-    await deleteRingCentralSubscription(sub.id);
-    console.log('[recreate-ringcentral-webhook] deleted stale subscription', sub.id, sub.status);
-  }
-
-  const knownStaleId = 'cb6950d6-f1b6-4c74-8cbf-0da71bb20749';
-  const knownStillPresent = before.find((sub) => sub.id === knownStaleId);
-  if (knownStillPresent && knownStillPresent.status !== 'Active') {
-    await deleteRingCentralSubscription(knownStaleId);
-    console.log('[recreate-ringcentral-webhook] deleted known stale subscription', knownStaleId);
-  }
-
-  const created = await ensureRingCentralWebhookSubscription();
+  const created = await recreateRingCentralWebhookSubscription();
 
   const after = await listRingCentralSubscriptions();
   console.log('[recreate-ringcentral-webhook] subscriptions after:', after.map(summarizeSubscription));
-  console.log('[recreate-ringcentral-webhook] ensure result:', summarizeSubscription(created || {}));
+  console.log('[recreate-ringcentral-webhook] result:', summarizeSubscription(created || {}));
 }
 
 main().catch((err) => {

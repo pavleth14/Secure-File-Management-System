@@ -23,6 +23,13 @@ export function isRingCentralEnabled() {
   );
 }
 
+export function shouldForceRecreateRingCentralWebhook() {
+  const value = String(process.env.RINGCENTRAL_FORCE_RECREATE_WEBHOOK || '')
+    .trim()
+    .toLowerCase();
+  return value === '1' || value === 'true' || value === 'yes';
+}
+
 export const RINGCENTRAL_BACKFILL_DAYS = 7;
 
 export const RINGCENTRAL_SUBSCRIPTION_TTL_SECONDS = 630720000; // ~20 years (RC max for WebHook)
