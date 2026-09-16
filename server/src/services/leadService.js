@@ -26,7 +26,12 @@ import {
 import { appendReassignmentComment } from './leadReassignmentService.js';
 import { auditLeadStatusChanged, auditLeadProcessingStepChanged } from './recruitingAuditService.js';
 import { recordDuplicateLeadAttemptSafe } from './duplicateLeadService.js';
-import { isRecruitingModuleUser, canMutateLead, canViewLeadOnRecruiterBoard } from '../utils/recruitingPermissions.js';
+import {
+  isRecruitingModuleUser,
+  canMutateLead,
+  canViewLeadOnRecruiterBoard,
+  canEditLeadDate,
+} from '../utils/recruitingPermissions.js';
 import { formatLeadDateIso } from '../utils/leadDateFormat.js';
 import { generateImportPlaceholderEmail } from '../utils/importPlaceholderEmail.js';
 import { notifyNewLeadSlack } from './slackNotificationService.js';
@@ -795,6 +800,22 @@ async function validateLeadUpdate(user, lead, updates) {
     throw err;
   }
 
+  if (updates.date !== undefined) {
+    if (!canEditLeadDate(user)) {
+      const err = new Error('You cannot edit lead date');
+      err.status = 403;
+      throw err;
+    }
+    if (updates.date !== null && updates.date !== '') {
+      const normalized = formatLeadDateIso(updates.date, lead.createdAt);
+      if (!normalized) {
+        const err = new Error('Invalid lead date');
+        err.status = 400;
+        throw err;
+      }
+    }
+  }
+
   const effectiveStatus = updates.status !== undefined ? updates.status : lead.status;
   const willBecomeHired =
     updates.status === 'Hired' ||
@@ -890,6 +911,13 @@ export async function updateLead(user, lead, updates, { req } = {}) {
   if (updates.phone !== undefined) lead.phone = nextPhone;
   if (updates.email !== undefined) lead.email = nextEmail;
   if (updates.stateCity !== undefined) lead.stateCity = updates.stateCity.trim();
+
+  if (updates.date !== undefined) {
+    lead.date =
+      updates.date === null || updates.date === ''
+        ? ''
+        : formatLeadDateIso(updates.date, lead.createdAt);
+  }
 
   if (updates.hiredDate !== undefined) {
     lead.hiredDate = updates.hiredDate

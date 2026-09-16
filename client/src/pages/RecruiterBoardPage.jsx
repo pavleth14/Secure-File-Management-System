@@ -3,7 +3,11 @@ import { useParams } from 'react-router-dom';
 import api from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import { LEAD_BOARD_PAGE_SIZES } from '../constants/recruitingConstants';
-import { getLeadDateRange, isRecruiterBoardReadOnly } from '../utils/leadPermissions';
+import {
+  getLeadDateRange,
+  isRecruiterBoardReadOnly,
+  canEditLeadDate,
+} from '../utils/leadPermissions';
 import { useLeadSources, useLeadStatuses, useRecruiters } from '../hooks/useRecruitingData';
 import LeadBoardToolbar from '../components/recruiting/LeadBoardToolbar';
 import LeadActivityTabs from '../components/recruiting/LeadActivityTabs';
@@ -13,6 +17,7 @@ import AddCommentModal from '../components/recruiting/AddCommentModal';
 import AssignLeadModal from '../components/recruiting/AssignLeadModal';
 import CreateLeadModal from '../components/recruiting/CreateLeadModal';
 import DuplicateLeadsModal from '../components/recruiting/DuplicateLeadsModal';
+import EditLeadDateModal from '../components/recruiting/EditLeadDateModal';
 
 const GLOBAL_BOARD_USER_ID = 'global';
 
@@ -63,6 +68,10 @@ export default function RecruiterBoardPage() {
     useAuth();
   const isGlobalBoard = userId === GLOBAL_BOARD_USER_ID;
   const canManageLeads = isRecruitingManager || isSuperAdmin;
+  const showEditLeadDate = canEditLeadDate({
+    isRecruitingManager: canManageLeads,
+    isSuperAdmin,
+  });
   const loggedInUserId = user?.id?.toString?.() || user?._id?.toString?.();
   const isOwnBoard = Boolean(
     !isGlobalBoard && loggedInUserId && userId && loggedInUserId === userId.toString()
@@ -119,6 +128,8 @@ export default function RecruiterBoardPage() {
   const [commentSubmitting, setCommentSubmitting] = useState(false);
   const [assignSubmitting, setAssignSubmitting] = useState(false);
   const [duplicateLeadsOpen, setDuplicateLeadsOpen] = useState(false);
+  const [dateEditLead, setDateEditLead] = useState(null);
+  const [dateEditSubmitting, setDateEditSubmitting] = useState(false);
 
   const activeRecruiters = useMemo(
     () => recruiters.filter((recruiter) => !recruiter.name.includes('(Inactive)')),
@@ -216,6 +227,20 @@ export default function RecruiterBoardPage() {
 
   const handleSortChange = (sortBy, sortDir) => {
     setFilters((prev) => ({ ...prev, sortBy, sortDir, page: 1 }));
+  };
+
+  const handleSaveLeadDate = async (date) => {
+    if (!dateEditLead) return;
+    setDateEditSubmitting(true);
+    setActionError('');
+    try {
+      await handleUpdateLead(dateEditLead.id, { date });
+      setDateEditLead(null);
+    } catch {
+      // handleUpdateLead sets actionError
+    } finally {
+      setDateEditSubmitting(false);
+    }
   };
 
   const handleUpdateLead = async (leadId, updates) => {
@@ -437,6 +462,8 @@ export default function RecruiterBoardPage() {
         onEditComment={boardReadOnly ? undefined : handleEditComment}
         onAssignLead={canManageLeads ? setAssignLead : undefined}
         onArchiveLead={canManageLeads ? handleArchiveLead : undefined}
+        canEditLeadDate={showEditLeadDate}
+        onEditLeadDate={showEditLeadDate ? setDateEditLead : undefined}
         showRecruiterColumn={isGlobalBoard}
         recruiterColumnAfterStatus={isGlobalBoard}
         statusColorMap={statusColorMap}
@@ -500,6 +527,17 @@ export default function RecruiterBoardPage() {
         submitting={assignSubmitting}
         onConfirm={handleAssignLead}
         onCancel={() => setAssignLead(null)}
+      />
+
+      <EditLeadDateModal
+        open={Boolean(dateEditLead)}
+        lead={dateEditLead}
+        submitting={dateEditSubmitting}
+        onConfirm={handleSaveLeadDate}
+        onCancel={() => {
+          if (dateEditSubmitting) return;
+          setDateEditLead(null);
+        }}
       />
 
       <DuplicateLeadsModal

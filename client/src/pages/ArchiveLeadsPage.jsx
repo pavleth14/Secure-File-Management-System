@@ -2,13 +2,14 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import api from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import { LEAD_BOARD_PAGE_SIZES } from '../constants/recruitingConstants';
-import { getLeadDateRange } from '../utils/leadPermissions';
+import { getLeadDateRange, canEditLeadDate } from '../utils/leadPermissions';
 import { useLeadSources, useLeadStatuses, useRecruiters } from '../hooks/useRecruitingData';
 import LeadBoardToolbar from '../components/recruiting/LeadBoardToolbar';
 import LeadBoardTable from '../components/recruiting/LeadBoardTable';
 import LeadViewModal from '../components/recruiting/LeadViewModal';
 import AddCommentModal from '../components/recruiting/AddCommentModal';
 import AssignLeadModal from '../components/recruiting/AssignLeadModal';
+import EditLeadDateModal from '../components/recruiting/EditLeadDateModal';
 
 function buildQueryParams(filters) {
   const { dateFrom, dateTo } = getLeadDateRange(
@@ -36,7 +37,8 @@ function buildQueryParams(filters) {
 }
 
 export default function ArchiveLeadsPage() {
-  const { user } = useAuth();
+  const { user, isRecruitingManager, isSuperAdmin } = useAuth();
+  const showEditLeadDate = canEditLeadDate({ isRecruitingManager, isSuperAdmin });
   const { sourceNames } = useLeadSources();
   const { statusNames, statusColorMap } = useLeadStatuses();
   const { recruiters } = useRecruiters();
@@ -71,6 +73,8 @@ export default function ArchiveLeadsPage() {
   const [commentSubmitting, setCommentSubmitting] = useState(false);
   const [assignSubmitting, setAssignSubmitting] = useState(false);
   const [restoreSubmitting, setRestoreSubmitting] = useState(false);
+  const [dateEditLead, setDateEditLead] = useState(null);
+  const [dateEditSubmitting, setDateEditSubmitting] = useState(false);
 
   const activeRecruiters = useMemo(
     () => recruiters.filter((recruiter) => !recruiter.name.includes('(Inactive)')),
@@ -132,6 +136,20 @@ export default function ArchiveLeadsPage() {
       setActionError(message);
       await loadLeads();
       throw err;
+    }
+  };
+
+  const handleSaveLeadDate = async (date) => {
+    if (!dateEditLead) return;
+    setDateEditSubmitting(true);
+    setActionError('');
+    try {
+      await handleUpdateLead(dateEditLead.id, { date });
+      setDateEditLead(null);
+    } catch {
+      // handleUpdateLead sets actionError
+    } finally {
+      setDateEditSubmitting(false);
     }
   };
 
@@ -247,6 +265,8 @@ export default function ArchiveLeadsPage() {
         onEditComment={handleEditComment}
         onAssignLead={setAssignLead}
         onRestoreLead={setRestoreLead}
+        canEditLeadDate={showEditLeadDate}
+        onEditLeadDate={showEditLeadDate ? setDateEditLead : undefined}
         showRecruiterColumn
         showArchiveColumns
         statusColorMap={statusColorMap}
@@ -307,6 +327,17 @@ export default function ArchiveLeadsPage() {
         submitting={assignSubmitting}
         onConfirm={handleAssignLead}
         onCancel={() => setAssignLead(null)}
+      />
+
+      <EditLeadDateModal
+        open={Boolean(dateEditLead)}
+        lead={dateEditLead}
+        submitting={dateEditSubmitting}
+        onConfirm={handleSaveLeadDate}
+        onCancel={() => {
+          if (dateEditSubmitting) return;
+          setDateEditLead(null);
+        }}
       />
 
       <AssignLeadModal

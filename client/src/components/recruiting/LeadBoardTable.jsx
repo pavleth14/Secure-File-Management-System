@@ -54,6 +54,8 @@ export default function LeadBoardTable({
   onAssignLead,
   onArchiveLead,
   onRestoreLead,
+  canEditLeadDate = false,
+  onEditLeadDate,
   showRecruiterColumn = false,
   recruiterColumnAfterStatus = false,
   showArchiveColumns = false,
@@ -238,7 +240,18 @@ export default function LeadBoardTable({
                   <td className="px-4 py-3 text-sm">{lead.driverType || '—'}</td>
                   <td className="px-4 py-3 text-sm">{lead.source || '—'}</td>
                   <td className="whitespace-nowrap px-4 py-3 text-sm">
-                    {formatLeadDisplayDate(lead.date, lead.createdAt)}
+                    {canEditLeadDate && onEditLeadDate && !readOnly ? (
+                      <button
+                        type="button"
+                        onClick={() => onEditLeadDate(lead)}
+                        className="rounded px-1 -mx-1 text-left text-brand-700 underline-offset-2 hover:underline dark:text-brand-400"
+                        title="Edit lead date"
+                      >
+                        {formatLeadDisplayDate(lead.date, lead.createdAt)}
+                      </button>
+                    ) : (
+                      formatLeadDisplayDate(lead.date, lead.createdAt)
+                    )}
                   </td>
                   <td className="whitespace-nowrap px-4 py-3 text-sm">
                     {formatLeadDisplayDate(lead.hiredDate)}

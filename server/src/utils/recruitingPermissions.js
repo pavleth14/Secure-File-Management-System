@@ -60,6 +60,10 @@ export function getLeadBoardOwnerId(lead) {
   );
 }
 
+export function canEditLeadDate(user) {
+  return Boolean(user?.isRecruitingManager || user?.role === 'SUPER_ADMIN');
+}
+
 export function canMutateLead(user, lead) {
   if (user?.isRecruitingManager || user?.role === 'SUPER_ADMIN') return true;
   if (isRecruitingModuleUser(user) && !lead.archived) return true;

@@ -99,6 +99,11 @@ export function canEditStatus(
   return Boolean(isRecruiter && isOwnBoard);
 }
 
+/** Arrival date on the board (super admin / recruiting manager). */
+export function canEditLeadDate({ isRecruitingManager = false, isSuperAdmin = false } = {}) {
+  return Boolean(isRecruitingManager || isSuperAdmin);
+}
+
 /** Hired date can be corrected on assigned Hired leads (including from Global Board). */
 export function canEditHiredDate(
   lead,
