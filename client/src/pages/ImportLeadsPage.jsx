@@ -224,8 +224,9 @@ export default function ImportLeadsPage() {
               Upload CSV file
             </p>
             <p className="mb-6 text-sm text-slate-500 dark:text-slate-400">
-              Expected columns: Status, Type of Driver, Source, Date, First Name, Last Name, Phone,
-              State / City, Email (optional — placeholder assigned if empty), Comments, Comment 2, … Comment 10
+              Only <strong>Phone</strong> is required (at least 7 digits). Other columns are optional:
+              Status, Type of Driver, Source, Date, First Name, Last Name, State / City, Email
+              (placeholder if empty), Comments, Comment 2, … Comment 10
             </p>
             <input
               ref={fileInputRef}

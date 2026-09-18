@@ -7,6 +7,7 @@ import { LeadImportPreview } from '../models/LeadImportPreview.js';
 import {
   DRIVER_TYPES,
   DEFAULT_LEAD_STATUS,
+  MANUAL_LEAD_SOURCE,
 } from '../config/recruitingConstants.js';
 import { findDuplicateLead, handleLeadDuplicateError } from './leadService.js';
 import { recordDuplicateLeadAttemptSafe } from './duplicateLeadService.js';
@@ -33,6 +34,10 @@ const MAX_IMPORT_COMMENTS = 10;
 const IMPORT_COMMENT_MAX_LENGTH = 2000;
 const MISSING_EMAIL_IMPORT_WARNING =
   'Email is missing; a placeholder will be assigned on import';
+const IMPORT_DEFAULT_FIRST_NAME = 'N/A';
+const IMPORT_DEFAULT_LAST_NAME = 'N/A';
+const IMPORT_DEFAULT_DRIVER_TYPE = 'Solo';
+const MIN_IMPORT_PHONE_DIGITS = 7;
 
 const HEADER_TO_FIELD = {
   status: 'status',
@@ -263,35 +268,84 @@ function parseLeadDate(value, fallbackDate) {
   return parsed;
 }
 
+function resolveImportNameField(value, fallback) {
+  const trimmed = String(value || '').trim();
+  if (!trimmed || trimmed.toUpperCase() === 'N/A') {
+    return fallback;
+  }
+  return trimmed;
+}
+
+function resolveImportDriverType(value) {
+  const trimmed = String(value || '').trim();
+  if (!trimmed || trimmed.toUpperCase() === 'N/A') {
+    return IMPORT_DEFAULT_DRIVER_TYPE;
+  }
+  if (DRIVER_TYPES.includes(trimmed)) {
+    return trimmed;
+  }
+  const caseMatch = DRIVER_TYPES.find(
+    (type) => type.toLowerCase() === trimmed.toLowerCase()
+  );
+  return caseMatch || IMPORT_DEFAULT_DRIVER_TYPE;
+}
+
+function resolveImportSource(value) {
+  const trimmed = String(value || '').trim();
+  if (!trimmed || trimmed.toUpperCase() === 'N/A') {
+    return MANUAL_LEAD_SOURCE;
+  }
+  return trimmed;
+}
+
+function resolveImportStatus(value, allowedStatuses) {
+  const trimmed = String(value || '').trim();
+  if (!trimmed || trimmed.toUpperCase() === 'N/A') {
+    return DEFAULT_LEAD_STATUS;
+  }
+  if (allowedStatuses.includes(trimmed)) {
+    return trimmed;
+  }
+  return trimmed;
+}
+
 function validateMappedRow(row, importDate, allowedSources, allowedStatuses) {
   const errors = [];
   const warnings = [];
 
-  if (!row.firstName) errors.push('First Name is required');
-  if (!row.lastName) errors.push('Last Name is required');
-  if (!row.phone) errors.push('Phone is required');
-  if (!row.driverType) errors.push('Type of Driver is required');
-  if (!row.source) errors.push('Source is required');
+  const normalizedPhone = row.phone ? normalizePhone(row.phone) : '';
+  const normalizedPhoneDigits = normalizedPhone
+    ? normalizeLeadContactPhoneDigits(normalizedPhone)
+    : '';
 
-  const emailMissing = !String(row.email || '').trim();
+  if (!normalizedPhoneDigits || normalizedPhoneDigits.length < MIN_IMPORT_PHONE_DIGITS) {
+    errors.push('Phone is required');
+  }
+
+  let emailMissing = !String(row.email || '').trim();
+  let normalizedEmail = '';
   if (emailMissing) {
     warnings.push(MISSING_EMAIL_IMPORT_WARNING);
+  } else if (!validator.isEmail(row.email, { allow_utf8_local_part: false })) {
+    emailMissing = true;
+    warnings.push('Invalid email in CSV; a placeholder will be assigned on import');
+  } else {
+    normalizedEmail = normalizeEmail(row.email);
   }
 
-  if (row.email && !validator.isEmail(row.email, { allow_utf8_local_part: false })) {
-    errors.push('Invalid email format');
-  }
+  const resolvedFirstName = resolveImportNameField(row.firstName, IMPORT_DEFAULT_FIRST_NAME);
+  const resolvedLastName = resolveImportNameField(row.lastName, IMPORT_DEFAULT_LAST_NAME);
+  const resolvedDriverType = resolveImportDriverType(row.driverType);
+  const resolvedSource = resolveImportSource(row.source);
+  const resolvedStatus = resolveImportStatus(row.status, allowedStatuses);
 
-  if (row.status && !allowedStatuses.includes(row.status)) {
-    errors.push(`Invalid status: ${row.status}`);
-  }
-
-  if (row.driverType && !DRIVER_TYPES.includes(row.driverType)) {
-    errors.push(`Invalid driver type: ${row.driverType}`);
-  }
-
-  if (row.source && !allowedSources.includes(row.source)) {
-    errors.push(`Invalid source: ${row.source}`);
+  if (
+    resolvedSource &&
+    !allowedSources.includes(resolvedSource)
+  ) {
+    warnings.push(
+      `Source "${resolvedSource}" is not in the configured list; lead will still be imported`
+    );
   }
 
   const parsedCreatedAt = parseLeadDate(row.date, importDate);
@@ -309,12 +363,14 @@ function validateMappedRow(row, importDate, allowedSources, allowedStatuses) {
     warnings,
     parsedCreatedAt,
     emailMissing,
-    normalizedEmail: row.email ? normalizeEmail(row.email) : '',
-    normalizedPhone: row.phone ? normalizePhone(row.phone) : '',
-    normalizedPhoneDigits: row.phone ? normalizeLeadContactPhoneDigits(row.phone) : '',
-    status: row.status && allowedStatuses.includes(row.status) ? row.status : DEFAULT_LEAD_STATUS,
-    driverType: row.driverType,
-    source: row.source,
+    normalizedEmail,
+    normalizedPhone,
+    normalizedPhoneDigits,
+    status: resolvedStatus,
+    driverType: resolvedDriverType,
+    source: resolvedSource,
+    resolvedFirstName,
+    resolvedLastName,
   };
 }
 
@@ -447,8 +503,8 @@ export async function previewLeadImport(
       driverType: mapped.driverType || '',
       source: mapped.source || '',
       date: mapped.date || '',
-      firstName: mapped.firstName || '',
-      lastName: mapped.lastName || '',
+      firstName: validation.resolvedFirstName,
+      lastName: validation.resolvedLastName,
       phone: mapped.phone || '',
       stateCity: mapped.stateCity || '',
       email: mapped.email || '',
