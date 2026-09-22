@@ -502,9 +502,11 @@ export async function listActiveLeads(user, options = {}) {
     sortBy = 'createdAt',
     sortDir = 'desc',
     activityGroup,
+    scope,
   } = options;
 
   const filter = { archived: false };
+  const isGlobalScope = scope === 'global';
 
   if (user.isRecruitingManager || user.role === 'SUPER_ADMIN') {
     if (recruiterId) {
@@ -515,7 +517,11 @@ export async function listActiveLeads(user, options = {}) {
       filter.assignedRecruiter = recruiterId;
     }
   } else if (user.isRecruiter) {
-    if (recruiterId) {
+    if (isGlobalScope) {
+      if (recruiterId) {
+        filter.assignedRecruiter = recruiterId;
+      }
+    } else if (recruiterId) {
       filter.assignedRecruiter = recruiterId;
     } else {
       filter.assignedRecruiter = user._id;

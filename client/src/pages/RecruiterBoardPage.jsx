@@ -41,6 +41,7 @@ function buildQueryParams(filters, recruiterId, activityGroup, isGlobalBoard) {
   };
 
   if (isGlobalBoard) {
+    params.scope = 'global';
     if (filters.recruiterId) params.recruiterId = filters.recruiterId;
   } else {
     params.recruiterId = recruiterId;
@@ -390,7 +391,9 @@ export default function RecruiterBoardPage() {
           <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">{boardLabel}</h1>
           <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
             {isGlobalBoard
-              ? 'All active leads across every recruiter board.'
+              ? boardReadOnly
+                ? 'Search and view all active leads (read-only). You cannot edit leads assigned to other recruiters.'
+                : 'All active leads across every recruiter board.'
               : canManageLeads
                 ? 'Viewing recruiter board as recruiting manager.'
                 : boardReadOnly
@@ -503,7 +506,7 @@ export default function RecruiterBoardPage() {
           setViewLead(null);
           setScrollToComments(false);
         }}
-        onSave={boardReadOnly && !isRecruiter ? undefined : handleUpdateLead}
+        onSave={boardReadOnly ? undefined : handleUpdateLead}
         isRecruitingManager={canManageLeads}
         isRecruiter={isRecruiter}
         isOwnBoard={isGlobalBoard ? canManageLeads : isOwnBoard}

@@ -69,6 +69,7 @@ router.get('/', async (req, res, next) => {
       sortBy,
       sortDir,
       activityGroup,
+      scope,
     } = req.query;
 
     const result = await listActiveLeads(req.user, {
@@ -86,6 +87,7 @@ router.get('/', async (req, res, next) => {
       sortBy,
       sortDir,
       activityGroup,
+      scope,
     });
 
     res.json({

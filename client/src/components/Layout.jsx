@@ -680,7 +680,7 @@ export default function Layout() {
                     boards={recruitingBoards}
                     showImportLeads={isRecruitingManager || isSuperAdmin}
                     showAnalytics={isRecruitingManager || isSuperAdmin}
-                    showGlobalBoard={isRecruitingManager || isSuperAdmin}
+                    showGlobalBoard={hasRecruitingAccess}
                     location={location}
                     currentUserId={user?.id}
                     isRecruiter={isRecruiter}

@@ -1,4 +1,4 @@
-import { Navigate, useLocation, useParams } from 'react-router-dom';
+import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
 export function RecruitingAccessGuard({ children }) {
@@ -53,11 +53,9 @@ export function RecruitingManagerGuard({ children }) {
 }
 
 export function RecruitingBoardGuard({ children }) {
-  const { hasRecruitingAccess, isRecruitingManager, isSuperAdmin } = useAuth();
-  const { userId } = useParams();
+  const { hasRecruitingAccess } = useAuth();
   const location = useLocation();
   const accessGranted = hasRecruitingAccess;
-  const isGlobalBoard = userId === 'global';
 
   console.log('[RECRUITING-ACCESS] route guard', {
     requestedRoute: location.pathname,
@@ -65,10 +63,6 @@ export function RecruitingBoardGuard({ children }) {
   });
 
   if (!accessGranted) {
-    return <Navigate to="/dashboard" replace />;
-  }
-
-  if (isGlobalBoard && !isRecruitingManager && !isSuperAdmin) {
     return <Navigate to="/dashboard" replace />;
   }
 
