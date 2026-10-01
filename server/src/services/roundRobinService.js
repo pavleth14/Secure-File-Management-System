@@ -75,19 +75,68 @@ export async function updateRoundRobinSettings(recruitersPayload) {
   return listRoundRobinSettings();
 }
 
-async function getEligibleRecruiters(driverType) {
+async function getEligibleRecruiters(driverType, excludeIds = []) {
   if (!DRIVER_TYPES.includes(driverType)) {
     const err = new Error(`Invalid driver type: ${driverType}`);
     err.status = 400;
     throw err;
   }
 
-  return User.find({
+  const filter = {
     isRecruiter: true,
     roundRobinDriverTypes: driverType,
-  })
-    .sort({ name: 1 })
-    .select('_id name');
+  };
+  if (excludeIds.length) {
+    filter._id = { $nin: excludeIds };
+  }
+
+  return User.find(filter).sort({ name: 1 }).select('_id name');
+}
+
+async function getFallbackRecruiters(excludeIds = []) {
+  const filter = { isRecruiter: true };
+  if (excludeIds.length) {
+    filter._id = { $nin: excludeIds };
+  }
+  return User.find(filter).sort({ name: 1 }).select('_id name');
+}
+
+export async function getRoundRobinAssignmentExcluding(driverType, excludeIds = []) {
+  let recruiters = await getEligibleRecruiters(driverType, excludeIds);
+  let stateKey = roundRobinStateKey(driverType);
+
+  if (!recruiters.length) {
+    recruiters = await getFallbackRecruiters(excludeIds);
+    stateKey = `${roundRobinStateKey(driverType)}_fallback_all`;
+  }
+
+  if (!recruiters.length) {
+    const err = new Error(`No recruiters available for round robin (${driverType})`);
+    err.status = 400;
+    throw err;
+  }
+
+  const state = await RecruitingState.findOneAndUpdate(
+    { key: stateKey },
+    { $setOnInsert: { key: stateKey, lastRecruiterIndex: -1 } },
+    { upsert: true, new: true, setDefaultsOnInsert: true }
+  );
+
+  const index = ((state.lastRecruiterIndex ?? -1) + 1) % recruiters.length;
+  await RecruitingState.findOneAndUpdate(
+    { key: stateKey },
+    { $set: { lastRecruiterIndex: index } }
+  );
+
+  return recruiters[index]._id;
+}
+
+export async function countOtherRecruitersForRoundRobin(excludeIds = []) {
+  const filter = { isRecruiter: true };
+  if (excludeIds.length) {
+    filter._id = { $nin: excludeIds };
+  }
+  return User.countDocuments(filter);
 }
 
 export async function getRoundRobinAssignment(driverType) {

@@ -15,10 +15,11 @@ import {
   applyDispatchUserFlags,
   syncDispatchUserOnUpdate,
 } from '../services/dispatchUserService.js';
+import { countActiveLeadsForRecruiter } from '../services/leadService.js';
 import {
-  archiveLeadsForDeletedRecruiter,
-  countActiveLeadsForRecruiter,
-} from '../services/leadService.js';
+  migrateLeadsForDeletedRecruiter,
+  previewRecruiterDeleteLeadMigration,
+} from '../services/recruiterDeleteLeadMigrationService.js';
 import { assertValidPassword } from '../utils/passwordValidation.js';
 
 const router = Router();
@@ -368,11 +369,13 @@ router.get('/:id/deletion-preview', async (req, res, next) => {
       return res.status(403).json({ message: 'Cannot view this user' });
     }
 
+    const migrationPreview = await previewRecruiterDeleteLeadMigration(target._id);
     const activeLeadCount = await countActiveLeadsForRecruiter(target._id);
 
     res.json({
       activeLeadCount,
       willArchiveLeads: activeLeadCount > 0,
+      ...migrationPreview,
     });
   } catch (err) {
     next(err);
@@ -398,6 +401,12 @@ router.delete('/:id', async (req, res, next) => {
       return res.status(400).json({ message: 'Cannot delete yourself' });
     }
 
+    const leadMigration = await migrateLeadsForDeletedRecruiter(
+      target._id,
+      req.user,
+      target.name
+    );
+
     await auditLog({
       user: req.user,
       action: AUDIT_ACTIONS.USER_DELETE,
@@ -409,18 +418,13 @@ router.delete('/:id', async (req, res, next) => {
       req,
     });
 
-    const archivedLeadsCount = await archiveLeadsForDeletedRecruiter(
-      target._id,
-      req.user,
-      target.name
-    );
-
     await RefreshToken.deleteMany({ userId: target._id });
     await User.deleteOne({ _id: target._id });
 
     res.json({
       message: 'User deleted',
-      archivedLeadsCount,
+      archivedLeadsCount: leadMigration.archivedNonActiveCount,
+      leadMigration,
     });
   } catch (err) {
     next(err);

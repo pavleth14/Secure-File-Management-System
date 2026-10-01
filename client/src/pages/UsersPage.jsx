@@ -3,6 +3,7 @@ import api from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import { isValidEmail, EMAIL_INVALID_MESSAGE } from '../utils/emailValidation';
 import ChangePasswordForm from '../components/ChangePasswordForm';
+import DeleteRecruiterUserModal from '../components/DeleteRecruiterUserModal';
 
 export default function UsersPage() {
   const { isSuperAdmin } = useAuth();
@@ -29,6 +30,10 @@ export default function UsersPage() {
     dispatchBoardId: '',
   });
   const [dispatchBoards, setDispatchBoards] = useState([]);
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [deletePreview, setDeletePreview] = useState(null);
+  const [deletePreviewLoading, setDeletePreviewLoading] = useState(false);
+  const [deleteSubmitting, setDeleteSubmitting] = useState(false);
 
   const canChangePassword = (user) => {
     if (user.role === 'SUPER_ADMIN') return false;
@@ -150,29 +155,56 @@ export default function UsersPage() {
     }
   };
 
-  const handleDelete = async (userId, userName) => {
-    let confirmMessage = `Delete ${userName}?`;
+  const openDeleteModal = async (user) => {
+    setDeleteTarget(user);
+    setDeletePreview(null);
+    setDeletePreviewLoading(true);
+    setError('');
     try {
-      const { data } = await api.get(`/users/${userId}/deletion-preview`);
-      if (data.activeLeadCount > 0) {
-        confirmMessage = `Delete ${userName}? ${data.activeLeadCount} active lead(s) will be moved to Archive.`;
-      }
-    } catch {
-      // Fall back to generic confirmation if preview fails.
+      const { data } = await api.get(`/users/${user.id}/deletion-preview`);
+      setDeletePreview(data);
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to load deletion preview');
+      setDeleteTarget(null);
+    } finally {
+      setDeletePreviewLoading(false);
     }
+  };
 
-    if (!confirm(confirmMessage)) return;
+  const closeDeleteModal = () => {
+    if (deleteSubmitting) return;
+    setDeleteTarget(null);
+    setDeletePreview(null);
+  };
+
+  const confirmDeleteUser = async () => {
+    if (!deleteTarget) return;
+    setDeleteSubmitting(true);
+    setError('');
     try {
-      const { data } = await api.delete(`/users/${userId}`);
-      if (data.archivedLeadsCount > 0) {
-        setSuccess(
-          `User deleted. ${data.archivedLeadsCount} active lead(s) moved to Archive.`
-        );
-        setError('');
+      const { data } = await api.delete(`/users/${deleteTarget.id}`);
+      const migration = data.leadMigration;
+      if (migration?.reassignedActiveCount || migration?.archivedNonActiveCount) {
+        const parts = [];
+        if (migration.reassignedActiveCount) {
+          parts.push(
+            `${migration.reassignedActiveCount} active-status lead(s) round-robin reassigned`
+          );
+        }
+        if (migration.archivedNonActiveCount) {
+          parts.push(`${migration.archivedNonActiveCount} non-active lead(s) archived`);
+        }
+        setSuccess(`User deleted. ${parts.join('; ')}.`);
+      } else {
+        setSuccess('User deleted.');
       }
+      setDeleteTarget(null);
+      setDeletePreview(null);
       await load();
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to delete');
+    } finally {
+      setDeleteSubmitting(false);
     }
   };
 
@@ -180,6 +212,16 @@ export default function UsersPage() {
 
   return (
     <div>
+      <DeleteRecruiterUserModal
+        open={Boolean(deleteTarget)}
+        userName={deleteTarget?.name || ''}
+        preview={deletePreview}
+        previewLoading={deletePreviewLoading}
+        submitting={deleteSubmitting}
+        onConfirm={confirmDeleteUser}
+        onCancel={closeDeleteModal}
+      />
+
       {passwordUser && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
@@ -592,7 +634,7 @@ export default function UsersPage() {
                   )}
                   <button
                     type="button"
-                    onClick={() => handleDelete(user.id, user.name)}
+                    onClick={() => openDeleteModal(user)}
                     className="text-sm text-red-600 hover:underline dark:text-red-400"
                   >
                     Delete
