@@ -42,13 +42,16 @@ const MIN_IMPORT_PHONE_DIGITS = 7;
 const HEADER_TO_FIELD = {
   status: 'status',
   'type of driver': 'driverType',
+  'driver type': 'driverType',
   source: 'source',
   date: 'date',
   'first name': 'firstName',
   'last name': 'lastName',
   phone: 'phone',
+  'phone number': 'phone',
   'state / city': 'stateCity',
   'state/city': 'stateCity',
+  'state city': 'stateCity',
   email: 'email',
 };
 
@@ -141,6 +144,8 @@ function normalizeHeader(header) {
   return String(header || '')
     .trim()
     .toLowerCase()
+    .replace(/\//g, ' ')
+    .replace(/_/g, ' ')
     .replace(/\s+/g, ' ');
 }
 
@@ -276,11 +281,25 @@ function resolveImportNameField(value, fallback) {
   return trimmed;
 }
 
+function resolveImportDriverTypeFromAlias(value) {
+  const normalized = String(value || '').trim().toLowerCase();
+  if (!normalized) return null;
+  if (normalized === 'company' || normalized.includes('company') || normalized.includes('solo')) {
+    return 'Solo';
+  }
+  if (normalized.includes('owner')) return 'Owner Operator';
+  if (normalized.includes('team')) return 'Team';
+  if (normalized.includes('local')) return 'Local';
+  return null;
+}
+
 function resolveImportDriverType(value) {
   const trimmed = String(value || '').trim();
   if (!trimmed || trimmed.toUpperCase() === 'N/A') {
     return IMPORT_DEFAULT_DRIVER_TYPE;
   }
+  const fromAlias = resolveImportDriverTypeFromAlias(trimmed);
+  if (fromAlias) return fromAlias;
   if (DRIVER_TYPES.includes(trimmed)) {
     return trimmed;
   }
