@@ -104,6 +104,46 @@ function getCsvImportPerLeadMax() {
   return Number.isFinite(parsed) && parsed > 0 ? parsed : 10;
 }
 
+function parseEnvCsvList(raw) {
+  return String(raw || '')
+    .split(',')
+    .map((part) => part.trim())
+    .filter(Boolean);
+}
+
+function getCsvImportSlackSuppressedActorIds() {
+  return new Set(parseEnvCsvList(process.env.SLACK_CSV_IMPORT_SUPPRESS_ACTOR_USER_IDS));
+}
+
+function normalizeImportActorName(name) {
+  return String(name || '').trim().toLowerCase();
+}
+
+/** Built-in + env: CSV imports by these users do not post to Slack (leads still assign normally). */
+function getCsvImportSlackSuppressedActorNames() {
+  const names = new Set(['carter smith']);
+  for (const name of parseEnvCsvList(process.env.SLACK_CSV_IMPORT_SUPPRESS_ACTOR_NAMES)) {
+    names.add(normalizeImportActorName(name));
+  }
+  return names;
+}
+
+export function isCsvImportSlackSuppressedForActor(user) {
+  if (!user) return false;
+
+  const userId = String(user._id || user.id || '').trim();
+  if (userId && getCsvImportSlackSuppressedActorIds().has(userId)) {
+    return true;
+  }
+
+  const normalizedName = normalizeImportActorName(user.name);
+  if (normalizedName && getCsvImportSlackSuppressedActorNames().has(normalizedName)) {
+    return true;
+  }
+
+  return false;
+}
+
 async function buildRecruiterNameMap(recruiterIds) {
   const uniqueIds = [...new Set(recruiterIds.filter(Boolean).map(String))];
   if (!uniqueIds.length) return new Map();

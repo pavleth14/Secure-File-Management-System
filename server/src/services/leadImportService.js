@@ -17,7 +17,10 @@ import { prependStatusCommentsToLeadData } from './leadStatusChangeService.js';
 import { auditLeadStatusChanged } from './recruitingAuditService.js';
 import { getRoundRobinAssignments } from './roundRobinService.js';
 import { formatLeadDateIso } from '../utils/leadDateFormat.js';
-import { notifyCsvImportSlack } from './slackNotificationService.js';
+import {
+  isCsvImportSlackSuppressedForActor,
+  notifyCsvImportSlack,
+} from './slackNotificationService.js';
 import { backfillRingCentralEventsForLead } from './ringCentralEventService.js';
 import {
   generateImportPlaceholderEmail,
@@ -900,7 +903,7 @@ export async function confirmLeadImport(manager, previewId, selectedRowNumbers =
 
   await LeadImportPreview.deleteOne({ _id: preview._id });
 
-  if (importedLeadsForSlack.length > 0) {
+  if (importedLeadsForSlack.length > 0 && !isCsvImportSlackSuppressedForActor(manager)) {
     notifyCsvImportSlack(importedLeadsForSlack, { sourceLabel: 'CSV Import' });
   }
 
