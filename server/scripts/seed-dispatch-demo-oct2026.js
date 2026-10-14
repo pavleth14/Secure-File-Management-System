@@ -23,6 +23,7 @@ import { TruckAssignment } from '../src/models/TruckAssignment.js';
 import { Load } from '../src/models/Load.js';
 import { DispatchState } from '../src/models/DispatchState.js';
 import { User } from '../src/models/User.js';
+import '../src/models/DispatchBoard.js';
 import { updateAssignment } from '../src/services/assignmentService.js';
 import { parseChicagoDateTime } from '../src/utils/chicagoTime.js';
 
