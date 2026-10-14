@@ -11,7 +11,9 @@
     "backfill:duplicate-leads:dry-run": "node scripts/backfill-duplicate-leads.js --dry-run",
     "ringcentral:recreate-webhook": "node scripts/recreate-ringcentral-webhook.js",
     "migrate:recruiter-board:dry-run": "node scripts/migrate-recruiter-board-via-api.js --dry-run",
-    "migrate:recruiter-board": "node scripts/migrate-recruiter-board-via-api.js --execute"
+    "migrate:recruiter-board": "node scripts/migrate-recruiter-board-via-api.js --execute",
+    "seed:dispatch-demo-oct2026": "node scripts/seed-dispatch-demo-oct2026.js",
+    "seed:dispatch-demo-oct2026:dry-run": "node scripts/seed-dispatch-demo-oct2026.js --dry-run"
   },
   "dependencies": {
     "bcrypt": "^5.1.1",
