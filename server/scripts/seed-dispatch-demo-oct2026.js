@@ -8,7 +8,10 @@
  *   node scripts/seed-dispatch-demo-oct2026.js
  *   node scripts/seed-dispatch-demo-oct2026.js --dry-run
  *
- * Env: MONGODB_URI; optional DISPATCH_SEED_DISPATCHER_EMAIL (default danilo@twobrothersfreight.com)
+ * IMPORTANT: git push / deploy does NOT run this script. You must execute it on the machine
+ * that can reach the same MongoDB as the live app (prod: SSH to API server, pull, then run).
+ *
+ * Env: MONGODB_URI (must match the DB your app uses); optional DISPATCH_SEED_DISPATCHER_EMAIL
  */
 
 import dotenv from 'dotenv';
@@ -275,7 +278,18 @@ async function main() {
     .trim()
     .toLowerCase();
 
-  await mongoose.connect(uri);
+  const safeUri = uri.replace(/\/\/([^@/]+@)?/, '//');
+  console.log(`[seed-dispatch-demo-oct2026] Connecting to MongoDB (${safeUri})…`);
+
+  try {
+    await mongoose.connect(uri, { serverSelectionTimeoutMS: 10000 });
+  } catch (connectErr) {
+    console.error(
+      '[seed-dispatch-demo-oct2026] Cannot connect to MongoDB. Start local Mongo or set MONGODB_URI to prod (on the API server).'
+    );
+    console.error(connectErr.message);
+    process.exit(1);
+  }
 
   const dispatcher = await User.findOne({ email: dispatcherEmail });
   if (!dispatcher) {
