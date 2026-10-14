@@ -230,6 +230,29 @@ function buildLoadDocs(truckId, trailerId, driverId, actorId, truckNum) {
   return created;
 }
 
+async function loadAssignedDriverIdSet() {
+  const rows = await TruckAssignment.find({ driverId: { $ne: null } })
+    .select('driverId')
+    .lean();
+  return new Set(rows.map((row) => String(row.driverId)));
+}
+
+function pickExclusiveDriver(drivers, preferredIndex, assignedDriverIds) {
+  const preferred = drivers[preferredIndex];
+  if (preferred && !assignedDriverIds.has(String(preferred._id))) {
+    return preferred;
+  }
+  return drivers.find((driver) => !assignedDriverIds.has(String(driver._id))) || null;
+}
+
+function pickExclusiveTrailer(trailers, preferredIndex, assignedTrailerIds) {
+  const preferred = trailers[preferredIndex];
+  if (preferred && !assignedTrailerIds.has(String(preferred._id))) {
+    return preferred;
+  }
+  return trailers.find((trailer) => !assignedTrailerIds.has(String(trailer._id))) || null;
+}
+
 async function ensureDemoDriversAndTrailers(actorId) {
   const drivers = [];
   const trailers = [];
@@ -334,6 +357,8 @@ async function main() {
   }
 
   const { drivers, trailers } = await ensureDemoDriversAndTrailers(dispatcher._id);
+  const assignedDriverIds = await loadAssignedDriverIdSet();
+  const assignedTrailerIds = new Set();
 
   for (let i = 0; i < SEED_COUNT; i += 1) {
     const truckNum = truckNumberForIndex(i);
@@ -342,44 +367,64 @@ async function main() {
       continue;
     }
 
-    const truck = await Truck.create({
-      truckNumber: truckNum,
-      type: 'Semi',
-      status: 'Active',
-      make: pick(['Freightliner', 'Kenworth', 'Volvo', 'Peterbilt']),
-      model: 'Cascadia',
-      year: String(randomInt(2018, 2024)),
-      notes: SEED_TAG,
-      createdBy: dispatcher._id,
-    });
-
-    await TruckAssignment.create({ truckId: truck._id, history: [] });
-
-    const driver = drivers[driverOrder[i]];
-    const trailer = trailers[trailerOrder[i]];
-
-    await updateAssignment(
-      truck._id,
-      { driverId: driver._id, dispatcherId: dispatcher._id },
-      dispatcher._id
-    );
-    summary.assignmentsUpdated += 1;
-
-    const loadDocs = buildLoadDocs(
-      truck._id,
-      trailer._id,
-      driver._id,
-      dispatcher._id,
-      truckNum
-    );
-
-    for (const doc of loadDocs) {
-      const loadNumber = await getNextLoadNumber();
-      await Load.create({ loadNumber, ...doc });
-      summary.loadsCreated += 1;
+    const driver = pickExclusiveDriver(drivers, driverOrder[i], assignedDriverIds);
+    const trailer = pickExclusiveTrailer(trailers, trailerOrder[i], assignedTrailerIds);
+    if (!driver || !trailer) {
+      console.error(
+        `[seed-dispatch-demo-oct2026] No free demo driver/trailer left for truck ${truckNum}; stopping.`
+      );
+      break;
     }
 
-    summary.trucksCreated += 1;
+    let truck;
+    try {
+      truck = await Truck.create({
+        truckNumber: truckNum,
+        type: 'Semi',
+        status: 'Active',
+        make: pick(['Freightliner', 'Kenworth', 'Volvo', 'Peterbilt']),
+        model: 'Cascadia',
+        year: String(randomInt(2018, 2024)),
+        notes: SEED_TAG,
+        createdBy: dispatcher._id,
+      });
+
+      await TruckAssignment.create({ truckId: truck._id, history: [] });
+
+      await updateAssignment(
+        truck._id,
+        { driverId: driver._id, dispatcherId: dispatcher._id },
+        dispatcher._id
+      );
+      assignedDriverIds.add(String(driver._id));
+      assignedTrailerIds.add(String(trailer._id));
+      summary.assignmentsUpdated += 1;
+
+      const loadDocs = buildLoadDocs(
+        truck._id,
+        trailer._id,
+        driver._id,
+        dispatcher._id,
+        truckNum
+      );
+
+      for (const doc of loadDocs) {
+        const loadNumber = await getNextLoadNumber();
+        await Load.create({ loadNumber, ...doc });
+        summary.loadsCreated += 1;
+      }
+
+      summary.trucksCreated += 1;
+    } catch (err) {
+      console.error(`[seed-dispatch-demo-oct2026] Failed truck ${truckNum}:`, err.message);
+      if (truck?._id) {
+        await Load.deleteMany({ truckId: truck._id });
+        await TruckAssignment.deleteOne({ truckId: truck._id });
+        await Truck.deleteOne({ _id: truck._id });
+        assignedDriverIds.delete(String(driver._id));
+        assignedTrailerIds.delete(String(trailer._id));
+      }
+    }
   }
 
   console.log(
