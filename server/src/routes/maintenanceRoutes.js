@@ -70,7 +70,7 @@ router.post('/tags/:type', requireMaintenanceEdit, async (req, res, next) => {
 router.get('/cases', async (req, res, next) => {
   try {
     const result = await listMaintenanceCases({
-      search: req.query.search,
+      ...req.query,
       page: Number(req.query.page) || 1,
       limit: Number(req.query.limit) || 50,
     });

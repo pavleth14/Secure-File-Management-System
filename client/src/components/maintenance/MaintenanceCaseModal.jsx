@@ -13,65 +13,100 @@ const inputClass =
 
 function TagField({ label, type, value, onChange, readOnly, tags, onCreateTag }) {
   const [color, setColor] = useState('#6366F1');
+  const [showCreate, setShowCreate] = useState(false);
+  const [newTagName, setNewTagName] = useState('');
+
+  const handleSaveTag = () => {
+    const name = newTagName.trim();
+    if (!name) return;
+    onCreateTag(type, name, color);
+    onChange(name);
+    setNewTagName('');
+    setShowCreate(false);
+  };
+
+  const selectedColor = tags.find((t) => t.name === value)?.color;
 
   return (
     <div>
       <label className="mb-1 block text-xs font-medium uppercase text-slate-500">{label}</label>
-      {!readOnly && (
-        <div className="mb-2 flex flex-wrap gap-2">
-          {tags.map((tag) => (
-            <button
-              key={tag.id}
-              type="button"
-              onClick={() => onChange(tag.name)}
-              className={`rounded-full px-2 py-0.5 text-xs font-medium text-white ${
-                value === tag.name ? 'ring-2 ring-brand-500 ring-offset-1' : ''
-              }`}
-              style={{ backgroundColor: tag.color }}
-            >
-              {tag.name}
-            </button>
-          ))}
-        </div>
-      )}
       {readOnly ? (
-        <MaintenanceTagPill
-          label={value}
-          color={tags.find((t) => t.name === value)?.color}
-        />
+        <MaintenanceTagPill label={value} color={selectedColor} />
       ) : (
-        <div className="flex gap-2">
-          <input
-            className={inputClass}
-            value={value}
-            onChange={(e) => onChange(e.target.value)}
-            list={`${type}-options`}
-            placeholder="Select or type new tag"
-          />
-          <datalist id={`${type}-options`}>
+        <>
+          <div className="flex flex-wrap items-center gap-2">
             {tags.map((tag) => (
-              <option key={tag.id} value={tag.name} />
+              <button
+                key={tag.id}
+                type="button"
+                onClick={() => onChange(tag.name)}
+                className={`rounded-full px-2 py-0.5 text-xs font-medium text-white ${
+                  value === tag.name ? 'ring-2 ring-brand-500 ring-offset-1' : ''
+                }`}
+                style={{ backgroundColor: tag.color }}
+              >
+                {tag.name}
+              </button>
             ))}
-          </datalist>
-          <input
-            type="color"
-            value={color}
-            onChange={(e) => setColor(e.target.value)}
-            className="h-10 w-12 rounded border dark:border-slate-600"
-            title="Color for new tag"
-          />
-          <button
-            type="button"
-            className="rounded-lg border px-2 text-xs dark:border-slate-600"
-            onClick={() => {
-              const name = value;
-              if (!name.trim()) return;
-              onCreateTag(type, name.trim(), color);
-            }}
-          >
-            Save tag
-          </button>
-        </div>
+            {value && !tags.some((t) => t.name === value) && (
+              <MaintenanceTagPill label={value} color={selectedColor} />
+            )}
+            <button
+              type="button"
+              onClick={() => setShowCreate((prev) => !prev)}
+              className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full border text-base font-medium leading-none transition-colors ${
+                showCreate
+                  ? 'border-brand-500 bg-brand-50 text-brand-700 dark:bg-brand-900/30 dark:text-brand-300'
+                  : 'border-slate-300 text-slate-600 hover:border-brand-400 hover:text-brand-700 dark:border-slate-600 dark:text-slate-300 dark:hover:border-brand-500'
+              }`}
+              title="Add new tag"
+              aria-label={`Add new ${label} tag`}
+              aria-expanded={showCreate}
+            >
+              +
+            </button>
+          </div>
+          {showCreate && (
+            <div className="mt-2 flex flex-wrap gap-2">
+              <input
+                className={`${inputClass} min-w-[10rem] flex-1`}
+                value={newTagName}
+                onChange={(e) => setNewTagName(e.target.value)}
+                placeholder="New tag name"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    handleSaveTag();
+                  }
+                }}
+              />
+              <input
+                type="color"
+                value={color}
+                onChange={(e) => setColor(e.target.value)}
+                className="h-10 w-12 shrink-0 rounded border dark:border-slate-600"
+                title="Color for new tag"
+              />
+              <button
+                type="button"
+                className="rounded-lg border px-3 py-2 text-xs font-medium dark:border-slate-600"
+                onClick={handleSaveTag}
+              >
+                Save tag
+              </button>
+              <button
+                type="button"
+                className="rounded-lg px-3 py-2 text-xs text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200"
+                onClick={() => {
+                  setShowCreate(false);
+                  setNewTagName('');
+                }}
+              >
+                Cancel
+              </button>
+            </div>
+          )}
+        </>
       )}
     </div>
   );

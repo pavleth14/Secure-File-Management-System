@@ -14,7 +14,7 @@ function TopNavItem({ active, children, className = '', ...props }) {
   return (
     <button
       type="button"
-      className={`nav-top-item rounded-full px-5 py-2.5 text-sm font-medium transition-all duration-300 ease-in-out ${
+      className={`nav-top-item inline-flex items-center whitespace-nowrap rounded-full px-5 py-2.5 text-sm font-medium transition-all duration-300 ease-in-out ${
         active ? 'nav-top-item-active' : ''
       } ${className}`}
       {...props}
@@ -740,58 +740,53 @@ export default function Layout() {
   return (
     <div className={`min-h-screen ${isWelcomePage ? 'flex flex-col' : ''}`}>
       <header className="border-b border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-900">
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-4 sm:px-6">
-          <div className="flex items-center gap-16">
-            <div className="flex items-center gap-6">
-              <Link to="/dashboard">
-                <img
-                  src={logo}
-                  alt="TBF File Manager"
-                  className="h-12 w-24 rounded"
-                />
-              </Link>
-            </div>
-
-            <div className="flex w-fit gap-1">
-              <nav className="flex items-center gap-1">
-                <DatabaseDropdown links={links} location={location} />
-                {hasRecruitingAccess && (
-                  <RecruitingDropdown
-                    boards={recruitingBoards}
-                    showImportLeads={isRecruitingManager || isSuperAdmin}
-                    showAnalytics={isRecruitingManager || isSuperAdmin}
-                    showGlobalBoard={hasRecruitingAccess}
-                    location={location}
-                    currentUserId={user?.id}
-                    isRecruiter={isRecruiter}
-                  />
-                )}
-                {shouldShowBoards && (
-                  <BoardsDropdown
-                    boards={dispatchBoards}
-                    location={location}
-                    showArchivedLoads={canViewArchivedLoads}
-                  />
-                )}
-                {shouldShowMaintenance && <MaintenanceDropdown location={location} />}
-                {shouldShowSafety && <SafetyDropdown location={location} />}
-              </nav>
-            </div>
+        <div className="mx-auto grid w-full max-w-[95vw] grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-3 px-4 py-3.5 sm:px-6 sm:py-4">
+          <div className="flex items-center justify-start">
+            <Link to="/dashboard" className="shrink-0">
+              <img
+                src={logo}
+                alt="TBF File Manager"
+                className="h-11 w-[5.5rem] rounded object-contain"
+              />
+            </Link>
           </div>
 
-          <div className="flex w-[500px] items-center gap-4">
-            <div className="flex w-full items-center">
+          <nav className="flex flex-nowrap items-center justify-center gap-1.5 sm:gap-2.5">
+            <DatabaseDropdown links={links} location={location} />
+            {hasRecruitingAccess && (
+              <RecruitingDropdown
+                boards={recruitingBoards}
+                showImportLeads={isRecruitingManager || isSuperAdmin}
+                showAnalytics={isRecruitingManager || isSuperAdmin}
+                showGlobalBoard={hasRecruitingAccess}
+                location={location}
+                currentUserId={user?.id}
+                isRecruiter={isRecruiter}
+              />
+            )}
+            {shouldShowBoards && (
+              <BoardsDropdown
+                boards={dispatchBoards}
+                location={location}
+                showArchivedLoads={canViewArchivedLoads}
+              />
+            )}
+            {shouldShowMaintenance && <MaintenanceDropdown location={location} />}
+            {shouldShowSafety && <SafetyDropdown location={location} />}
+          </nav>
+
+          <div className="flex min-w-0 items-center justify-end gap-2.5 sm:gap-4">
+            <div className="flex w-52 min-w-[12rem] items-center sm:w-60 lg:w-72">
               <GlobalSearch />
             </div>
 
             <ThemeToggle />
 
-            <div className="flex flex-col text-right text-sm whitespace-nowrap">
-              <p className="font-medium text-slate-900 dark:text-slate-100">
+            <div className="hidden flex-col text-right text-sm whitespace-nowrap md:flex">
+              <p className="font-medium leading-tight text-slate-900 dark:text-slate-100">
                 {user?.name}
               </p>
-
-              <p className="text-slate-500 dark:text-slate-400">
+              <p className="text-xs leading-tight text-slate-500 dark:text-slate-400">
                 {user?.role}
                 {user?.group?.name && ` · ${user.group.name}`}
               </p>
@@ -799,7 +794,7 @@ export default function Layout() {
 
             <button
               onClick={logout}
-              className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-700 transition-colors duration-200 ease-in-out hover:bg-slate-50 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-700"
+              className="shrink-0 rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 transition-colors duration-200 ease-in-out hover:bg-slate-50 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-700"
             >
               Logout
             </button>
@@ -815,7 +810,8 @@ export default function Layout() {
               ? 'max-w-full px-4 py-0 sm:px-6'
               : location.pathname.startsWith('/recruiting/boards') ||
                   location.pathname.startsWith('/recruiting/archive') ||
-                  location.pathname.startsWith('/dispatch/boards')
+                  location.pathname.startsWith('/dispatch/boards') ||
+                  location.pathname.startsWith('/maintenance/')
                 ? 'w-[95vw] max-w-[95vw] px-4 py-8 sm:px-6'
                 : 'max-w-7xl px-4 py-8 sm:px-6'
         }`}

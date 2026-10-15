@@ -10,7 +10,11 @@ import {
 } from '../config/maintenanceConstants.js';
 import { ensureMaintenanceTag, getTagColorMap } from './maintenanceTagService.js';
 import { ensureMaintenanceCaseFolder } from './maintenanceCaseFolderService.js';
-import { formatChicagoDisplay, chicagoStartOfDay } from '../utils/chicagoTime.js';
+import {
+  formatChicagoDisplay,
+  chicagoStartOfDay,
+  chicagoEndOfDay,
+} from '../utils/chicagoTime.js';
 import { resolveUploadDir, buildFileRelativePath } from './storageService.js';
 import { sanitizeName } from '../config/storage.js';
 import path from 'path';
@@ -187,28 +191,113 @@ export async function formatMaintenanceCase(record, tagColorMap) {
   };
 }
 
-export async function listMaintenanceCases({ search = '', page = 1, limit = 50 } = {}) {
-  const filter = {};
-  const trimmed = String(search || '').trim();
-  if (trimmed) {
-    const regex = new RegExp(trimmed.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
-    filter.$or = [
-      { issue: regex },
-      { issueDescription: regex },
-      { repairShop: regex },
-      { caseStatus: regex },
-      { project: regex },
-      { caseType: regex },
-    ];
+function escapeRegex(value) {
+  return String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function parseQueryStringList(value) {
+  if (value === undefined || value === null || value === '') return [];
+  const raw = Array.isArray(value) ? value : String(value).split(',');
+  return [...new Set(raw.map((item) => String(item).trim()).filter(Boolean))];
+}
+
+function applyDateRange(and, field, from, to) {
+  const range = {};
+  if (from) {
+    const start = parseOptionalDate(from);
+    if (start) range.$gte = start;
+  }
+  if (to) {
+    const end =
+      typeof to === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(to.trim())
+        ? chicagoEndOfDay(to.trim())
+        : parseOptionalDate(to);
+    if (end) range.$lte = end;
+  }
+  if (Object.keys(range).length) {
+    and.push({ [field]: range });
+  }
+}
+
+async function buildMaintenanceCaseListFilter(query = {}) {
+  const and = [];
+
+  const issueText = String(query.issue || query.search || '').trim();
+  if (issueText) {
+    const regex = new RegExp(escapeRegex(issueText), 'i');
+    and.push({ $or: [{ issue: regex }, { issueDescription: regex }] });
   }
 
-  const skip = (Math.max(1, page) - 1) * limit;
+  const assigneeId = String(query.assigneeId || '').trim();
+  if (assigneeId === 'unassigned') {
+    and.push({ $or: [{ assigneeId: null }, { assigneeId: { $exists: false } }] });
+  } else if (assigneeId) {
+    and.push({ assigneeId });
+  }
+
+  applyDateRange(and, 'dueDate', query.dueFrom, query.dueTo);
+  applyDateRange(and, 'dateClosed', query.dateClosedFrom, query.dateClosedTo);
+  applyDateRange(and, 'lastEditedAt', query.lastEditedFrom, query.lastEditedTo);
+
+  const shop = String(query.repairShop || '').trim();
+  if (shop) {
+    and.push({ repairShop: new RegExp(escapeRegex(shop), 'i') });
+  }
+
+  const caseStatuses = parseQueryStringList(query.caseStatus);
+  if (caseStatuses.length) and.push({ caseStatus: { $in: caseStatuses } });
+
+  const priorities = parseQueryStringList(query.priority);
+  if (priorities.length) and.push({ priority: { $in: priorities } });
+
+  const projects = parseQueryStringList(query.project);
+  if (projects.length) and.push({ project: { $in: projects } });
+
+  const oosStatuses = parseQueryStringList(query.oosStatus);
+  if (oosStatuses.length) and.push({ oosStatus: { $in: oosStatuses } });
+
+  const caseTypes = parseQueryStringList(query.caseType);
+  if (caseTypes.length) and.push({ caseType: { $in: caseTypes } });
+
+  const invoiceStatuses = parseQueryStringList(query.invoiceStatus);
+  if (invoiceStatuses.length) and.push({ invoiceStatus: { $in: invoiceStatuses } });
+
+  const dispatchStatuses = parseQueryStringList(query.dispatchStatus);
+  if (dispatchStatuses.length) and.push({ dispatchStatus: { $in: dispatchStatuses } });
+
+  const equipment = String(query.equipment || '').trim();
+  if (equipment) {
+    const regex = new RegExp(escapeRegex(equipment), 'i');
+    const [trucks, trailers] = await Promise.all([
+      Truck.find({ truckNumber: regex }).select('_id').limit(100),
+      Trailer.find({ trailerNumber: regex }).select('_id').limit(100),
+    ]);
+    const equipmentOr = [];
+    if (trucks.length) equipmentOr.push({ truckId: { $in: trucks.map((t) => t._id) } });
+    if (trailers.length) equipmentOr.push({ trailerId: { $in: trailers.map((t) => t._id) } });
+    if (!equipmentOr.length) {
+      and.push({ _id: { $in: [] } });
+    } else {
+      and.push({ $or: equipmentOr });
+    }
+  }
+
+  if (!and.length) return {};
+  return and.length === 1 ? and[0] : { $and: and };
+}
+
+export async function listMaintenanceCases(query = {}) {
+  const pageNum = Math.max(1, Number(query.page) || 1);
+  const limitNum = Math.min(200, Math.max(1, Number(query.limit) || 50));
+  const filter = await buildMaintenanceCaseListFilter(query);
+
+  const skip = (pageNum - 1) * limitNum;
   const [records, total] = await Promise.all([
     MaintenanceCase.find(filter)
       .populate(CASE_POPULATE)
       .sort({ lastEditedAt: -1 })
       .skip(skip)
-      .limit(limit),
+      .limit(limitNum),
     MaintenanceCase.countDocuments(filter),
   ]);
 
@@ -218,8 +307,8 @@ export async function listMaintenanceCases({ search = '', page = 1, limit = 50 }
   return {
     cases,
     total,
-    page: Math.max(1, page),
-    totalPages: Math.max(1, Math.ceil(total / limit)),
+    page: pageNum,
+    totalPages: Math.max(1, Math.ceil(total / limitNum)),
   };
 }
 

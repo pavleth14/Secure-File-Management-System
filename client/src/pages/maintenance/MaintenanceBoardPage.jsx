@@ -4,6 +4,13 @@ import api from '../../api/client';
 import { useAuth } from '../../context/AuthContext';
 import MaintenanceTagPill from '../../components/maintenance/MaintenanceTagPill';
 import MaintenanceCaseModal from '../../components/maintenance/MaintenanceCaseModal';
+import MaintenanceCommentsCell from '../../components/maintenance/MaintenanceCommentsCell';
+import MaintenanceBoardToolbar, {
+  MAINTENANCE_BOARD_INITIAL_FILTERS,
+  buildMaintenanceCaseQueryParams,
+} from '../../components/maintenance/MaintenanceBoardToolbar';
+import { MAINTENANCE_TAG_TYPES } from '../../constants/maintenanceConstants';
+import { useContextMenu } from '../../hooks/useContextMenu';
 
 function isDueOverdue(dueDate) {
   if (!dueDate) return false;
@@ -38,31 +45,71 @@ export default function MaintenanceBoardPage() {
   const readOnly = !canEditMaintenanceCases;
 
   const [cases, setCases] = useState([]);
+  const [totalCount, setTotalCount] = useState(0);
   const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState('');
+  const [filters, setFilters] = useState(MAINTENANCE_BOARD_INITIAL_FILTERS);
+  const [assignees, setAssignees] = useState([]);
+  const [tagOptions, setTagOptions] = useState({});
   const [error, setError] = useState('');
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedCase, setSelectedCase] = useState(null);
+  const [openCommentsCaseId, setOpenCommentsCaseId] = useState(null);
+  const { openContextMenu, contextMenuNode } = useContextMenu();
+
+  const COLUMN_COUNT = 15;
+
+  const loadFilterOptions = useCallback(async () => {
+    try {
+      const tagTypes = Object.entries(MAINTENANCE_TAG_TYPES);
+      const [assigneeRes, ...tagResponses] = await Promise.all([
+        api.get('/maintenance/assignees'),
+        ...tagTypes.map(([, type]) => api.get(`/maintenance/tags/${type}`)),
+      ]);
+      setAssignees(assigneeRes.data.assignees || []);
+      const nextTagOptions = {};
+      tagTypes.forEach(([key], index) => {
+        const names = (tagResponses[index].data.tags || []).map((tag) => tag.name).filter(Boolean);
+        nextTagOptions[key] = names;
+      });
+      setTagOptions(nextTagOptions);
+    } catch {
+      setAssignees([]);
+      setTagOptions({});
+    }
+  }, []);
+
+  useEffect(() => {
+    loadFilterOptions();
+  }, [loadFilterOptions]);
 
   const loadCases = useCallback(async () => {
     setLoading(true);
     setError('');
     try {
       const { data } = await api.get('/maintenance/cases', {
-        params: { search: search.trim() || undefined, limit: 100 },
+        params: buildMaintenanceCaseQueryParams(filters),
       });
       setCases(data.cases || []);
+      setTotalCount(data.total ?? (data.cases || []).length);
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to load cases');
     } finally {
       setLoading(false);
     }
-  }, [search]);
+  }, [filters]);
 
   useEffect(() => {
     const timer = window.setTimeout(loadCases, 250);
     return () => window.clearTimeout(timer);
   }, [loadCases]);
+
+  const updateFilter = (key, value) => {
+    setFilters((prev) => ({ ...prev, [key]: value }));
+  };
+
+  const clearFilters = () => {
+    setFilters(MAINTENANCE_BOARD_INITIAL_FILTERS);
+  };
 
   const openCreate = () => {
     setSelectedCase(null);
@@ -103,6 +150,20 @@ export default function MaintenanceBoardPage() {
     await loadCases();
   };
 
+  const handleBoardComment = async (caseId, text) => {
+    const { data } = await api.post(`/maintenance/cases/${caseId}/comments`, { text });
+    await loadCases();
+    return data.case;
+  };
+
+  const buildMenuItems = (row) => [
+    {
+      id: 'view',
+      label: 'Open/View',
+      onClick: () => openEdit(row),
+    },
+  ];
+
   const handleUpload = async (id, file) => {
     const body = new FormData();
     body.append('file', file);
@@ -114,7 +175,7 @@ export default function MaintenanceBoardPage() {
   };
 
   return (
-    <div className="mx-auto max-w-[1600px] px-4 py-6 sm:px-6">
+    <div>
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">
           TBF — Maintenance Case Tracker
@@ -124,24 +185,17 @@ export default function MaintenanceBoardPage() {
         </p>
       </div>
 
-      <div className="mb-4 flex flex-wrap items-center gap-3">
-        <input
-          type="search"
-          placeholder="Search cases…"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="min-w-[14rem] flex-1 rounded-lg border px-3 py-2 text-sm dark:border-slate-600 dark:bg-slate-900"
-        />
-        {!readOnly && (
-          <button
-            type="button"
-            onClick={openCreate}
-            className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white"
-          >
-            New case
-          </button>
-        )}
-      </div>
+      <MaintenanceBoardToolbar
+        filters={filters}
+        onFilterChange={updateFilter}
+        onClearFilters={clearFilters}
+        assignees={assignees}
+        tagOptions={tagOptions}
+        totalCount={totalCount}
+        loading={loading}
+        showNewCase={!readOnly}
+        onNewCase={openCreate}
+      />
 
       {error && <p className="mb-4 text-sm text-red-600">{error}</p>}
 
@@ -159,6 +213,9 @@ export default function MaintenanceBoardPage() {
               <th className="px-3 py-3 text-left">OOS</th>
               <th className="px-3 py-3 text-left">Type</th>
               <th className="px-3 py-3 text-left">Shop</th>
+              <th className="px-3 py-3 text-left">Date closed</th>
+              <th className="px-3 py-3 text-left">Invoice status</th>
+              <th className="px-3 py-3 text-left">Dispatch status</th>
               <th className="px-3 py-3 text-left">Last update</th>
               <th className="px-3 py-3 text-left">Edited</th>
             </tr>
@@ -166,13 +223,13 @@ export default function MaintenanceBoardPage() {
           <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
             {loading ? (
               <tr>
-                <td colSpan={12} className="px-3 py-8 text-center text-slate-500">
+                <td colSpan={COLUMN_COUNT} className="px-3 py-8 text-center text-slate-500">
                   Loading…
                 </td>
               </tr>
             ) : cases.length === 0 ? (
               <tr>
-                <td colSpan={12} className="px-3 py-8 text-center text-slate-500">
+                <td colSpan={COLUMN_COUNT} className="px-3 py-8 text-center text-slate-500">
                   No maintenance cases yet.
                 </td>
               </tr>
@@ -180,8 +237,8 @@ export default function MaintenanceBoardPage() {
               cases.map((row) => (
                 <tr
                   key={row.id}
-                  className="cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/80"
-                  onClick={() => openEdit(row)}
+                  className="hover:bg-slate-50 dark:hover:bg-slate-800/80"
+                  onContextMenu={(event) => openContextMenu(event, buildMenuItems(row))}
                 >
                   <td className="max-w-[12rem] px-3 py-2 font-medium">{row.issue}</td>
                   <td className="whitespace-nowrap px-3 py-2">
@@ -229,9 +286,39 @@ export default function MaintenanceBoardPage() {
                     <MaintenanceTagPill label={row.caseType} color={row.caseTypeColor} />
                   </td>
                   <td className="max-w-[8rem] truncate px-3 py-2">{row.repairShop || '—'}</td>
-                  <td className="max-w-[14rem] truncate px-3 py-2 text-slate-600">
-                    {row.latestCommentPreview || '—'}
+                  <td className="whitespace-nowrap px-3 py-2">{row.dateClosedLabel || '—'}</td>
+                  <td className="px-3 py-2">
+                    {row.invoiceStatus ? (
+                      <MaintenanceTagPill
+                        label={row.invoiceStatus}
+                        color={row.invoiceStatusColor}
+                      />
+                    ) : (
+                      '—'
+                    )}
                   </td>
+                  <td className="px-3 py-2">
+                    {row.dispatchStatus ? (
+                      <MaintenanceTagPill
+                        label={row.dispatchStatus}
+                        color={row.dispatchStatusColor}
+                      />
+                    ) : (
+                      '—'
+                    )}
+                  </td>
+                  <MaintenanceCommentsCell
+                    maintenanceCase={row}
+                    open={openCommentsCaseId === row.id}
+                    onToggle={(caseId) =>
+                      setOpenCommentsCaseId((current) => (current === caseId ? null : caseId))
+                    }
+                    onClose={() => setOpenCommentsCaseId(null)}
+                    onSubmitComment={
+                      readOnly ? undefined : (text) => handleBoardComment(row.id, text)
+                    }
+                    readOnly={readOnly}
+                  />
                   <td className="whitespace-nowrap px-3 py-2 text-xs text-slate-500">
                     {row.lastEditedAtLabel}
                   </td>
@@ -241,6 +328,7 @@ export default function MaintenanceBoardPage() {
           </tbody>
         </table>
       </div>
+      {contextMenuNode}
 
       <MaintenanceCaseModal
         open={modalOpen}
