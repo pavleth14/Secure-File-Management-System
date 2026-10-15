@@ -183,7 +183,13 @@ export function AuthProvider({ children }) {
   const isSafetyManager = Boolean(user?.isSafetyManager);
   const hasDispatchModuleAccess = isDispatcher || isDispatchTeamLeader || isDispatchManager || isSuperAdmin;
   const hasSafetyModuleAccess = isSafety || isSafetyManager || isSuperAdmin;
-  const hasDispatchSafetyViewAccess = hasDispatchModuleAccess || hasSafetyModuleAccess;
+  const isMaintenance = Boolean(user?.isMaintenance);
+  const isMaintenanceManager = Boolean(user?.isMaintenanceManager);
+  const isMaintenanceViewer = Boolean(user?.isMaintenanceViewer);
+  const hasMaintenanceAccess =
+    isMaintenance || isMaintenanceManager || isMaintenanceViewer || isSuperAdmin;
+  const hasDispatchSafetyViewAccess =
+    hasDispatchModuleAccess || hasSafetyModuleAccess || hasMaintenanceAccess;
   const shouldShowSafety = hasSafetyModuleAccess || hasDispatchSafetyViewAccess;
   const canEditSafetyEntities = isSafety || isSafetyManager || isSuperAdmin;
   const canDeleteSafetyEntities = isSafetyManager || isSuperAdmin;
@@ -197,6 +203,11 @@ export function AuthProvider({ children }) {
   const canViewArchivedLoads = isDispatchTeamLeader || isDispatchManager || isSuperAdmin;
   const canCommentOnLoads = hasDispatchModuleAccess || hasSafetyModuleAccess;
   const shouldShowBoards = hasDispatchModuleAccess;
+
+  const canEditMaintenanceCases =
+    isSuperAdmin || isMaintenanceManager || (isMaintenance && !isMaintenanceViewer);
+  const canDeleteMaintenanceCases = isSuperAdmin || isMaintenanceManager;
+  const shouldShowMaintenance = hasMaintenanceAccess;
 
   return (
     <AuthContext.Provider
@@ -237,6 +248,13 @@ export function AuthProvider({ children }) {
         canViewArchivedLoads,
         canCommentOnLoads,
         shouldShowBoards,
+        isMaintenance,
+        isMaintenanceManager,
+        isMaintenanceViewer,
+        hasMaintenanceAccess,
+        canEditMaintenanceCases,
+        canDeleteMaintenanceCases,
+        shouldShowMaintenance,
       }}
     >
       {children}

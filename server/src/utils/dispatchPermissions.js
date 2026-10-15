@@ -19,8 +19,21 @@ export function hasSafetyModuleAccess(user) {
   return Boolean(user?.isSafety || user?.isSafetyManager || isSuperAdmin(user));
 }
 
+export function hasMaintenanceViewAccess(user) {
+  return Boolean(
+    user?.isMaintenance ||
+      user?.isMaintenanceManager ||
+      user?.isMaintenanceViewer ||
+      isSuperAdmin(user)
+  );
+}
+
 export function hasDispatchSafetyViewAccess(user) {
-  return hasDispatchModuleAccess(user) || hasSafetyModuleAccess(user);
+  return (
+    hasDispatchModuleAccess(user) ||
+    hasSafetyModuleAccess(user) ||
+    hasMaintenanceViewAccess(user)
+  );
 }
 
 export function canEditSafetyEntities(user) {

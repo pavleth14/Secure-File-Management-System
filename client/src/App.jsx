@@ -39,6 +39,8 @@ import {
 import LoadsPage from './pages/dispatch/LoadsPage';
 import ArchiveLoadsPage from './pages/dispatch/ArchiveLoadsPage';
 import DispatchBoardPage from './pages/dispatch/DispatchBoardPage';
+import MaintenanceBoardPage from './pages/maintenance/MaintenanceBoardPage';
+import { MaintenanceAccessGuard } from './components/MaintenanceGuard';
 
 function ProtectedRoute({ children, roles }) {
   const { user, loading } = useAuth();
@@ -249,6 +251,14 @@ export default function App() {
             <DispatchModuleGuard>
               <DispatchBoardPage />
             </DispatchModuleGuard>
+          }
+        />
+        <Route
+          path="/maintenance/board"
+          element={
+            <MaintenanceAccessGuard>
+              <MaintenanceBoardPage />
+            </MaintenanceAccessGuard>
           }
         />
         <Route

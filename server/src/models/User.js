@@ -35,6 +35,9 @@ const userSchema = new mongoose.Schema(
     isDispatchManager: { type: Boolean, default: false },
     isSafety: { type: Boolean, default: false },
     isSafetyManager: { type: Boolean, default: false },
+    isMaintenance: { type: Boolean, default: false },
+    isMaintenanceManager: { type: Boolean, default: false },
+    isMaintenanceViewer: { type: Boolean, default: false },
     dispatchBoardId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'DispatchBoard',

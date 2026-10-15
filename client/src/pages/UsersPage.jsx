@@ -27,6 +27,9 @@ export default function UsersPage() {
     isDispatchManager: false,
     isSafety: false,
     isSafetyManager: false,
+    isMaintenance: false,
+    isMaintenanceManager: false,
+    isMaintenanceViewer: false,
     dispatchBoardId: '',
   });
   const [dispatchBoards, setDispatchBoards] = useState([]);
@@ -98,6 +101,9 @@ export default function UsersPage() {
         isDispatchManager: false,
         isSafety: false,
         isSafetyManager: false,
+        isMaintenance: false,
+        isMaintenanceManager: false,
+        isMaintenanceViewer: false,
         dispatchBoardId: '',
       });
       await load();
@@ -375,6 +381,34 @@ export default function UsersPage() {
           {isSuperAdmin && (
             <div className="mt-4 border-t border-slate-200 pt-4 dark:border-slate-700">
               <h3 className="mb-3 text-sm font-semibold text-slate-900 dark:text-slate-100">
+                Maintenance
+              </h3>
+              <div className="grid gap-2 sm:grid-cols-2">
+                {[
+                  ['isMaintenance', 'Maintenance'],
+                  ['isMaintenanceManager', 'Maintenance Manager'],
+                  ['isMaintenanceViewer', 'Maintenance Viewer'],
+                ].map(([field, label]) => (
+                  <label
+                    key={field}
+                    className="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-300"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={form[field]}
+                      onChange={(event) => setForm({ ...form, [field]: event.target.checked })}
+                      className="rounded border-slate-300 dark:border-slate-600"
+                    />
+                    {label}
+                  </label>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {isSuperAdmin && (
+            <div className="mt-4 border-t border-slate-200 pt-4 dark:border-slate-700">
+              <h3 className="mb-3 text-sm font-semibold text-slate-900 dark:text-slate-100">
                 Recruiting
               </h3>
               <div className="flex flex-col gap-2 sm:flex-row sm:gap-6">
@@ -601,6 +635,47 @@ export default function UsersPage() {
                           className="rounded border-slate-300 dark:border-slate-600"
                         />
                         Safety Mgr
+                      </label>
+                      <label className="flex items-center gap-2 text-slate-700 dark:text-slate-300">
+                        <input
+                          type="checkbox"
+                          checked={Boolean(user.isMaintenance)}
+                          onChange={(e) =>
+                            handleDispatchFlagChange(user.id, 'isMaintenance', e.target.checked)
+                          }
+                          className="rounded border-slate-300 dark:border-slate-600"
+                        />
+                        Maint.
+                      </label>
+                      <label className="flex items-center gap-2 text-slate-700 dark:text-slate-300">
+                        <input
+                          type="checkbox"
+                          checked={Boolean(user.isMaintenanceManager)}
+                          onChange={(e) =>
+                            handleDispatchFlagChange(
+                              user.id,
+                              'isMaintenanceManager',
+                              e.target.checked
+                            )
+                          }
+                          className="rounded border-slate-300 dark:border-slate-600"
+                        />
+                        Maint. Mgr
+                      </label>
+                      <label className="flex items-center gap-2 text-slate-700 dark:text-slate-300">
+                        <input
+                          type="checkbox"
+                          checked={Boolean(user.isMaintenanceViewer)}
+                          onChange={(e) =>
+                            handleDispatchFlagChange(
+                              user.id,
+                              'isMaintenanceViewer',
+                              e.target.checked
+                            )
+                          }
+                          className="rounded border-slate-300 dark:border-slate-600"
+                        />
+                        Maint. View
                       </label>
                       {user.isDispatcher && (
                         <select

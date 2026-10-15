@@ -61,6 +61,9 @@ router.post('/', async (req, res, next) => {
       isDispatchManager,
       isSafety,
       isSafetyManager,
+      isMaintenance,
+      isMaintenanceManager,
+      isMaintenanceViewer,
       dispatchBoardId,
     } = req.body;
 
@@ -127,6 +130,13 @@ router.post('/', async (req, res, next) => {
       }
       if (isSafety !== undefined) createPayload.isSafety = Boolean(isSafety);
       if (isSafetyManager !== undefined) createPayload.isSafetyManager = Boolean(isSafetyManager);
+      if (isMaintenance !== undefined) createPayload.isMaintenance = Boolean(isMaintenance);
+      if (isMaintenanceManager !== undefined) {
+        createPayload.isMaintenanceManager = Boolean(isMaintenanceManager);
+      }
+      if (isMaintenanceViewer !== undefined) {
+        createPayload.isMaintenanceViewer = Boolean(isMaintenanceViewer);
+      }
 
       syncDispatchUserOnCreate(createPayload);
     }
@@ -184,6 +194,9 @@ router.put('/:id', async (req, res, next) => {
       isDispatchManager,
       isSafety,
       isSafetyManager,
+      isMaintenance,
+      isMaintenanceManager,
+      isMaintenanceViewer,
       dispatchBoardId,
       ringCentralExtensionId,
       ringCentralExtensionNumber,
@@ -252,6 +265,13 @@ router.put('/:id', async (req, res, next) => {
       }
       if (isSafety !== undefined) target.isSafety = Boolean(isSafety);
       if (isSafetyManager !== undefined) target.isSafetyManager = Boolean(isSafetyManager);
+      if (isMaintenance !== undefined) target.isMaintenance = Boolean(isMaintenance);
+      if (isMaintenanceManager !== undefined) {
+        target.isMaintenanceManager = Boolean(isMaintenanceManager);
+      }
+      if (isMaintenanceViewer !== undefined) {
+        target.isMaintenanceViewer = Boolean(isMaintenanceViewer);
+      }
 
       if (ringCentralExtensionId !== undefined) {
         target.ringCentralExtensionId = ringCentralExtensionId

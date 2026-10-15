@@ -20,6 +20,7 @@ import favoritesRoutes from './routes/favoritesRoutes.js';
 import dashboardRoutes from './routes/dashboardRoutes.js';
 import recruitingRoutes from './routes/recruitingRoutes.js';
 import dispatchRoutes from './routes/dispatchRoutes.js';
+import maintenanceRoutes from './routes/maintenanceRoutes.js';
 import ringCentralWebhookRoutes from './routes/ringCentralWebhookRoutes.js';
 import { ensureDefaultLeadSources } from './services/leadSourceService.js';
 import { ensureDefaultLeadStatuses, migrateObsoleteLeadStatuses } from './services/leadStatusService.js';
@@ -90,6 +91,7 @@ app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/webhooks', ringCentralWebhookRoutes);
 app.use('/api/recruiting', recruitingRoutes);
 app.use('/api/dispatch', dispatchRoutes);
+app.use('/api/maintenance', maintenanceRoutes);
 
 app.use(errorHandler);
 

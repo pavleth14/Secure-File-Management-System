@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import api from '../../api/client';
 import { useAuth } from '../../context/AuthContext';
 import ContextMenu from '../../components/ContextMenu';
@@ -11,7 +12,8 @@ export default function TrailersPage() {
   const [trailers, setTrailers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [search, setSearch] = useState('');
+  const [searchParams] = useSearchParams();
+  const [search, setSearch] = useState(() => searchParams.get('search') || '');
   const [status, setStatus] = useState('all');
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedTrailer, setSelectedTrailer] = useState(null);
