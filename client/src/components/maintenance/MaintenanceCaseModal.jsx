@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import api from '../../api/client';
 import { useAuth } from '../../context/AuthContext';
+import ConfirmDialog from '../ConfirmDialog';
 import {
   MAINTENANCE_PRIORITIES,
   MAINTENANCE_OOS_STATUSES,
@@ -11,6 +12,63 @@ import MaintenanceTagPill from './MaintenanceTagPill';
 
 const inputClass =
   'w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100';
+
+const FORM_DIRTY_KEYS = [
+  'issue',
+  'assigneeId',
+  'dueDate',
+  'truckId',
+  'trailerId',
+  'caseStatus',
+  'priority',
+  'project',
+  'oosStatus',
+  'caseType',
+  'repairShop',
+  'issueDescription',
+  'invoiceStatus',
+  'dateClosed',
+  'dispatchStatus',
+];
+
+function serializeFormSnapshot(form) {
+  const out = {};
+  for (const key of FORM_DIRTY_KEYS) {
+    const value = form?.[key];
+    out[key] = value === null || value === undefined ? '' : String(value);
+  }
+  return JSON.stringify(out);
+}
+
+function buildEmptyForm(canPickAnyAssignee, userId) {
+  return {
+    issue: '',
+    assigneeId: canPickAnyAssignee ? '' : userId || '',
+    dueDate: '',
+    truckId: '',
+    trailerId: '',
+    truckNumber: '',
+    trailerNumber: '',
+    caseStatus: '',
+    priority: 'Normal',
+    project: '',
+    oosStatus: 'In Service',
+    caseType: '',
+    repairShop: '',
+    issueDescription: '',
+    invoiceStatus: '',
+    dateClosed: '',
+    dispatchStatus: '',
+  };
+}
+
+function buildFormFromCaseData(caseData) {
+  return {
+    ...caseData,
+    dueDate: caseData.dueDate ? caseData.dueDate.slice(0, 10) : '',
+    dateClosed: caseData.dateClosed ? caseData.dateClosed.slice(0, 10) : '',
+  };
+}
 
 function TagField({ label, type, value, onChange, readOnly, tags, onCreateTag }) {
   const [color, setColor] = useState('#6366F1');
@@ -196,6 +254,8 @@ export default function MaintenanceCaseModal({
   const [assignees, setAssignees] = useState([]);
   const [tags, setTags] = useState({});
   const [commentText, setCommentText] = useState('');
+  const [initialFormSnapshot, setInitialFormSnapshot] = useState('');
+  const [discardConfirmOpen, setDiscardConfirmOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
@@ -216,36 +276,56 @@ export default function MaintenanceCaseModal({
     api.get('/maintenance/assignees').then(({ data }) => setAssignees(data.assignees || []));
   }, [open, loadTags]);
 
+  const formSessionKey = open ? caseData?.id ?? 'new' : '';
+
   useEffect(() => {
-    if (!open) return;
-    if (!caseData) {
-      setForm({
-        issue: '',
-        assigneeId: canPickAnyAssignee ? '' : user?.id || '',
-        dueDate: '',
-        truckId: '',
-        trailerId: '',
-        truckNumber: '',
-        trailerNumber: '',
-        caseStatus: '',
-        priority: 'Normal',
-        project: '',
-        oosStatus: 'In Service',
-        caseType: '',
-        repairShop: '',
-        issueDescription: '',
-        invoiceStatus: '',
-        dateClosed: '',
-        dispatchStatus: '',
-      });
+    if (!open) {
+      setForm(null);
+      setInitialFormSnapshot('');
+      setCommentText('');
+      setDiscardConfirmOpen(false);
+      setError('');
       return;
     }
-    setForm({
-      ...caseData,
-      dueDate: caseData.dueDate ? caseData.dueDate.slice(0, 10) : '',
-      dateClosed: caseData.dateClosed ? caseData.dateClosed.slice(0, 10) : '',
-    });
-  }, [caseData, open, canPickAnyAssignee, user?.id]);
+
+    const nextForm = caseData
+      ? buildFormFromCaseData(caseData)
+      : buildEmptyForm(canPickAnyAssignee, user?.id);
+
+    setForm(nextForm);
+    setInitialFormSnapshot(serializeFormSnapshot(nextForm));
+    setCommentText('');
+    setDiscardConfirmOpen(false);
+    setError('');
+    // Re-init only when opening or switching case; omit caseData so comment refresh does not reset edits.
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- caseData read when formSessionKey changes
+  }, [open, formSessionKey, canPickAnyAssignee, user?.id]);
+
+  const isFormDirty =
+    Boolean(form) &&
+    (serializeFormSnapshot(form) !== initialFormSnapshot || commentText.trim().length > 0);
+
+  const requestClose = useCallback(() => {
+    if (readOnly || !isFormDirty) {
+      onClose();
+      return;
+    }
+    setDiscardConfirmOpen(true);
+  }, [readOnly, isFormDirty, onClose]);
+
+  useEffect(() => {
+    if (!open) return undefined;
+
+    const handleKeyDown = (event) => {
+      if (event.key === 'Escape' && !discardConfirmOpen) {
+        event.preventDefault();
+        requestClose();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [open, discardConfirmOpen, requestClose]);
 
   if (!open || !form) return null;
 
@@ -260,6 +340,7 @@ export default function MaintenanceCaseModal({
     setError('');
     try {
       await onSave(form);
+      setDiscardConfirmOpen(false);
       onClose();
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to save');
@@ -275,13 +356,24 @@ export default function MaintenanceCaseModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/50 p-4">
-      <div className="my-8 w-full max-w-4xl rounded-xl border bg-white shadow-xl dark:border-slate-700 dark:bg-slate-900">
+    <>
+      <div
+        className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/50 p-4"
+        onClick={(event) => {
+          if (event.target === event.currentTarget) requestClose();
+        }}
+        role="presentation"
+      >
+        <div className="my-8 w-full max-w-4xl rounded-xl border bg-white shadow-xl dark:border-slate-700 dark:bg-slate-900">
         <div className="flex items-center justify-between border-b px-6 py-4 dark:border-slate-700">
           <h2 className="text-lg font-semibold">
             {caseData ? 'Edit maintenance case' : 'New maintenance case'}
           </h2>
-          <button type="button" onClick={onClose} className="text-slate-500 hover:text-slate-800">
+          <button
+            type="button"
+            onClick={requestClose}
+            className="text-slate-500 hover:text-slate-800"
+          >
             ✕
           </button>
         </div>
@@ -602,7 +694,11 @@ export default function MaintenanceCaseModal({
               <span />
             )}
             <div className="flex gap-2">
-              <button type="button" onClick={onClose} className="rounded-lg border px-4 py-2 text-sm">
+              <button
+                type="button"
+                onClick={requestClose}
+                className="rounded-lg border px-4 py-2 text-sm"
+              >
                 Cancel
               </button>
               {!readOnly && (
@@ -617,7 +713,22 @@ export default function MaintenanceCaseModal({
             </div>
           </div>
         </form>
+        </div>
       </div>
-    </div>
+
+      <ConfirmDialog
+        open={discardConfirmOpen}
+        title="Are you sure?"
+        message="You have unsaved changes. Close without saving?"
+        confirmLabel="Yes"
+        cancelLabel="No"
+        destructive
+        onConfirm={() => {
+          setDiscardConfirmOpen(false);
+          onClose();
+        }}
+        onCancel={() => setDiscardConfirmOpen(false)}
+      />
+    </>
   );
 }
