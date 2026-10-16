@@ -9,6 +9,9 @@ import {
   MAINTENANCE_COMMENT_MAX_LENGTH,
 } from '../config/maintenanceConstants.js';
 import { ensureMaintenanceTag, getTagColorMap } from './maintenanceTagService.js';
+import {
+  canAssignMaintenanceCaseToAnyone,
+} from '../utils/maintenancePermissions.js';
 import { ensureMaintenanceCaseFolder } from './maintenanceCaseFolderService.js';
 import {
   formatChicagoDisplay,
@@ -49,6 +52,26 @@ async function validateAssignee(assigneeId) {
     throw err;
   }
   return user._id;
+}
+
+async function resolveAssigneeIdForActor(actor, assigneeId) {
+  const requested = assigneeId || null;
+
+  if (canAssignMaintenanceCaseToAnyone(actor)) {
+    return validateAssignee(requested);
+  }
+
+  if (!requested) {
+    const err = new Error('You must assign this case to yourself');
+    err.status = 403;
+    throw err;
+  }
+  if (requested.toString() !== actor._id.toString()) {
+    const err = new Error('You can only assign cases to yourself');
+    err.status = 403;
+    throw err;
+  }
+  return validateAssignee(requested);
 }
 
 async function validateAssets(truckId, trailerId) {
@@ -346,7 +369,7 @@ export async function createMaintenanceCase(payload, user) {
     throw err;
   }
 
-  const assigneeId = await validateAssignee(payload.assigneeId || null);
+  const assigneeId = await resolveAssigneeIdForActor(user, payload.assigneeId || null);
   const tagFields = await syncTagFields(payload, user._id);
 
   const maintenanceCase = await MaintenanceCase.create({
@@ -408,7 +431,10 @@ export async function updateMaintenanceCase(id, payload, user) {
   }
 
   if (payload.assigneeId !== undefined) {
-    maintenanceCase.assigneeId = await validateAssignee(payload.assigneeId || null);
+    maintenanceCase.assigneeId = await resolveAssigneeIdForActor(
+      user,
+      payload.assigneeId || null
+    );
   }
   if (payload.dueDate !== undefined) {
     maintenanceCase.dueDate = parseOptionalDate(payload.dueDate);
@@ -579,17 +605,38 @@ export async function getMaintenanceCaseAttachmentFile(caseId, fileId) {
   return file;
 }
 
-export async function listMaintenanceAssignees() {
-  const users = await User.find({
-    $or: [{ isMaintenance: true }, { isMaintenanceManager: true }, { role: 'SUPER_ADMIN' }],
-  })
-    .select('name email ringCentralExtensionNumber isMaintenance isMaintenanceManager')
-    .sort({ name: 1 });
-
-  return users.map((u) => ({
+function formatAssigneeUser(u) {
+  return {
     id: u._id.toString(),
     name: u.name,
     email: u.email,
     extension: u.ringCentralExtensionNumber || null,
-  }));
+  };
+}
+
+export async function listMaintenanceAssignees(actor) {
+  const users = await User.find({
+    $or: [{ isMaintenance: true }, { isMaintenanceManager: true }, { role: 'SUPER_ADMIN' }],
+  })
+    .select('name email ringCentralExtensionNumber isMaintenance isMaintenanceManager role')
+    .sort({ name: 1 });
+
+  if (canAssignMaintenanceCaseToAnyone(actor)) {
+    return users.map(formatAssigneeUser);
+  }
+
+  const selfId = actor._id.toString();
+  const self = users.find((u) => u._id.toString() === selfId);
+  if (self) {
+    return [formatAssigneeUser(self)];
+  }
+
+  return [
+    {
+      id: selfId,
+      name: actor.name,
+      email: actor.email,
+      extension: actor.ringCentralExtensionNumber || null,
+    },
+  ];
 }

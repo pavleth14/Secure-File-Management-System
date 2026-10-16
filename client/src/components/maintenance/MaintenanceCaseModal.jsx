@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import api from '../../api/client';
+import { useAuth } from '../../context/AuthContext';
 import {
   MAINTENANCE_PRIORITIES,
   MAINTENANCE_OOS_STATUSES,
@@ -188,6 +189,9 @@ export default function MaintenanceCaseModal({
   onComment,
   onUpload,
 }) {
+  const { user, isSuperAdmin, isMaintenanceManager } = useAuth();
+  const canPickAnyAssignee = isSuperAdmin || isMaintenanceManager;
+
   const [form, setForm] = useState(null);
   const [assignees, setAssignees] = useState([]);
   const [tags, setTags] = useState({});
@@ -213,10 +217,11 @@ export default function MaintenanceCaseModal({
   }, [open, loadTags]);
 
   useEffect(() => {
+    if (!open) return;
     if (!caseData) {
       setForm({
         issue: '',
-        assigneeId: '',
+        assigneeId: canPickAnyAssignee ? '' : user?.id || '',
         dueDate: '',
         truckId: '',
         trailerId: '',
@@ -240,7 +245,7 @@ export default function MaintenanceCaseModal({
       dueDate: caseData.dueDate ? caseData.dueDate.slice(0, 10) : '',
       dateClosed: caseData.dateClosed ? caseData.dateClosed.slice(0, 10) : '',
     });
-  }, [caseData, open]);
+  }, [caseData, open, canPickAnyAssignee, user?.id]);
 
   if (!open || !form) return null;
 
@@ -302,11 +307,11 @@ export default function MaintenanceCaseModal({
               </label>
               <select
                 className={inputClass}
-                disabled={readOnly}
+                disabled={readOnly || (!canPickAnyAssignee && assignees.length <= 1)}
                 value={form.assigneeId || ''}
                 onChange={(e) => setForm({ ...form, assigneeId: e.target.value || null })}
               >
-                <option value="">Unassigned</option>
+                {canPickAnyAssignee && <option value="">Unassigned</option>}
                 {assignees.map((a) => (
                   <option key={a.id} value={a.id}>
                     {a.name}

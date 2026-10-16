@@ -87,13 +87,19 @@ function FilterMultiSelect({ label, options, values, onChange }) {
   );
 }
 
+export const MAINTENANCE_BOARD_STATUS_FILTER = {
+  all: '',
+  open: 'Open',
+  closed: 'Closed',
+};
+
 export const MAINTENANCE_BOARD_INITIAL_FILTERS = {
   issue: '',
   assigneeId: '',
   dueFrom: '',
   dueTo: '',
   equipment: '',
-  caseStatuses: [],
+  statusFilter: 'open',
   priorities: [],
   projects: [],
   oosStatuses: [],
@@ -119,7 +125,8 @@ export function buildMaintenanceCaseQueryParams(filters, { limit = 100 } = {}) {
   if (filters.dateClosedTo) params.dateClosedTo = filters.dateClosedTo;
   if (filters.lastEditedFrom) params.lastEditedFrom = filters.lastEditedFrom;
   if (filters.lastEditedTo) params.lastEditedTo = filters.lastEditedTo;
-  if (filters.caseStatuses.length) params.caseStatus = filters.caseStatuses.join(',');
+  const statusValue = MAINTENANCE_BOARD_STATUS_FILTER[filters.statusFilter];
+  if (statusValue) params.caseStatus = statusValue;
   if (filters.priorities.length) params.priority = filters.priorities.join(',');
   if (filters.projects.length) params.project = filters.projects.join(',');
   if (filters.oosStatuses.length) params.oosStatus = filters.oosStatuses.join(',');
@@ -142,7 +149,6 @@ export default function MaintenanceBoardToolbar({
 }) {
   const set = (key, value) => onFilterChange(key, value);
 
-  const caseStatusOptions = tagOptions.caseStatus || [];
   const projectOptions = tagOptions.project || [];
   const caseTypeOptions = tagOptions.caseType || [];
   const invoiceOptions = tagOptions.invoiceStatus || [];
@@ -233,12 +239,17 @@ export default function MaintenanceBoardToolbar({
           />
         </FilterField>
 
-        <FilterMultiSelect
-          label="Status"
-          options={caseStatusOptions}
-          values={filters.caseStatuses}
-          onChange={(value) => set('caseStatuses', value)}
-        />
+        <FilterField label="Status">
+          <select
+            value={filters.statusFilter}
+            onChange={(event) => set('statusFilter', event.target.value)}
+            className={inputClass}
+          >
+            <option value="all">All</option>
+            <option value="open">Open</option>
+            <option value="closed">Closed</option>
+          </select>
+        </FilterField>
 
         <FilterMultiSelect
           label="Priority"

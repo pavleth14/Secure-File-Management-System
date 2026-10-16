@@ -35,9 +35,9 @@ const upload = multer({
 router.use(authMiddleware);
 router.use(requireMaintenanceAccess);
 
-router.get('/assignees', async (_req, res, next) => {
+router.get('/assignees', async (req, res, next) => {
   try {
-    const assignees = await listMaintenanceAssignees();
+    const assignees = await listMaintenanceAssignees(req.user);
     res.json({ assignees });
   } catch (err) {
     next(err);

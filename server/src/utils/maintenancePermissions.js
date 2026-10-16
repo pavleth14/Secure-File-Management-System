@@ -39,3 +39,8 @@ export function canCommentOnMaintenanceCase(user) {
 export function canManageMaintenanceTags(user) {
   return canEditMaintenanceCases(user);
 }
+
+/** Maint. Mgr and Super Admin may assign cases to any eligible maintenance assignee. */
+export function canAssignMaintenanceCaseToAnyone(user) {
+  return Boolean(isSuperAdmin(user) || user?.isMaintenanceManager);
+}
