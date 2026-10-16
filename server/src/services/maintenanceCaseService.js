@@ -268,7 +268,13 @@ async function buildMaintenanceCaseListFilter(query = {}) {
   }
 
   const caseStatuses = parseQueryStringList(query.caseStatus);
-  if (caseStatuses.length) and.push({ caseStatus: { $in: caseStatuses } });
+  if (caseStatuses.length) {
+    and.push({
+      $or: caseStatuses.map((status) => ({
+        caseStatus: new RegExp(`^${escapeRegex(status)}$`, 'i'),
+      })),
+    });
+  }
 
   const priorities = parseQueryStringList(query.priority);
   if (priorities.length) and.push({ priority: { $in: priorities } });

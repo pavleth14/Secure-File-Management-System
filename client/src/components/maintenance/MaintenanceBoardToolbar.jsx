@@ -87,10 +87,11 @@ function FilterMultiSelect({ label, options, values, onChange }) {
   );
 }
 
+/** API values; backend matches caseStatus case-insensitively (e.g. OPEN vs Open). */
 export const MAINTENANCE_BOARD_STATUS_FILTER = {
   all: '',
-  open: 'Open',
-  closed: 'Closed',
+  open: 'OPEN',
+  closed: 'CLOSED',
 };
 
 export const MAINTENANCE_BOARD_INITIAL_FILTERS = {
