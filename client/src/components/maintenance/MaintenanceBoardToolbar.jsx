@@ -359,7 +359,7 @@ export default function MaintenanceBoardToolbar({
         </FilterField>
       </div>
 
-      <div className="flex flex-wrap items-end gap-2 rounded-lg border border-slate-200 bg-slate-50/80 p-3 dark:border-slate-600 dark:bg-slate-900/40">
+      <div className="flex flex-wrap items-end gap-2 rounded-lg border border-emerald-200/80 bg-emerald-50/60 p-3 dark:border-emerald-900/60 dark:bg-emerald-950/25">
         <FilterField label="Cost report period" className="min-w-[8rem]">
           <select
             value={filters.reportPeriod}
@@ -380,12 +380,12 @@ export default function MaintenanceBoardToolbar({
             title="Week / month / quarter containing this date (Chicago). Empty = today."
           />
         </FilterField>
-        <label className="flex items-center gap-2 pb-2 text-sm text-slate-600 dark:text-slate-300">
+        <label className="flex items-center gap-2 pb-2 text-sm text-emerald-900/90 dark:text-emerald-100/90">
           <input
             type="checkbox"
             checked={Boolean(filters.reportWithCostOnly)}
             onChange={(event) => set('reportWithCostOnly', event.target.checked)}
-            className="rounded border-slate-300 dark:border-slate-600"
+            className="rounded border-emerald-300 text-emerald-600 focus:ring-emerald-500/30 dark:border-emerald-700"
           />
           Only rows with cost
         </label>
@@ -393,7 +393,7 @@ export default function MaintenanceBoardToolbar({
           <button
             type="button"
             onClick={onExportCostReport}
-            className="ml-auto rounded-lg border border-brand-600 px-4 py-2 text-sm font-medium text-brand-700 hover:bg-brand-50 dark:border-brand-500 dark:text-brand-300 dark:hover:bg-brand-900/30"
+            className="ml-auto rounded-lg border border-emerald-600/70 bg-emerald-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition-colors hover:border-emerald-700 hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-500/40 dark:border-emerald-500/80 dark:bg-emerald-700 dark:hover:bg-emerald-600"
           >
             Download cost report (CSV)
           </button>

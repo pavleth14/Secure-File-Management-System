@@ -103,56 +103,72 @@ export async function exportMaintenanceCostReport(query = {}) {
     rows = rows.filter((c) => c.cost !== null && c.cost !== undefined);
   }
 
-  const headers = [
-    'Case ID',
-    'Issue',
+  const periodLabel =
+    range.period === 'week'
+      ? 'Weekly'
+      : range.period === 'quarter'
+        ? 'Quarterly'
+        : 'Monthly';
+
+  const paidRows = rows.filter((c) => c.cost !== null && c.cost !== undefined);
+  const totalCost = paidRows.reduce((sum, c) => sum + Number(c.cost), 0);
+
+  const detailHeaders = [
+    'Issue / Description',
+    'Cost (USD)',
+    'Repair Shop',
     'Truck',
     'Trailer',
     'Assignee',
     'Case Status',
-    'Repair Shop',
-    'Cost (USD)',
     'Date Closed',
-    'Report Date',
     'Invoice Status',
     'Project',
     'Attachments',
-    'Created At',
+    'Case ID',
   ];
 
   const dataRows = rows.map((c) => {
-    const reportDate = getReportDateForCase(c);
     const attachmentNames = (c.attachments || []).map((a) => a.originalName).join('; ');
     return buildCsvRow([
-      c.id,
       c.issue,
+      c.cost != null ? Number(c.cost).toFixed(2) : '',
+      c.repairShop || '',
       c.truckNumber || '',
       c.trailerNumber || '',
       c.assigneeName || '',
       c.caseStatus || '',
-      c.repairShop || '',
-      c.cost != null ? Number(c.cost).toFixed(2) : '',
       c.dateClosedLabel || '',
-      formatChicagoDisplay(reportDate).split(',')[0],
       c.invoiceStatus || '',
       c.project || '',
       attachmentNames,
-      formatChicagoDisplay(c.createdAt),
+      c.id,
     ]);
   });
 
-  const totalCost = rows.reduce((sum, c) => sum + (Number(c.cost) || 0), 0);
-
-  const lines = [
-    `# Maintenance cost report (${range.period})`,
-    `# Period: ${range.fromLabel} to ${range.toLabel} (Chicago)`,
-    `# Report date uses Date Closed, or Created At if not closed`,
-    `# Cases: ${rows.length}`,
-    `# Total cost (USD): ${totalCost.toFixed(2)}`,
-    '',
-    buildCsvRow(headers),
-    ...dataRows,
+  const summaryRows = [
+    buildCsvRow(['TBF Maintenance — Cost Report']),
+    buildCsvRow([]),
+    buildCsvRow(['TOTAL PAID (USD)', totalCost.toFixed(2)]),
+    buildCsvRow(['Report period (Chicago)', `${range.fromLabel} to ${range.toLabel}`]),
+    buildCsvRow(['Report type', periodLabel]),
+    buildCsvRow(['Line items listed', String(rows.length)]),
+    buildCsvRow(['Entries with cost amount', String(paidRows.length)]),
+    buildCsvRow([
+      'Note',
+      'Report date per row uses Date Closed, or Created At if not closed.',
+    ]),
+    buildCsvRow([]),
+    buildCsvRow(['PAID ITEMS (DETAIL)']),
+    buildCsvRow(detailHeaders),
   ];
+
+  const footerRows = [
+    buildCsvRow([]),
+    buildCsvRow(['TOTAL PAID (USD)', totalCost.toFixed(2)]),
+  ];
+
+  const lines = [...summaryRows, ...dataRows, ...footerRows];
 
   const body = `\uFEFF${lines.join('\r\n')}`;
   const filename = `maintenance-cost-${range.period}-${range.fromLabel}_to_${range.toLabel}.csv`;
