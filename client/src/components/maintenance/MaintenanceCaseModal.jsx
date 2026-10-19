@@ -29,6 +29,7 @@ const FORM_DIRTY_KEYS = [
   'invoiceStatus',
   'dateClosed',
   'dispatchStatus',
+  'cost',
 ];
 
 function serializeFormSnapshot(form) {
@@ -59,6 +60,7 @@ function buildEmptyForm(canPickAnyAssignee, userId) {
     invoiceStatus: '',
     dateClosed: '',
     dispatchStatus: '',
+    cost: '',
   };
 }
 
@@ -67,6 +69,7 @@ function buildFormFromCaseData(caseData) {
     ...caseData,
     dueDate: caseData.dueDate ? caseData.dueDate.slice(0, 10) : '',
     dateClosed: caseData.dateClosed ? caseData.dateClosed.slice(0, 10) : '',
+    cost: caseData.cost != null && caseData.cost !== '' ? String(caseData.cost) : '',
   };
 }
 
@@ -588,17 +591,37 @@ export default function MaintenanceCaseModal({
             />
           </div>
 
-          <div>
-            <label className="mb-1 block text-xs font-medium uppercase text-slate-500">
-              Date closed
-            </label>
-            <input
-              type="date"
-              className={inputClass}
-              readOnly={readOnly}
-              value={form.dateClosed || ''}
-              onChange={(e) => setForm({ ...form, dateClosed: e.target.value })}
-            />
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div>
+              <label className="mb-1 block text-xs font-medium uppercase text-slate-500">
+                Cost (USD)
+              </label>
+              <input
+                type="number"
+                min="0"
+                step="0.01"
+                className={inputClass}
+                readOnly={readOnly}
+                value={form.cost ?? ''}
+                onChange={(e) => setForm({ ...form, cost: e.target.value })}
+                placeholder="0.00"
+              />
+              <p className="mt-1 text-xs text-slate-500">
+                Upload invoice or receipt under Attachments (edit case).
+              </p>
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-medium uppercase text-slate-500">
+                Date closed
+              </label>
+              <input
+                type="date"
+                className={inputClass}
+                readOnly={readOnly}
+                value={form.dateClosed || ''}
+                onChange={(e) => setForm({ ...form, dateClosed: e.target.value })}
+              />
+            </div>
           </div>
 
           {caseData && (

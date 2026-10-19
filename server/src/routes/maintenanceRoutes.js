@@ -24,6 +24,7 @@ import {
 } from '../services/maintenanceCaseService.js';
 import { resolveFullPath } from '../config/storage.js';
 import { createUploadFileFilter } from '../config/uploadTypes.js';
+import { exportMaintenanceCostReport } from '../services/maintenanceCostReportService.js';
 
 const router = Router();
 const upload = multer({
@@ -62,6 +63,17 @@ router.post('/tags/:type', requireMaintenanceEdit, async (req, res, next) => {
       req.body.color
     );
     res.status(201).json({ tag: formatTagRecord(tag) });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.get('/reports/cost-export', async (req, res, next) => {
+  try {
+    const result = await exportMaintenanceCostReport(req.query);
+    res.setHeader('Content-Type', result.contentType);
+    res.setHeader('Content-Disposition', `attachment; filename="${result.filename}"`);
+    res.send(result.body);
   } catch (err) {
     next(err);
   }

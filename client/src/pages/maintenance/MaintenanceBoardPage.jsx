@@ -37,6 +37,10 @@ function buildPayload(form) {
     invoiceStatus: form.invoiceStatus,
     dateClosed: form.dateClosed || null,
     dispatchStatus: form.dispatchStatus,
+    cost:
+      form.cost === '' || form.cost === null || form.cost === undefined
+        ? null
+        : Number(form.cost),
   };
 }
 
@@ -56,7 +60,7 @@ export default function MaintenanceBoardPage() {
   const [openCommentsCaseId, setOpenCommentsCaseId] = useState(null);
   const { openContextMenu, contextMenuNode } = useContextMenu();
 
-  const COLUMN_COUNT = 15;
+  const COLUMN_COUNT = 16;
 
   const loadFilterOptions = useCallback(async () => {
     try {
@@ -109,6 +113,32 @@ export default function MaintenanceBoardPage() {
 
   const clearFilters = () => {
     setFilters(MAINTENANCE_BOARD_INITIAL_FILTERS);
+  };
+
+  const handleExportCostReport = async () => {
+    try {
+      const params = {
+        ...buildMaintenanceCaseQueryParams(filters),
+        period: filters.reportPeriod || 'month',
+        referenceDate: filters.reportReferenceDate || undefined,
+        withCostOnly: filters.reportWithCostOnly ? 'true' : undefined,
+      };
+      const { data, headers } = await api.get('/maintenance/reports/cost-export', {
+        params,
+        responseType: 'blob',
+      });
+      const disposition = headers['content-disposition'] || '';
+      const match = /filename="([^"]+)"/.exec(disposition);
+      const filename = match?.[1] || 'maintenance-cost-report.csv';
+      const url = URL.createObjectURL(data);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = filename;
+      link.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to download report');
+    }
   };
 
   const openCreate = () => {
@@ -195,6 +225,7 @@ export default function MaintenanceBoardPage() {
         loading={loading}
         showNewCase={!readOnly}
         onNewCase={openCreate}
+        onExportCostReport={handleExportCostReport}
       />
 
       {error && <p className="mb-4 text-sm text-red-600">{error}</p>}
@@ -213,6 +244,7 @@ export default function MaintenanceBoardPage() {
               <th className="px-3 py-3 text-left">OOS</th>
               <th className="px-3 py-3 text-left">Type</th>
               <th className="px-3 py-3 text-left">Shop</th>
+              <th className="px-3 py-3 text-left">Cost</th>
               <th className="px-3 py-3 text-left">Date closed</th>
               <th className="px-3 py-3 text-left">Invoice status</th>
               <th className="px-3 py-3 text-left">Dispatch status</th>
@@ -286,6 +318,9 @@ export default function MaintenanceBoardPage() {
                     <MaintenanceTagPill label={row.caseType} color={row.caseTypeColor} />
                   </td>
                   <td className="max-w-[8rem] truncate px-3 py-2">{row.repairShop || '—'}</td>
+                  <td className="whitespace-nowrap px-3 py-2 tabular-nums">
+                    {row.costLabel || '—'}
+                  </td>
                   <td className="whitespace-nowrap px-3 py-2">{row.dateClosedLabel || '—'}</td>
                   <td className="px-3 py-2">
                     {row.invoiceStatus ? (

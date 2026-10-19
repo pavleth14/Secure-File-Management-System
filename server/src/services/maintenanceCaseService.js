@@ -128,6 +128,17 @@ async function syncTagFields(payload, userId) {
   return updates;
 }
 
+function parseOptionalCost(value) {
+  if (value === null || value === undefined || value === '') return null;
+  const num = Number(value);
+  if (!Number.isFinite(num) || num < 0) {
+    const err = new Error('Invalid cost amount');
+    err.status = 400;
+    throw err;
+  }
+  return Math.round(num * 100) / 100;
+}
+
 function parseOptionalDate(value) {
   if (value === null || value === undefined || value === '') return null;
   if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value.trim())) {
@@ -196,6 +207,11 @@ export async function formatMaintenanceCase(record, tagColorMap) {
     dateClosedLabel: obj.dateClosed ? formatChicagoDisplay(obj.dateClosed).split(',')[0] : '',
     dispatchStatus: obj.dispatchStatus || '',
     dispatchStatusColor: colorFor('dispatch_status', obj.dispatchStatus),
+    cost: obj.cost ?? null,
+    costLabel:
+      obj.cost !== null && obj.cost !== undefined
+        ? new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(obj.cost)
+        : '',
     attachmentFolderId: obj.attachmentFolderId?.toString?.() || obj.attachmentFolderId || null,
     attachments: (obj.attachments || []).map((a) => ({
       id: a._id.toString(),
@@ -294,6 +310,29 @@ async function buildMaintenanceCaseListFilter(query = {}) {
   const dispatchStatuses = parseQueryStringList(query.dispatchStatus);
   if (dispatchStatuses.length) and.push({ dispatchStatus: { $in: dispatchStatuses } });
 
+  const costMinRaw = query.costMin;
+  const costMaxRaw = query.costMax;
+  const costMin =
+    costMinRaw !== undefined && costMinRaw !== '' ? Number(costMinRaw) : null;
+  const costMax =
+    costMaxRaw !== undefined && costMaxRaw !== '' ? Number(costMaxRaw) : null;
+  if (
+    (costMin !== null && Number.isFinite(costMin)) ||
+    (costMax !== null && Number.isFinite(costMax))
+  ) {
+    const costRange = {};
+    if (costMin !== null && Number.isFinite(costMin)) costRange.$gte = costMin;
+    if (costMax !== null && Number.isFinite(costMax)) costRange.$lte = costMax;
+    and.push({ cost: costRange });
+  }
+
+  const hasCost = String(query.hasCost || '').toLowerCase();
+  if (hasCost === 'yes') {
+    and.push({ cost: { $ne: null } });
+  } else if (hasCost === 'no') {
+    and.push({ $or: [{ cost: null }, { cost: { $exists: false } }] });
+  }
+
   const equipment = String(query.equipment || '').trim();
   if (equipment) {
     const regex = new RegExp(escapeRegex(equipment), 'i');
@@ -389,6 +428,7 @@ export async function createMaintenanceCase(payload, user) {
     repairShop: String(payload.repairShop || '').trim(),
     issueDescription: String(payload.issueDescription || '').trim(),
     dateClosed: parseOptionalDate(payload.dateClosed),
+    cost: parseOptionalCost(payload.cost),
     ...tagFields,
     createdBy: user._id,
     lastEditedAt: new Date(),
@@ -469,6 +509,9 @@ export async function updateMaintenanceCase(id, payload, user) {
   }
   if (payload.issueDescription !== undefined) {
     maintenanceCase.issueDescription = String(payload.issueDescription || '').trim();
+  }
+  if (payload.cost !== undefined) {
+    maintenanceCase.cost = parseOptionalCost(payload.cost);
   }
 
   const tagFields = await syncTagFields(payload, user._id);

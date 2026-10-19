@@ -112,6 +112,12 @@ export const MAINTENANCE_BOARD_INITIAL_FILTERS = {
   dispatchStatuses: [],
   lastEditedFrom: '',
   lastEditedTo: '',
+  costMin: '',
+  costMax: '',
+  hasCost: '',
+  reportPeriod: 'month',
+  reportReferenceDate: '',
+  reportWithCostOnly: false,
 };
 
 export function buildMaintenanceCaseQueryParams(filters, { limit = 100 } = {}) {
@@ -134,6 +140,9 @@ export function buildMaintenanceCaseQueryParams(filters, { limit = 100 } = {}) {
   if (filters.caseTypes.length) params.caseType = filters.caseTypes.join(',');
   if (filters.invoiceStatuses.length) params.invoiceStatus = filters.invoiceStatuses.join(',');
   if (filters.dispatchStatuses.length) params.dispatchStatus = filters.dispatchStatuses.join(',');
+  if (filters.costMin !== '') params.costMin = filters.costMin;
+  if (filters.costMax !== '') params.costMax = filters.costMax;
+  if (filters.hasCost) params.hasCost = filters.hasCost;
   return params;
 }
 
@@ -147,6 +156,7 @@ export default function MaintenanceBoardToolbar({
   loading = false,
   showNewCase = false,
   onNewCase,
+  onExportCostReport,
 }) {
   const set = (key, value) => onFilterChange(key, value);
 
@@ -311,6 +321,83 @@ export default function MaintenanceBoardToolbar({
             className={inputClass}
           />
         </FilterField>
+
+        <FilterField label="Cost min (USD)">
+          <input
+            type="number"
+            min="0"
+            step="0.01"
+            value={filters.costMin}
+            onChange={(event) => set('costMin', event.target.value)}
+            className={inputClass}
+            placeholder="Min"
+          />
+        </FilterField>
+
+        <FilterField label="Cost max (USD)">
+          <input
+            type="number"
+            min="0"
+            step="0.01"
+            value={filters.costMax}
+            onChange={(event) => set('costMax', event.target.value)}
+            className={inputClass}
+            placeholder="Max"
+          />
+        </FilterField>
+
+        <FilterField label="Has cost">
+          <select
+            value={filters.hasCost}
+            onChange={(event) => set('hasCost', event.target.value)}
+            className={inputClass}
+          >
+            <option value="">All</option>
+            <option value="yes">With cost</option>
+            <option value="no">Without cost</option>
+          </select>
+        </FilterField>
+      </div>
+
+      <div className="flex flex-wrap items-end gap-2 rounded-lg border border-slate-200 bg-slate-50/80 p-3 dark:border-slate-600 dark:bg-slate-900/40">
+        <FilterField label="Cost report period" className="min-w-[8rem]">
+          <select
+            value={filters.reportPeriod}
+            onChange={(event) => set('reportPeriod', event.target.value)}
+            className={inputClass}
+          >
+            <option value="week">Weekly</option>
+            <option value="month">Monthly</option>
+            <option value="quarter">Quarterly</option>
+          </select>
+        </FilterField>
+        <FilterField label="Report anchor date">
+          <input
+            type="date"
+            value={filters.reportReferenceDate}
+            onChange={(event) => set('reportReferenceDate', event.target.value)}
+            className={inputClass}
+            title="Week / month / quarter containing this date (Chicago). Empty = today."
+          />
+        </FilterField>
+        <label className="flex items-center gap-2 pb-2 text-sm text-slate-600 dark:text-slate-300">
+          <input
+            type="checkbox"
+            checked={Boolean(filters.reportWithCostOnly)}
+            onChange={(event) => set('reportWithCostOnly', event.target.checked)}
+            className="rounded border-slate-300 dark:border-slate-600"
+          />
+          Only rows with cost
+        </label>
+        {onExportCostReport && (
+          <button
+            type="button"
+            onClick={onExportCostReport}
+            className="ml-auto rounded-lg border border-brand-600 px-4 py-2 text-sm font-medium text-brand-700 hover:bg-brand-50 dark:border-brand-500 dark:text-brand-300 dark:hover:bg-brand-900/30"
+          >
+            Download cost report (CSV)
+          </button>
+        )}
       </div>
 
       <div className="flex flex-wrap items-center justify-between gap-2 border-t border-slate-200 pt-3 dark:border-slate-700">
