@@ -45,7 +45,12 @@ function buildPayload(form) {
 }
 
 export default function MaintenanceBoardPage() {
-  const { canEditMaintenanceCases, canDeleteMaintenanceCases } = useAuth();
+  const {
+    user,
+    canEditMaintenanceCases,
+    canCreateMaintenanceCases,
+    canDeleteMaintenanceCases,
+  } = useAuth();
   const readOnly = !canEditMaintenanceCases;
 
   const [cases, setCases] = useState([]);
@@ -202,6 +207,7 @@ export default function MaintenanceBoardPage() {
     });
     setSelectedCase(data.case);
     await loadCases();
+    return data.case;
   };
 
   return (
@@ -223,7 +229,7 @@ export default function MaintenanceBoardPage() {
         tagOptions={tagOptions}
         totalCount={totalCount}
         loading={loading}
-        showNewCase={!readOnly}
+        showNewCase={canCreateMaintenanceCases}
         onNewCase={openCreate}
         onExportCostReport={handleExportCostReport}
       />
@@ -369,7 +375,8 @@ export default function MaintenanceBoardPage() {
         open={modalOpen}
         onClose={() => setModalOpen(false)}
         caseData={selectedCase}
-        readOnly={readOnly}
+        readOnly={Boolean(selectedCase) && readOnly}
+        currentUserId={user?.id}
         canDelete={canDeleteMaintenanceCases}
         onSave={handleSave}
         onDelete={handleDelete}

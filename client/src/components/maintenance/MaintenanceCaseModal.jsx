@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import api from '../../api/client';
 import { useAuth } from '../../context/AuthContext';
@@ -249,9 +249,11 @@ export default function MaintenanceCaseModal({
   onDelete,
   onComment,
   onUpload,
+  currentUserId,
 }) {
-  const { user, isSuperAdmin, isMaintenanceManager } = useAuth();
+  const { user, isSuperAdmin, isMaintenanceManager, canEditMaintenanceCases } = useAuth();
   const canPickAnyAssignee = isSuperAdmin || isMaintenanceManager;
+  const resolvedUserId = currentUserId || user?.id;
 
   const [form, setForm] = useState(null);
   const [assignees, setAssignees] = useState([]);
@@ -260,7 +262,19 @@ export default function MaintenanceCaseModal({
   const [initialFormSnapshot, setInitialFormSnapshot] = useState('');
   const [discardConfirmOpen, setDiscardConfirmOpen] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState('');
   const [error, setError] = useState('');
+
+  const canUploadAttachments = useMemo(() => {
+    if (!caseData?.id) return false;
+    if (canEditMaintenanceCases) return true;
+    const uid = resolvedUserId ? String(resolvedUserId) : '';
+    if (!uid) return false;
+    if (caseData.assigneeId && String(caseData.assigneeId) === uid) return true;
+    if (caseData.createdById && String(caseData.createdById) === uid) return true;
+    return false;
+  }, [caseData, canEditMaintenanceCases, resolvedUserId]);
 
   const loadTags = useCallback(async () => {
     const types = Object.values(MAINTENANCE_TAG_TYPES);
@@ -356,6 +370,37 @@ export default function MaintenanceCaseModal({
     if (!commentText.trim() || !caseData?.id) return;
     await onComment(caseData.id, commentText.trim());
     setCommentText('');
+  };
+
+  const handleDownloadAttachment = async (fileId, originalName) => {
+    if (!caseData?.id) return;
+    try {
+      const { data } = await api.get(
+        `/maintenance/cases/${caseData.id}/attachments/${fileId}/download`,
+        { responseType: 'blob' }
+      );
+      const url = URL.createObjectURL(data);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = originalName || 'attachment';
+      link.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      setUploadError(err.response?.data?.message || 'Failed to download file');
+    }
+  };
+
+  const handleAttachmentUpload = async (file) => {
+    if (!caseData?.id || !onUpload) return;
+    setUploading(true);
+    setUploadError('');
+    try {
+      await onUpload(caseData.id, file);
+    } catch (err) {
+      setUploadError(err.response?.data?.message || err.message || 'Failed to upload file');
+    } finally {
+      setUploading(false);
+    }
   };
 
   return (
@@ -607,7 +652,7 @@ export default function MaintenanceCaseModal({
                 placeholder="0.00"
               />
               <p className="mt-1 text-xs text-slate-500">
-                Upload invoice or receipt under Attachments (edit case).
+                Save the case first, then add PDF or image attachments below.
               </p>
             </div>
             <div>
@@ -628,32 +673,47 @@ export default function MaintenanceCaseModal({
             <>
               <div>
                 <label className="mb-1 block text-xs font-medium uppercase text-slate-500">
-                  Attachments
+                  Attachments (PDF & images)
                 </label>
                 <ul className="space-y-1 text-sm">
-                  {(caseData.attachments || []).map((file) => (
-                    <li key={file.id}>
-                      <a
-                        href={`/api/maintenance/cases/${caseData.id}/attachments/${file.fileId}/download`}
-                        className="text-brand-600 hover:underline"
-                        target="_blank"
-                        rel="noreferrer"
-                      >
-                        {file.originalName}
-                      </a>
-                    </li>
-                  ))}
+                  {(caseData.attachments || []).length === 0 ? (
+                    <li className="text-slate-500">No attachments yet.</li>
+                  ) : (
+                    (caseData.attachments || []).map((file) => (
+                      <li key={file.id}>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            handleDownloadAttachment(file.fileId, file.originalName)
+                          }
+                          className="text-left text-brand-600 hover:underline dark:text-brand-400"
+                        >
+                          {file.originalName}
+                        </button>
+                      </li>
+                    ))
+                  )}
                 </ul>
-                {!readOnly && (
-                  <input
-                    type="file"
-                    className="mt-2 text-sm"
-                    onChange={(e) => {
-                      const file = e.target.files?.[0];
-                      if (file) onUpload(caseData.id, file);
-                      e.target.value = '';
-                    }}
-                  />
+                {canUploadAttachments && (
+                  <div className="mt-2">
+                    <input
+                      type="file"
+                      accept="image/*,application/pdf,.pdf,.png,.jpg,.jpeg,.webp,.gif,.heic"
+                      className="text-sm"
+                      disabled={uploading}
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) handleAttachmentUpload(file);
+                        e.target.value = '';
+                      }}
+                    />
+                    {uploading && (
+                      <p className="mt-1 text-xs text-slate-500">Uploading…</p>
+                    )}
+                    {uploadError && (
+                      <p className="mt-1 text-xs text-red-600 dark:text-red-400">{uploadError}</p>
+                    )}
+                  </div>
                 )}
               </div>
 

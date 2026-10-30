@@ -1,6 +1,9 @@
 import { Folder } from '../models/Folder.js';
 import { Truck } from '../models/Truck.js';
 import { Trailer } from '../models/Trailer.js';
+import { ROLES } from '../config/constants.js';
+
+const FALLBACK_ROOT_FOLDER_NAME = 'Maintenance-Case-Files';
 import {
   buildFolderRelativePath,
   createFolderOnDisk,
@@ -36,6 +39,23 @@ async function findOrCreateSubfolder(parentId, folderName, userId, userRole) {
   return folder;
 }
 
+async function getOrCreateFallbackMaintenanceRoot(user) {
+  let root = await Folder.findOne({ isRoot: true, name: FALLBACK_ROOT_FOLDER_NAME });
+  if (root) return root;
+
+  const relativePath = FALLBACK_ROOT_FOLDER_NAME;
+  root = await Folder.create({
+    name: FALLBACK_ROOT_FOLDER_NAME,
+    relativePath,
+    parentFolderId: null,
+    isRoot: true,
+    createdBy: user._id,
+    creatorRole: user.role || ROLES.SUPER_ADMIN,
+  });
+  await createFolderOnDisk(relativePath);
+  return root;
+}
+
 export async function ensureMaintenanceCaseFolder({ truckId, trailerId, caseId, user }) {
   let linkedFolderId = null;
 
@@ -49,22 +69,34 @@ export async function ensureMaintenanceCaseFolder({ truckId, trailerId, caseId, 
     linkedFolderId = trailer?.linkedFolderId || null;
   }
 
-  if (!linkedFolderId) {
-    return null;
+  if (linkedFolderId) {
+    const maintenanceFolder = await findOrCreateSubfolder(
+      linkedFolderId,
+      'Maintenance',
+      user._id,
+      user.role
+    );
+    const caseFolder = await findOrCreateSubfolder(
+      maintenanceFolder._id,
+      String(caseId),
+      user._id,
+      user.role
+    );
+    return caseFolder._id;
   }
 
-  const maintenanceFolder = await findOrCreateSubfolder(
-    linkedFolderId,
-    'Maintenance',
+  const fallbackRoot = await getOrCreateFallbackMaintenanceRoot(user);
+  const unassignedBucket = await findOrCreateSubfolder(
+    fallbackRoot._id,
+    'Unlinked-Equipment',
     user._id,
     user.role
   );
   const caseFolder = await findOrCreateSubfolder(
-    maintenanceFolder._id,
+    unassignedBucket._id,
     String(caseId),
     user._id,
     user.role
   );
-
   return caseFolder._id;
 }

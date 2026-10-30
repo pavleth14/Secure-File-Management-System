@@ -2,6 +2,7 @@ import {
   hasMaintenanceModuleAccess,
   canEditMaintenanceCases,
   canDeleteMaintenanceCases,
+  canCreateMaintenanceCases,
 } from '../utils/maintenancePermissions.js';
 
 export function requireMaintenanceAccess(req, res, next) {
@@ -14,6 +15,13 @@ export function requireMaintenanceAccess(req, res, next) {
 export function requireMaintenanceEdit(req, res, next) {
   if (!canEditMaintenanceCases(req.user)) {
     return res.status(403).json({ message: 'Maintenance edit access required' });
+  }
+  next();
+}
+
+export function requireMaintenanceCreate(req, res, next) {
+  if (!canCreateMaintenanceCases(req.user)) {
+    return res.status(403).json({ message: 'Maintenance access required' });
   }
   next();
 }

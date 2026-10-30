@@ -23,9 +23,7 @@ export function isMaintenanceViewOnly(user) {
 }
 
 export function canEditMaintenanceCases(user) {
-  if (isSuperAdmin(user) || user?.isMaintenanceManager) return true;
-  if (user?.isMaintenance && !user?.isMaintenanceViewer) return true;
-  return false;
+  return hasMaintenanceModuleAccess(user);
 }
 
 export function canDeleteMaintenanceCases(user) {
@@ -43,4 +41,27 @@ export function canManageMaintenanceTags(user) {
 /** Maint. Mgr and Super Admin may assign cases to any eligible maintenance assignee. */
 export function canAssignMaintenanceCaseToAnyone(user) {
   return Boolean(isSuperAdmin(user) || user?.isMaintenanceManager);
+}
+
+export function canCreateMaintenanceCases(user) {
+  return hasMaintenanceModuleAccess(user);
+}
+
+export function canUploadMaintenanceCaseAttachment(user, maintenanceCase) {
+  if (canEditMaintenanceCases(user)) return true;
+  if (!hasMaintenanceModuleAccess(user) || !maintenanceCase) return false;
+
+  const userId = user._id?.toString?.() || String(user._id);
+  const assigneeId =
+    maintenanceCase.assigneeId?._id?.toString?.() ||
+    maintenanceCase.assigneeId?.toString?.() ||
+    maintenanceCase.assigneeId ||
+    null;
+  const createdById =
+    maintenanceCase.createdBy?._id?.toString?.() ||
+    maintenanceCase.createdBy?.toString?.() ||
+    maintenanceCase.createdBy ||
+    null;
+
+  return userId === assigneeId || userId === createdById;
 }

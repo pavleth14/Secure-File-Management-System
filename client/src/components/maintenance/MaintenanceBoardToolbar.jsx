@@ -91,6 +91,7 @@ function FilterMultiSelect({ label, options, values, onChange }) {
 export const MAINTENANCE_BOARD_STATUS_FILTER = {
   all: '',
   open: 'OPEN',
+  pending: 'PENDING',
   closed: 'CLOSED',
 };
 
@@ -158,6 +159,7 @@ export default function MaintenanceBoardToolbar({
   onNewCase,
   onExportCostReport,
 }) {
+  const [filtersExpanded, setFiltersExpanded] = useState(true);
   const set = (key, value) => onFilterChange(key, value);
 
   const projectOptions = tagOptions.project || [];
@@ -167,6 +169,31 @@ export default function MaintenanceBoardToolbar({
 
   return (
     <div className="mb-4 space-y-3 rounded-xl border border-slate-200 bg-white p-3 shadow-sm dark:border-slate-700 dark:bg-slate-800 sm:p-4">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setFiltersExpanded((prev) => !prev)}
+            className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-700"
+            aria-expanded={filtersExpanded}
+          >
+            {filtersExpanded ? 'Hide filters' : 'Show filters'}
+          </button>
+          <button
+            type="button"
+            onClick={onClearFilters}
+            className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-700"
+          >
+            Clear filters
+          </button>
+          <p className="text-sm text-slate-500 dark:text-slate-400">
+            {loading ? 'Loading…' : `${totalCount} case${totalCount === 1 ? '' : 's'}`}
+          </p>
+        </div>
+      </div>
+
+      {filtersExpanded && (
+        <>
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-8">
         <FilterField label="Case / Issue" className="2xl:col-span-1">
           <input
@@ -258,6 +285,7 @@ export default function MaintenanceBoardToolbar({
           >
             <option value="all">All</option>
             <option value="open">Open</option>
+            <option value="pending">Pending</option>
             <option value="closed">Closed</option>
           </select>
         </FilterField>
@@ -399,21 +427,11 @@ export default function MaintenanceBoardToolbar({
           </button>
         )}
       </div>
+        </>
+      )}
 
-      <div className="flex flex-wrap items-center justify-between gap-2 border-t border-slate-200 pt-3 dark:border-slate-700">
-        <div className="flex flex-wrap items-center gap-2">
-          <button
-            type="button"
-            onClick={onClearFilters}
-            className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-700"
-          >
-            Clear filters
-          </button>
-          <p className="text-sm text-slate-500 dark:text-slate-400">
-            {loading ? 'Loading…' : `${totalCount} case${totalCount === 1 ? '' : 's'}`}
-          </p>
-        </div>
-        {showNewCase && (
+      {showNewCase && (
+        <div className="flex justify-end border-t border-slate-200 pt-3 dark:border-slate-700">
           <button
             type="button"
             onClick={onNewCase}
@@ -421,8 +439,8 @@ export default function MaintenanceBoardToolbar({
           >
             New case
           </button>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 }

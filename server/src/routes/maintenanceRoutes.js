@@ -5,6 +5,7 @@ import {
   requireMaintenanceAccess,
   requireMaintenanceEdit,
   requireMaintenanceDelete,
+  requireMaintenanceCreate,
 } from '../middleware/maintenanceMiddleware.js';
 import {
   listMaintenanceTags,
@@ -101,7 +102,7 @@ router.get('/cases/:id', async (req, res, next) => {
   }
 });
 
-router.post('/cases', requireMaintenanceEdit, async (req, res, next) => {
+router.post('/cases', requireMaintenanceCreate, async (req, res, next) => {
   try {
     const maintenanceCase = await createMaintenanceCase(req.body, req.user);
     res.status(201).json({ case: maintenanceCase });
@@ -150,7 +151,7 @@ router.get('/cases/:id/attachments/:fileId/download', async (req, res, next) => 
   }
 });
 
-router.post('/cases/:id/attachments', requireMaintenanceEdit, (req, res, next) => {
+router.post('/cases/:id/attachments', requireMaintenanceAccess, (req, res, next) => {
   upload.single('file')(req, res, async (uploadErr) => {
     if (uploadErr) return next(uploadErr);
     try {

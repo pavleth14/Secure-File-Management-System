@@ -11,6 +11,7 @@ import {
 import { ensureMaintenanceTag, getTagColorMap } from './maintenanceTagService.js';
 import {
   canAssignMaintenanceCaseToAnyone,
+  canUploadMaintenanceCaseAttachment,
 } from '../utils/maintenancePermissions.js';
 import { ensureMaintenanceCaseFolder } from './maintenanceCaseFolderService.js';
 import {
@@ -226,6 +227,7 @@ export async function formatMaintenanceCase(record, tagColorMap) {
     lastEditedAt: obj.lastEditedAt,
     lastEditedAtLabel: formatChicagoDisplay(obj.lastEditedAt),
     createdAt: obj.createdAt,
+    createdById: obj.createdBy?._id?.toString() || obj.createdBy?.toString() || null,
     createdByName: obj.createdBy?.name || null,
   };
 }
@@ -568,10 +570,16 @@ export async function addMaintenanceCaseComment(id, text, user) {
 }
 
 export async function addMaintenanceCaseAttachment(id, file, user) {
-  const maintenanceCase = await MaintenanceCase.findById(id);
+  const maintenanceCase = await MaintenanceCase.findById(id).populate('assigneeId createdBy');
   if (!maintenanceCase) {
     const err = new Error('Maintenance case not found');
     err.status = 404;
+    throw err;
+  }
+
+  if (!canUploadMaintenanceCaseAttachment(user, maintenanceCase)) {
+    const err = new Error('You cannot upload attachments for this case');
+    err.status = 403;
     throw err;
   }
 
@@ -582,13 +590,6 @@ export async function addMaintenanceCaseAttachment(id, file, user) {
       caseId: maintenanceCase._id,
       user,
     });
-    if (!folderId) {
-      const err = new Error(
-        'Link a folder to the truck or trailer before uploading attachments'
-      );
-      err.status = 400;
-      throw err;
-    }
     maintenanceCase.attachmentFolderId = folderId;
   }
 
