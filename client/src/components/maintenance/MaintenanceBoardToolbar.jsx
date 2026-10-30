@@ -99,10 +99,8 @@ export const MAINTENANCE_BOARD_STATUS_FILTER = {
 export const MAINTENANCE_BOARD_INITIAL_FILTERS = {
   issue: '',
   assigneeId: '',
-  dateOpenedFrom: '',
-  dateOpenedTo: '',
-  dateClosedFrom: '',
-  dateClosedTo: '',
+  dateOpened: '',
+  dateClosed: '',
   equipment: '',
   statusFilter: 'open',
   priorities: [],
@@ -111,6 +109,7 @@ export const MAINTENANCE_BOARD_INITIAL_FILTERS = {
   caseTypes: [],
   repairShop: '',
   invoiceStatuses: [],
+  dispatchStatuses: [],
   reportPeriod: 'month',
   reportReferenceDate: '',
   reportWithCostOnly: false,
@@ -120,10 +119,8 @@ export function buildMaintenanceCaseQueryParams(filters, { limit = 100 } = {}) {
   const params = { limit };
   if (filters.issue.trim()) params.issue = filters.issue.trim();
   if (filters.assigneeId) params.assigneeId = filters.assigneeId;
-  if (filters.dateOpenedFrom) params.dateOpenedFrom = filters.dateOpenedFrom;
-  if (filters.dateOpenedTo) params.dateOpenedTo = filters.dateOpenedTo;
-  if (filters.dateClosedFrom) params.dateClosedFrom = filters.dateClosedFrom;
-  if (filters.dateClosedTo) params.dateClosedTo = filters.dateClosedTo;
+  if (filters.dateOpened) params.dateOpened = filters.dateOpened;
+  if (filters.dateClosed) params.dateClosed = filters.dateClosed;
   if (filters.equipment.trim()) params.equipment = filters.equipment.trim();
   if (filters.repairShop.trim()) params.repairShop = filters.repairShop.trim();
   const statusValue = MAINTENANCE_BOARD_STATUS_FILTER[filters.statusFilter];
@@ -133,6 +130,7 @@ export function buildMaintenanceCaseQueryParams(filters, { limit = 100 } = {}) {
   if (filters.oosStatuses.length) params.oosStatus = filters.oosStatuses.join(',');
   if (filters.caseTypes.length) params.caseType = filters.caseTypes.join(',');
   if (filters.invoiceStatuses.length) params.invoiceStatus = filters.invoiceStatuses.join(',');
+  if (filters.dispatchStatuses.length) params.dispatchStatus = filters.dispatchStatuses.join(',');
   return params;
 }
 
@@ -156,6 +154,7 @@ export default function MaintenanceBoardToolbar({
   ].sort((a, b) => a.localeCompare(b));
   const caseTypeOptions = tagOptions.caseType || [];
   const invoiceOptions = tagOptions.invoiceStatus || [];
+  const dispatchOptions = tagOptions.dispatchStatus || [];
 
   return (
     <div className="mb-4 space-y-3 rounded-xl border border-slate-200 bg-white p-3 shadow-sm dark:border-slate-700 dark:bg-slate-800 sm:p-4">
@@ -231,38 +230,20 @@ export default function MaintenanceBoardToolbar({
           />
         </FilterField>
 
-        <FilterField label="Date opened from">
+        <FilterField label="Date opened">
           <input
             type="date"
-            value={filters.dateOpenedFrom}
-            onChange={(event) => set('dateOpenedFrom', event.target.value)}
+            value={filters.dateOpened}
+            onChange={(event) => set('dateOpened', event.target.value)}
             className={inputClass}
           />
         </FilterField>
 
-        <FilterField label="Date opened to">
+        <FilterField label="Date closed">
           <input
             type="date"
-            value={filters.dateOpenedTo}
-            onChange={(event) => set('dateOpenedTo', event.target.value)}
-            className={inputClass}
-          />
-        </FilterField>
-
-        <FilterField label="Date closed from">
-          <input
-            type="date"
-            value={filters.dateClosedFrom}
-            onChange={(event) => set('dateClosedFrom', event.target.value)}
-            className={inputClass}
-          />
-        </FilterField>
-
-        <FilterField label="Date closed to">
-          <input
-            type="date"
-            value={filters.dateClosedTo}
-            onChange={(event) => set('dateClosedTo', event.target.value)}
+            value={filters.dateClosed}
+            onChange={(event) => set('dateClosed', event.target.value)}
             className={inputClass}
           />
         </FilterField>
@@ -313,6 +294,13 @@ export default function MaintenanceBoardToolbar({
           options={invoiceOptions}
           values={filters.invoiceStatuses}
           onChange={(value) => set('invoiceStatuses', value)}
+        />
+
+        <FilterMultiSelect
+          label="Dispatch status"
+          options={dispatchOptions}
+          values={filters.dispatchStatuses}
+          onChange={(value) => set('dispatchStatuses', value)}
         />
 
       </div>

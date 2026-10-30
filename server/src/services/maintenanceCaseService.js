@@ -268,6 +268,16 @@ function applyDateRange(and, field, from, to) {
   }
 }
 
+/** Match records whose date field falls on the given calendar day (Chicago end-of-day). */
+function applyDateOnDay(and, field, day) {
+  const dayStr = String(day || '').trim();
+  if (!dayStr) return;
+  const start = parseOptionalDate(dayStr);
+  if (!start) return;
+  const end = /^\d{4}-\d{2}-\d{2}$/.test(dayStr) ? chicagoEndOfDay(dayStr) : start;
+  and.push({ [field]: { $gte: start, $lte: end } });
+}
+
 async function buildMaintenanceCaseListFilter(query = {}) {
   const and = [];
 
@@ -284,8 +294,16 @@ async function buildMaintenanceCaseListFilter(query = {}) {
     and.push({ assigneeId });
   }
 
-  applyDateRange(and, 'createdAt', query.dateOpenedFrom, query.dateOpenedTo);
-  applyDateRange(and, 'dateClosed', query.dateClosedFrom, query.dateClosedTo);
+  if (query.dateOpened) {
+    applyDateOnDay(and, 'createdAt', query.dateOpened);
+  } else {
+    applyDateRange(and, 'createdAt', query.dateOpenedFrom, query.dateOpenedTo);
+  }
+  if (query.dateClosed) {
+    applyDateOnDay(and, 'dateClosed', query.dateClosed);
+  } else {
+    applyDateRange(and, 'dateClosed', query.dateClosedFrom, query.dateClosedTo);
+  }
 
   const shop = String(query.repairShop || '').trim();
   if (shop) {
