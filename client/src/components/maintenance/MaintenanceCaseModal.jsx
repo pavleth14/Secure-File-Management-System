@@ -13,6 +13,9 @@ import MaintenanceTagPill from './MaintenanceTagPill';
 const inputClass =
   'w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100';
 
+const ATTACHMENT_ACCEPT =
+  'image/*,application/pdf,.pdf,.png,.jpg,.jpeg,.webp,.gif,.heic';
+
 const FORM_DIRTY_KEYS = [
   'issue',
   'assigneeId',
@@ -264,6 +267,7 @@ export default function MaintenanceCaseModal({
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState('');
+  const [pendingAttachmentFiles, setPendingAttachmentFiles] = useState([]);
   const [error, setError] = useState('');
 
   const canUploadAttachments = useMemo(() => {
@@ -302,6 +306,8 @@ export default function MaintenanceCaseModal({
       setCommentText('');
       setDiscardConfirmOpen(false);
       setError('');
+      setPendingAttachmentFiles([]);
+      setUploadError('');
       return;
     }
 
@@ -314,13 +320,17 @@ export default function MaintenanceCaseModal({
     setCommentText('');
     setDiscardConfirmOpen(false);
     setError('');
+    setPendingAttachmentFiles([]);
+    setUploadError('');
     // Re-init only when opening or switching case; omit caseData so comment refresh does not reset edits.
     // eslint-disable-next-line react-hooks/exhaustive-deps -- caseData read when formSessionKey changes
   }, [open, formSessionKey, canPickAnyAssignee, user?.id]);
 
   const isFormDirty =
     Boolean(form) &&
-    (serializeFormSnapshot(form) !== initialFormSnapshot || commentText.trim().length > 0);
+    (serializeFormSnapshot(form) !== initialFormSnapshot ||
+      commentText.trim().length > 0 ||
+      pendingAttachmentFiles.length > 0);
 
   const requestClose = useCallback(() => {
     if (readOnly || !isFormDirty) {
@@ -355,12 +365,20 @@ export default function MaintenanceCaseModal({
     e.preventDefault();
     setSaving(true);
     setError('');
+    setUploadError('');
     try {
-      await onSave(form);
+      const savedCase = await onSave(form);
+      const caseId = savedCase?.id || caseData?.id;
+      if (caseId && pendingAttachmentFiles.length && onUpload) {
+        for (const file of pendingAttachmentFiles) {
+          await onUpload(caseId, file);
+        }
+        setPendingAttachmentFiles([]);
+      }
       setDiscardConfirmOpen(false);
       onClose();
     } catch (err) {
-      setError(err.response?.data?.message || 'Failed to save');
+      setError(err.response?.data?.message || err.message || 'Failed to save');
     } finally {
       setSaving(false);
     }
@@ -402,6 +420,21 @@ export default function MaintenanceCaseModal({
       setUploading(false);
     }
   };
+
+  const handleQueueAttachment = (file) => {
+    if (!file || readOnly) return;
+    setUploadError('');
+    setPendingAttachmentFiles((prev) => [...prev, file]);
+  };
+
+  const handleRemovePendingAttachment = (index) => {
+    setPendingAttachmentFiles((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const canAttachFiles =
+    !readOnly &&
+    onUpload &&
+    (caseData ? canUploadAttachments : true);
 
   return (
     <>
@@ -651,9 +684,6 @@ export default function MaintenanceCaseModal({
                 onChange={(e) => setForm({ ...form, cost: e.target.value })}
                 placeholder="0.00"
               />
-              <p className="mt-1 text-xs text-slate-500">
-                Save the case first, then add PDF or image attachments below.
-              </p>
             </div>
             <div>
               <label className="mb-1 block text-xs font-medium uppercase text-slate-500">
@@ -669,54 +699,88 @@ export default function MaintenanceCaseModal({
             </div>
           </div>
 
-          {caseData && (
-            <>
-              <div>
-                <label className="mb-1 block text-xs font-medium uppercase text-slate-500">
-                  Attachments (PDF & images)
-                </label>
-                <ul className="space-y-1 text-sm">
-                  {(caseData.attachments || []).length === 0 ? (
-                    <li className="text-slate-500">No attachments yet.</li>
-                  ) : (
-                    (caseData.attachments || []).map((file) => (
-                      <li key={file.id}>
+          <div>
+            <label className="mb-1 block text-xs font-medium uppercase text-slate-500">
+              Attachments (PDF & images)
+            </label>
+            {caseData ? (
+              <ul className="space-y-1 text-sm">
+                {(caseData.attachments || []).length === 0 ? (
+                  <li className="text-slate-500">No attachments yet.</li>
+                ) : (
+                  (caseData.attachments || []).map((file) => (
+                    <li key={file.id}>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          handleDownloadAttachment(file.fileId, file.originalName)
+                        }
+                        className="text-left text-brand-600 hover:underline dark:text-brand-400"
+                      >
+                        {file.originalName}
+                      </button>
+                    </li>
+                  ))
+                )}
+              </ul>
+            ) : (
+              <ul className="space-y-1 text-sm">
+                {pendingAttachmentFiles.length === 0 ? (
+                  <li className="text-slate-500">
+                    No files selected. Add PDF or images below — they upload when you save.
+                  </li>
+                ) : (
+                  pendingAttachmentFiles.map((file, index) => (
+                    <li key={`${file.name}-${index}`} className="flex items-center gap-2">
+                      <span className="truncate">{file.name}</span>
+                      {!readOnly && (
                         <button
                           type="button"
-                          onClick={() =>
-                            handleDownloadAttachment(file.fileId, file.originalName)
-                          }
-                          className="text-left text-brand-600 hover:underline dark:text-brand-400"
+                          onClick={() => handleRemovePendingAttachment(index)}
+                          className="shrink-0 text-xs text-red-600 hover:underline dark:text-red-400"
                         >
-                          {file.originalName}
+                          Remove
                         </button>
-                      </li>
-                    ))
-                  )}
-                </ul>
-                {canUploadAttachments && (
-                  <div className="mt-2">
-                    <input
-                      type="file"
-                      accept="image/*,application/pdf,.pdf,.png,.jpg,.jpeg,.webp,.gif,.heic"
-                      className="text-sm"
-                      disabled={uploading}
-                      onChange={(e) => {
-                        const file = e.target.files?.[0];
-                        if (file) handleAttachmentUpload(file);
-                        e.target.value = '';
-                      }}
-                    />
-                    {uploading && (
-                      <p className="mt-1 text-xs text-slate-500">Uploading…</p>
-                    )}
-                    {uploadError && (
-                      <p className="mt-1 text-xs text-red-600 dark:text-red-400">{uploadError}</p>
-                    )}
-                  </div>
+                      )}
+                    </li>
+                  ))
+                )}
+              </ul>
+            )}
+            {canAttachFiles && (
+              <div className="mt-2">
+                <input
+                  type="file"
+                  accept={ATTACHMENT_ACCEPT}
+                  className="text-sm"
+                  disabled={uploading || saving}
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (!file) return;
+                    if (caseData) {
+                      handleAttachmentUpload(file);
+                    } else {
+                      handleQueueAttachment(file);
+                    }
+                    e.target.value = '';
+                  }}
+                />
+                {(uploading || (saving && pendingAttachmentFiles.length > 0)) && (
+                  <p className="mt-1 text-xs text-slate-500">
+                    {saving && pendingAttachmentFiles.length > 0
+                      ? 'Saving case and uploading attachments…'
+                      : 'Uploading…'}
+                  </p>
+                )}
+                {uploadError && (
+                  <p className="mt-1 text-xs text-red-600 dark:text-red-400">{uploadError}</p>
                 )}
               </div>
+            )}
+          </div>
 
+          {caseData && (
+            <>
               <div>
                 <label className="mb-1 block text-xs font-medium uppercase text-slate-500">
                   Comments / updates

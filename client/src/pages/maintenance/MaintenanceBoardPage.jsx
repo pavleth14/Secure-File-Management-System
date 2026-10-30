@@ -164,12 +164,16 @@ export default function MaintenanceBoardPage() {
         response: { data: { message: 'Truck or trailer is required' } },
       });
     }
+    let savedCase;
     if (selectedCase?.id) {
-      await api.patch(`/maintenance/cases/${selectedCase.id}`, payload);
+      const { data } = await api.patch(`/maintenance/cases/${selectedCase.id}`, payload);
+      savedCase = data.case;
     } else {
-      await api.post('/maintenance/cases', payload);
+      const { data } = await api.post('/maintenance/cases', payload);
+      savedCase = data.case;
     }
     await loadCases();
+    return savedCase;
   };
 
   const handleDelete = async (id) => {
