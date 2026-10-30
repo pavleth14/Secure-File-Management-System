@@ -41,6 +41,10 @@ function buildPayload(form) {
       form.cost === '' || form.cost === null || form.cost === undefined
         ? null
         : Number(form.cost),
+    estimatedCost:
+      form.estimatedCost === '' || form.estimatedCost === null || form.estimatedCost === undefined
+        ? null
+        : Number(form.estimatedCost),
   };
 }
 

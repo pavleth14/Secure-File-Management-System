@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import {
   MAINTENANCE_OOS_STATUSES,
   MAINTENANCE_PRIORITIES,
+  MAINTENANCE_DEFAULT_PROJECTS,
 } from '../../constants/maintenanceConstants';
 
 const inputClass =
@@ -98,8 +99,10 @@ export const MAINTENANCE_BOARD_STATUS_FILTER = {
 export const MAINTENANCE_BOARD_INITIAL_FILTERS = {
   issue: '',
   assigneeId: '',
-  dueFrom: '',
-  dueTo: '',
+  dateOpenedFrom: '',
+  dateOpenedTo: '',
+  dateClosedFrom: '',
+  dateClosedTo: '',
   equipment: '',
   statusFilter: 'open',
   priorities: [],
@@ -107,15 +110,7 @@ export const MAINTENANCE_BOARD_INITIAL_FILTERS = {
   oosStatuses: [],
   caseTypes: [],
   repairShop: '',
-  dateClosedFrom: '',
-  dateClosedTo: '',
   invoiceStatuses: [],
-  dispatchStatuses: [],
-  lastEditedFrom: '',
-  lastEditedTo: '',
-  costMin: '',
-  costMax: '',
-  hasCost: '',
   reportPeriod: 'month',
   reportReferenceDate: '',
   reportWithCostOnly: false,
@@ -125,14 +120,12 @@ export function buildMaintenanceCaseQueryParams(filters, { limit = 100 } = {}) {
   const params = { limit };
   if (filters.issue.trim()) params.issue = filters.issue.trim();
   if (filters.assigneeId) params.assigneeId = filters.assigneeId;
-  if (filters.dueFrom) params.dueFrom = filters.dueFrom;
-  if (filters.dueTo) params.dueTo = filters.dueTo;
-  if (filters.equipment.trim()) params.equipment = filters.equipment.trim();
-  if (filters.repairShop.trim()) params.repairShop = filters.repairShop.trim();
+  if (filters.dateOpenedFrom) params.dateOpenedFrom = filters.dateOpenedFrom;
+  if (filters.dateOpenedTo) params.dateOpenedTo = filters.dateOpenedTo;
   if (filters.dateClosedFrom) params.dateClosedFrom = filters.dateClosedFrom;
   if (filters.dateClosedTo) params.dateClosedTo = filters.dateClosedTo;
-  if (filters.lastEditedFrom) params.lastEditedFrom = filters.lastEditedFrom;
-  if (filters.lastEditedTo) params.lastEditedTo = filters.lastEditedTo;
+  if (filters.equipment.trim()) params.equipment = filters.equipment.trim();
+  if (filters.repairShop.trim()) params.repairShop = filters.repairShop.trim();
   const statusValue = MAINTENANCE_BOARD_STATUS_FILTER[filters.statusFilter];
   if (statusValue) params.caseStatus = statusValue;
   if (filters.priorities.length) params.priority = filters.priorities.join(',');
@@ -140,10 +133,6 @@ export function buildMaintenanceCaseQueryParams(filters, { limit = 100 } = {}) {
   if (filters.oosStatuses.length) params.oosStatus = filters.oosStatuses.join(',');
   if (filters.caseTypes.length) params.caseType = filters.caseTypes.join(',');
   if (filters.invoiceStatuses.length) params.invoiceStatus = filters.invoiceStatuses.join(',');
-  if (filters.dispatchStatuses.length) params.dispatchStatus = filters.dispatchStatuses.join(',');
-  if (filters.costMin !== '') params.costMin = filters.costMin;
-  if (filters.costMax !== '') params.costMax = filters.costMax;
-  if (filters.hasCost) params.hasCost = filters.hasCost;
   return params;
 }
 
@@ -162,10 +151,11 @@ export default function MaintenanceBoardToolbar({
   const [filtersExpanded, setFiltersExpanded] = useState(true);
   const set = (key, value) => onFilterChange(key, value);
 
-  const projectOptions = tagOptions.project || [];
+  const projectOptions = [
+    ...new Set([...MAINTENANCE_DEFAULT_PROJECTS, ...(tagOptions.project || [])]),
+  ].sort((a, b) => a.localeCompare(b));
   const caseTypeOptions = tagOptions.caseType || [];
   const invoiceOptions = tagOptions.invoiceStatus || [];
-  const dispatchOptions = tagOptions.dispatchStatus || [];
 
   return (
     <div className="mb-4 space-y-3 rounded-xl border border-slate-200 bg-white p-3 shadow-sm dark:border-slate-700 dark:bg-slate-800 sm:p-4">
@@ -241,20 +231,20 @@ export default function MaintenanceBoardToolbar({
           />
         </FilterField>
 
-        <FilterField label="Due from">
+        <FilterField label="Date opened from">
           <input
             type="date"
-            value={filters.dueFrom}
-            onChange={(event) => set('dueFrom', event.target.value)}
+            value={filters.dateOpenedFrom}
+            onChange={(event) => set('dateOpenedFrom', event.target.value)}
             className={inputClass}
           />
         </FilterField>
 
-        <FilterField label="Due to">
+        <FilterField label="Date opened to">
           <input
             type="date"
-            value={filters.dueTo}
-            onChange={(event) => set('dueTo', event.target.value)}
+            value={filters.dateOpenedTo}
+            onChange={(event) => set('dateOpenedTo', event.target.value)}
             className={inputClass}
           />
         </FilterField>
@@ -325,66 +315,6 @@ export default function MaintenanceBoardToolbar({
           onChange={(value) => set('invoiceStatuses', value)}
         />
 
-        <FilterMultiSelect
-          label="Dispatch status"
-          options={dispatchOptions}
-          values={filters.dispatchStatuses}
-          onChange={(value) => set('dispatchStatuses', value)}
-        />
-
-        <FilterField label="Last update from">
-          <input
-            type="date"
-            value={filters.lastEditedFrom}
-            onChange={(event) => set('lastEditedFrom', event.target.value)}
-            className={inputClass}
-          />
-        </FilterField>
-
-        <FilterField label="Last update to">
-          <input
-            type="date"
-            value={filters.lastEditedTo}
-            onChange={(event) => set('lastEditedTo', event.target.value)}
-            className={inputClass}
-          />
-        </FilterField>
-
-        <FilterField label="Cost min (USD)">
-          <input
-            type="number"
-            min="0"
-            step="0.01"
-            value={filters.costMin}
-            onChange={(event) => set('costMin', event.target.value)}
-            className={inputClass}
-            placeholder="Min"
-          />
-        </FilterField>
-
-        <FilterField label="Cost max (USD)">
-          <input
-            type="number"
-            min="0"
-            step="0.01"
-            value={filters.costMax}
-            onChange={(event) => set('costMax', event.target.value)}
-            className={inputClass}
-            placeholder="Max"
-          />
-        </FilterField>
-
-        <FilterField label="Has cost">
-          <select
-            value={filters.hasCost}
-            onChange={(event) => set('hasCost', event.target.value)}
-            className={inputClass}
-          >
-            <option value="">All</option>
-            <option value="yes">With cost</option>
-            <option value="no">Without cost</option>
-          </select>
-        </FilterField>
       </div>
 
       <div className="flex flex-wrap items-end gap-2 rounded-lg border border-emerald-200/80 bg-emerald-50/60 p-3 dark:border-emerald-900/60 dark:bg-emerald-950/25">

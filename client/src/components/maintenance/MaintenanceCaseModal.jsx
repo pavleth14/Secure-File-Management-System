@@ -33,6 +33,7 @@ const FORM_DIRTY_KEYS = [
   'dateClosed',
   'dispatchStatus',
   'cost',
+  'estimatedCost',
 ];
 
 function serializeFormSnapshot(form) {
@@ -53,7 +54,7 @@ function buildEmptyForm(canPickAnyAssignee, userId) {
     trailerId: '',
     truckNumber: '',
     trailerNumber: '',
-    caseStatus: '',
+    caseStatus: 'Open',
     priority: 'Normal',
     project: '',
     oosStatus: 'In Service',
@@ -64,6 +65,7 @@ function buildEmptyForm(canPickAnyAssignee, userId) {
     dateClosed: '',
     dispatchStatus: '',
     cost: '',
+    estimatedCost: '',
   };
 }
 
@@ -73,6 +75,10 @@ function buildFormFromCaseData(caseData) {
     dueDate: caseData.dueDate ? caseData.dueDate.slice(0, 10) : '',
     dateClosed: caseData.dateClosed ? caseData.dateClosed.slice(0, 10) : '',
     cost: caseData.cost != null && caseData.cost !== '' ? String(caseData.cost) : '',
+    estimatedCost:
+      caseData.estimatedCost != null && caseData.estimatedCost !== ''
+        ? String(caseData.estimatedCost)
+        : '',
   };
 }
 
@@ -669,7 +675,22 @@ export default function MaintenanceCaseModal({
             />
           </div>
 
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className="grid gap-4 sm:grid-cols-3">
+            <div>
+              <label className="mb-1 block text-xs font-medium uppercase text-slate-500">
+                Estimated price (USD)
+              </label>
+              <input
+                type="number"
+                min="0"
+                step="0.01"
+                className={inputClass}
+                readOnly={readOnly}
+                value={form.estimatedCost ?? ''}
+                onChange={(e) => setForm({ ...form, estimatedCost: e.target.value })}
+                placeholder="0.00"
+              />
+            </div>
             <div>
               <label className="mb-1 block text-xs font-medium uppercase text-slate-500">
                 Cost (USD)
@@ -684,6 +705,9 @@ export default function MaintenanceCaseModal({
                 onChange={(e) => setForm({ ...form, cost: e.target.value })}
                 placeholder="0.00"
               />
+              <p className="mt-1 text-xs text-slate-500">
+                Final amount; used in cost reports. Upload invoice under Attachments.
+              </p>
             </div>
             <div>
               <label className="mb-1 block text-xs font-medium uppercase text-slate-500">

@@ -14,6 +14,8 @@ import {
   buildRelativePath,
   buildFolderRelativePath,
 } from '../services/storageService.js';
+import { ensureMaintenanceTag } from '../services/maintenanceTagService.js';
+import { MAINTENANCE_DEFAULT_PROJECTS } from '../config/maintenanceConstants.js';
 
 const DEFAULT_GROUP_PERMISSIONS = {
   eld: { folder: 'folder1', actions: [PERMISSIONS.READ, PERMISSIONS.UPLOAD] },
@@ -124,6 +126,17 @@ export async function seedDatabase() {
       await existing.save();
       console.log('Super admin synchronized with environment configuration');
     }
+  }
+
+  const tagSeedUser =
+    (await User.findOne({ role: ROLES.SUPER_ADMIN }).select('_id'))?._id || null;
+  if (tagSeedUser) {
+    for (const name of MAINTENANCE_DEFAULT_PROJECTS) {
+      await ensureMaintenanceTag('project', name, tagSeedUser);
+    }
+    await ensureMaintenanceTag('case_status', 'Open', tagSeedUser);
+    await ensureMaintenanceTag('case_status', 'Pending', tagSeedUser);
+    await ensureMaintenanceTag('case_status', 'Closed', tagSeedUser);
   }
 
   console.log('Database seed completed');

@@ -213,6 +213,14 @@ export async function formatMaintenanceCase(record, tagColorMap) {
       obj.cost !== null && obj.cost !== undefined
         ? new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(obj.cost)
         : '',
+    estimatedCost: obj.estimatedCost ?? null,
+    estimatedCostLabel:
+      obj.estimatedCost !== null && obj.estimatedCost !== undefined
+        ? new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(
+            obj.estimatedCost
+          )
+        : '',
+    createdAt: obj.createdAt,
     attachmentFolderId: obj.attachmentFolderId?.toString?.() || obj.attachmentFolderId || null,
     attachments: (obj.attachments || []).map((a) => ({
       id: a._id.toString(),
@@ -276,9 +284,8 @@ async function buildMaintenanceCaseListFilter(query = {}) {
     and.push({ assigneeId });
   }
 
-  applyDateRange(and, 'dueDate', query.dueFrom, query.dueTo);
+  applyDateRange(and, 'createdAt', query.dateOpenedFrom, query.dateOpenedTo);
   applyDateRange(and, 'dateClosed', query.dateClosedFrom, query.dateClosedTo);
-  applyDateRange(and, 'lastEditedAt', query.lastEditedFrom, query.lastEditedTo);
 
   const shop = String(query.repairShop || '').trim();
   if (shop) {
@@ -287,11 +294,15 @@ async function buildMaintenanceCaseListFilter(query = {}) {
 
   const caseStatuses = parseQueryStringList(query.caseStatus);
   if (caseStatuses.length) {
-    and.push({
-      $or: caseStatuses.map((status) => ({
-        caseStatus: new RegExp(`^${escapeRegex(status)}$`, 'i'),
-      })),
-    });
+    const statusConditions = caseStatuses.map((status) => ({
+      caseStatus: new RegExp(`^${escapeRegex(status)}$`, 'i'),
+    }));
+    const includesOpen = caseStatuses.some((status) => status.toLowerCase() === 'open');
+    if (includesOpen) {
+      statusConditions.push({ caseStatus: '' });
+      statusConditions.push({ caseStatus: { $exists: false } });
+    }
+    and.push({ $or: statusConditions });
   }
 
   const priorities = parseQueryStringList(query.priority);
@@ -417,7 +428,11 @@ export async function createMaintenanceCase(payload, user) {
   }
 
   const assigneeId = await resolveAssigneeIdForActor(user, payload.assigneeId || null);
-  const tagFields = await syncTagFields(payload, user._id);
+  const createPayload = { ...payload };
+  if (!String(createPayload.caseStatus || '').trim()) {
+    createPayload.caseStatus = 'Open';
+  }
+  const tagFields = await syncTagFields(createPayload, user._id);
 
   const maintenanceCase = await MaintenanceCase.create({
     issue,
@@ -431,6 +446,7 @@ export async function createMaintenanceCase(payload, user) {
     issueDescription: String(payload.issueDescription || '').trim(),
     dateClosed: parseOptionalDate(payload.dateClosed),
     cost: parseOptionalCost(payload.cost),
+    estimatedCost: parseOptionalCost(payload.estimatedCost),
     ...tagFields,
     createdBy: user._id,
     lastEditedAt: new Date(),
@@ -514,6 +530,9 @@ export async function updateMaintenanceCase(id, payload, user) {
   }
   if (payload.cost !== undefined) {
     maintenanceCase.cost = parseOptionalCost(payload.cost);
+  }
+  if (payload.estimatedCost !== undefined) {
+    maintenanceCase.estimatedCost = parseOptionalCost(payload.estimatedCost);
   }
 
   const tagFields = await syncTagFields(payload, user._id);

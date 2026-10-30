@@ -72,6 +72,7 @@ const maintenanceCaseSchema = new mongoose.Schema(
     dateClosed: { type: Date, default: null },
     dispatchStatus: { type: String, trim: true, default: '' },
     cost: { type: Number, default: null, min: 0 },
+    estimatedCost: { type: Number, default: null, min: 0 },
     attachmentFolderId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Folder',

@@ -1,5 +1,8 @@
 import { MaintenanceCaseTag } from '../models/MaintenanceCaseTag.js';
-import { MAINTENANCE_TAG_TYPES } from '../config/maintenanceConstants.js';
+import {
+  MAINTENANCE_TAG_TYPES,
+  MAINTENANCE_DEFAULT_PROJECTS,
+} from '../config/maintenanceConstants.js';
 
 function normalizeTagName(name) {
   return String(name || '').trim();
@@ -15,7 +18,22 @@ export function assertValidTagType(type) {
 
 export async function listMaintenanceTags(type) {
   assertValidTagType(type);
-  return MaintenanceCaseTag.find({ type, isActive: true }).sort({ name: 1 });
+  const records = await MaintenanceCaseTag.find({ type, isActive: true }).sort({ name: 1 });
+  if (type !== 'project') return records;
+
+  const byName = new Map(records.map((tag) => [tag.name, tag]));
+  for (const name of MAINTENANCE_DEFAULT_PROJECTS) {
+    if (!byName.has(name)) {
+      byName.set(name, {
+        _id: `default:${name}`,
+        type: 'project',
+        name,
+        color: '#94A3B8',
+        isActive: true,
+      });
+    }
+  }
+  return [...byName.values()].sort((a, b) => a.name.localeCompare(b.name));
 }
 
 export async function ensureMaintenanceTag(type, name, userId, color) {

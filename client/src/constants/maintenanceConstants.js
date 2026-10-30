@@ -14,3 +14,5 @@ export const MAINTENANCE_TAG_TYPES = {
   invoiceStatus: 'invoice_status',
   dispatchStatus: 'dispatch_status',
 };
+
+export const MAINTENANCE_DEFAULT_PROJECTS = ['OTR', 'Aljaska', 'Montana', 'KY', 'NJ'];

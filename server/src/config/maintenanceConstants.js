@@ -15,6 +15,15 @@ export const MAINTENANCE_OOS_STATUSES = Object.freeze([
   'Return To Service',
 ]);
 
+/** Default project filter / case options (weekly reporting). */
+export const MAINTENANCE_DEFAULT_PROJECTS = Object.freeze([
+  'OTR',
+  'Aljaska',
+  'Montana',
+  'KY',
+  'NJ',
+]);
+
 export const MAINTENANCE_COMMENT_MAX_LENGTH = 2000;
 export const MAINTENANCE_ISSUE_MAX_LENGTH = 200;
 export const MAINTENANCE_DESCRIPTION_MAX_LENGTH = 8000;
