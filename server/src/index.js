@@ -98,9 +98,13 @@ app.use(errorHandler);
 
 async function start() {
   await connectDB();
+  const maintenanceStatusDedupeBefore = await dedupeMaintenanceCaseStatusTags();
+  if (maintenanceStatusDedupeBefore.tagsRemoved || maintenanceStatusDedupeBefore.casesUpdated) {
+    console.log('[MAINTENANCE] Deduplicated case status tags (pre-seed)', maintenanceStatusDedupeBefore);
+  }
   await seedDatabase();
   const maintenanceStatusDedupe = await dedupeMaintenanceCaseStatusTags();
-  if (maintenanceStatusDedupe.tagsDeactivated || maintenanceStatusDedupe.casesUpdated) {
+  if (maintenanceStatusDedupe.tagsRemoved || maintenanceStatusDedupe.casesUpdated) {
     console.log('[MAINTENANCE] Deduplicated case status tags', maintenanceStatusDedupe);
   }
   await ensureDefaultLeadSources();

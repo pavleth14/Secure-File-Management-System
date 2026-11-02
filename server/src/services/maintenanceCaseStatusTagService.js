@@ -25,9 +25,9 @@ export async function countCasesWithCaseStatus(statusName) {
   return MaintenanceCase.countDocuments({ caseStatus: caseStatusRegex(trimmed) });
 }
 
-/** Merge duplicate case_status tags and normalize case.caseStatus values. */
+/** Merge duplicate case_status tags (incl. inactive) and normalize case.caseStatus values. */
 export async function dedupeMaintenanceCaseStatusTags() {
-  const tags = await MaintenanceCaseTag.find({ type: CASE_STATUS_TYPE, isActive: true });
+  const tags = await MaintenanceCaseTag.find({ type: CASE_STATUS_TYPE });
   const groups = new Map();
   for (const tag of tags) {
     const key = tag.name.toLowerCase();
@@ -35,7 +35,7 @@ export async function dedupeMaintenanceCaseStatusTags() {
     groups.get(key).push(tag);
   }
 
-  let tagsDeactivated = 0;
+  let tagsRemoved = 0;
   let casesUpdated = 0;
 
   for (const group of groups.values()) {
@@ -44,11 +44,13 @@ export async function dedupeMaintenanceCaseStatusTags() {
     const { keeper } = pick;
     const mergeName = keeper.name;
 
-    const duplicateIds = group.filter((t) => t._id.toString() !== keeper._id.toString());
-    for (const dup of duplicateIds) {
-      dup.isActive = false;
-      await dup.save();
-      tagsDeactivated += 1;
+    keeper.isActive = true;
+    await keeper.save();
+
+    for (const dup of group) {
+      if (dup._id.toString() === keeper._id.toString()) continue;
+      await MaintenanceCaseTag.deleteOne({ _id: dup._id });
+      tagsRemoved += 1;
     }
 
     for (const variant of group) {
@@ -60,7 +62,7 @@ export async function dedupeMaintenanceCaseStatusTags() {
     }
   }
 
-  return { tagsDeactivated, casesUpdated, groups: groups.size };
+  return { tagsRemoved, casesUpdated, groups: groups.size };
 }
 
 export async function getCaseStatusTagUsage(tagId) {

@@ -46,6 +46,41 @@ export async function listMaintenanceTags(type) {
   return [...byName.values()].sort((a, b) => a.name.localeCompare(b.name));
 }
 
+async function consolidateCaseStatusTag(storageName, userId, color) {
+  const lower = storageName.toLowerCase();
+  const group = (await MaintenanceCaseTag.find({ type: CASE_STATUS_TYPE })).filter(
+    (tag) => tag.name.toLowerCase() === lower
+  );
+
+  if (!group.length) {
+    return MaintenanceCaseTag.create({
+      type: CASE_STATUS_TYPE,
+      name: storageName,
+      color: color || '#94A3B8',
+      isActive: true,
+      createdBy: userId,
+    });
+  }
+
+  let keeper =
+    group.find((tag) => tag.name === storageName) ||
+    group.find((tag) => tag.isActive) ||
+    group[0];
+
+  for (const other of group) {
+    if (other._id.toString() === keeper._id.toString()) continue;
+    await MaintenanceCaseTag.deleteOne({ _id: other._id });
+  }
+
+  keeper.isActive = true;
+  if (color) keeper.color = color;
+  if (keeper.name !== storageName) {
+    keeper.name = storageName;
+  }
+  await keeper.save();
+  return keeper;
+}
+
 export async function ensureMaintenanceTag(type, name, userId, color) {
   assertValidTagType(type);
   const normalized = normalizeTagName(name);
@@ -58,40 +93,25 @@ export async function ensureMaintenanceTag(type, name, userId, color) {
   const storageName =
     type === CASE_STATUS_TYPE ? resolveCaseStatusStorageName(normalized) : normalized;
 
-  let tag = await findTagByCaseInsensitiveName(type, storageName);
-  if (tag) {
-    tag.isActive = true;
-    if (color) tag.color = color;
-    tag.name = storageName;
-    await tag.save();
-    return tag;
+  if (type === CASE_STATUS_TYPE) {
+    return consolidateCaseStatusTag(storageName, userId, color);
   }
 
-  const exactInactive = await MaintenanceCaseTag.findOne({ type, name: storageName });
-  if (exactInactive) {
-    exactInactive.isActive = true;
-    if (color) exactInactive.color = color;
-    await exactInactive.save();
-    return exactInactive;
+  const exact = await MaintenanceCaseTag.findOne({ type, name: storageName });
+  if (exact) {
+    exact.isActive = true;
+    if (color) exact.color = color;
+    await exact.save();
+    return exact;
   }
 
-  tag = await MaintenanceCaseTag.create({
+  return MaintenanceCaseTag.create({
     type,
     name: storageName,
     color: color || '#94A3B8',
     isActive: true,
     createdBy: userId,
   });
-  return tag;
-}
-
-async function findTagByCaseInsensitiveName(type, name) {
-  const normalized = normalizeTagName(name);
-  if (!normalized) return null;
-  const records = await MaintenanceCaseTag.find({ type });
-  return (
-    records.find((entry) => entry.name.toLowerCase() === normalized.toLowerCase()) || null
-  );
 }
 
 export async function getTagColorMap() {
