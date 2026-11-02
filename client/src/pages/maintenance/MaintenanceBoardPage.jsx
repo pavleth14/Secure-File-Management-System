@@ -96,6 +96,29 @@ export default function MaintenanceBoardPage() {
     loadFilterOptions();
   }, [loadFilterOptions]);
 
+  useEffect(() => {
+    const statuses = tagOptions.caseStatus || [];
+    if (!statuses.length) return;
+
+    setFilters((prev) => {
+      const current = prev.statusFilter;
+      if (current === 'all') return prev;
+
+      const legacyMap = { open: 'Open', pending: 'Pending', closed: 'Closed' };
+      const legacyTarget = legacyMap[current];
+      if (legacyTarget) {
+        const match = statuses.find((s) => s.toLowerCase() === legacyTarget.toLowerCase());
+        if (match) return match === current ? prev : { ...prev, statusFilter: match };
+        return { ...prev, statusFilter: 'all' };
+      }
+
+      const match = statuses.find((s) => s.toLowerCase() === String(current).toLowerCase());
+      if (!match) return { ...prev, statusFilter: 'all' };
+      if (match !== current) return { ...prev, statusFilter: match };
+      return prev;
+    });
+  }, [tagOptions.caseStatus]);
+
   const loadCases = useCallback(async () => {
     setLoading(true);
     setError('');
@@ -388,7 +411,10 @@ export default function MaintenanceBoardPage() {
 
       <MaintenanceCaseModal
         open={modalOpen}
-        onClose={() => setModalOpen(false)}
+        onClose={() => {
+          setModalOpen(false);
+          loadFilterOptions();
+        }}
         caseData={selectedCase}
         readOnly={readOnly}
         currentUserId={user?.id}
@@ -397,6 +423,7 @@ export default function MaintenanceBoardPage() {
         onDelete={handleDelete}
         onComment={handleComment}
         onUpload={handleUpload}
+        onTagsChanged={loadFilterOptions}
       />
     </div>
   );

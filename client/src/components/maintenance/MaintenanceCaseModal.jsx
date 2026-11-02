@@ -318,6 +318,7 @@ export default function MaintenanceCaseModal({
   onComment,
   onUpload,
   currentUserId,
+  onTagsChanged,
 }) {
   const { user, isSuperAdmin, isMaintenanceManager, canEditMaintenanceCases } = useAuth();
   const canPickAnyAssignee = isSuperAdmin || isMaintenanceManager;
@@ -361,6 +362,11 @@ export default function MaintenanceCaseModal({
     );
     setTags(Object.fromEntries(entries));
   }, []);
+
+  const syncTagCatalog = useCallback(async () => {
+    await loadTags();
+    onTagsChanged?.();
+  }, [loadTags, onTagsChanged]);
 
   useEffect(() => {
     if (!open) return;
@@ -429,7 +435,7 @@ export default function MaintenanceCaseModal({
 
   const handleCreateTag = async (type, name, color) => {
     const { data } = await api.post(`/maintenance/tags/${type}`, { name, color });
-    await loadTags();
+    await syncTagCatalog();
     return data.tag?.name;
   };
 
@@ -460,7 +466,7 @@ export default function MaintenanceCaseModal({
       if (data.count === 0) {
         if (!window.confirm(`Delete ${label} "${tag.name}"?`)) return;
         await api.delete(`/maintenance/tags/by-id/${tag.id}`, { data: {} });
-        await loadTags();
+        await syncTagCatalog();
         updateFormFieldIfMatched(tag.type, tag.name, '');
         return;
       }
@@ -479,7 +485,7 @@ export default function MaintenanceCaseModal({
       const { data } = await api.delete(`/maintenance/tags/by-id/${tagDelete.tag.id}`, {
         data: payload,
       });
-      await loadTags();
+      await syncTagCatalog();
       const replacement =
         data.replacementName ||
         payload.replacementName ||
@@ -504,7 +510,7 @@ export default function MaintenanceCaseModal({
         name,
         color,
       });
-      await loadTags();
+      await syncTagCatalog();
       updateFormFieldIfMatched(tagEdit.tag.type, oldName, data.tag?.name || name);
       setTagEdit(null);
     } catch (err) {

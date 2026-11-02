@@ -88,21 +88,13 @@ function FilterMultiSelect({ label, options, values, onChange }) {
   );
 }
 
-/** API values; backend matches caseStatus case-insensitively (e.g. OPEN vs Open). */
-export const MAINTENANCE_BOARD_STATUS_FILTER = {
-  all: '',
-  open: 'OPEN',
-  pending: 'PENDING',
-  closed: 'CLOSED',
-};
-
 export const MAINTENANCE_BOARD_INITIAL_FILTERS = {
   issue: '',
   assigneeId: '',
   dateOpened: '',
   dateClosed: '',
   equipment: '',
-  statusFilter: 'open',
+  statusFilter: 'Open',
   priorities: [],
   projects: [],
   oosStatuses: [],
@@ -123,8 +115,10 @@ export function buildMaintenanceCaseQueryParams(filters, { limit = 100 } = {}) {
   if (filters.dateClosed) params.dateClosed = filters.dateClosed;
   if (filters.equipment.trim()) params.equipment = filters.equipment.trim();
   if (filters.repairShop.trim()) params.repairShop = filters.repairShop.trim();
-  const statusValue = MAINTENANCE_BOARD_STATUS_FILTER[filters.statusFilter];
-  if (statusValue) params.caseStatus = statusValue;
+  const statusFilter = String(filters.statusFilter || '').trim();
+  if (statusFilter && statusFilter !== 'all') {
+    params.caseStatus = statusFilter;
+  }
   if (filters.priorities.length) params.priority = filters.priorities.join(',');
   if (filters.projects.length) params.project = filters.projects.join(',');
   if (filters.oosStatuses.length) params.oosStatus = filters.oosStatuses.join(',');
@@ -152,6 +146,9 @@ export default function MaintenanceBoardToolbar({
   const projectOptions = [
     ...new Set([...MAINTENANCE_DEFAULT_PROJECTS, ...(tagOptions.project || [])]),
   ].sort((a, b) => a.localeCompare(b));
+  const caseStatusOptions = [...(tagOptions.caseStatus || [])].sort((a, b) =>
+    a.localeCompare(b)
+  );
   const caseTypeOptions = tagOptions.caseType || [];
   const invoiceOptions = tagOptions.invoiceStatus || [];
   const dispatchOptions = tagOptions.dispatchStatus || [];
@@ -255,9 +252,11 @@ export default function MaintenanceBoardToolbar({
             className={inputClass}
           >
             <option value="all">All</option>
-            <option value="open">Open</option>
-            <option value="pending">Pending</option>
-            <option value="closed">Closed</option>
+            {caseStatusOptions.map((status) => (
+              <option key={status} value={status}>
+                {status}
+              </option>
+            ))}
           </select>
         </FilterField>
 
