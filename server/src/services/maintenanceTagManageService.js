@@ -125,6 +125,21 @@ export async function deleteMaintenanceTagById(tagId, options, userId) {
   };
 }
 
+async function clearTagNameSlot(type, keeperId, targetName) {
+  const trimmed = String(targetName || '').trim();
+  if (!trimmed) return;
+
+  const others = await MaintenanceCaseTag.find({ type, _id: { $ne: keeperId } });
+  for (const doc of others) {
+    const exactMatch = doc.name === trimmed;
+    const caseMatch =
+      type === CASE_STATUS_TYPE && namesEquivalent(doc.name, trimmed);
+    if (exactMatch || caseMatch) {
+      await MaintenanceCaseTag.deleteOne({ _id: doc._id });
+    }
+  }
+}
+
 export async function updateMaintenanceTagById(tagId, payload, userId) {
   const tag = await MaintenanceCaseTag.findById(tagId);
   if (!tag || !tag.isActive) {
@@ -143,12 +158,12 @@ export async function updateMaintenanceTagById(tagId, payload, userId) {
     throw err;
   }
 
-  const siblings = await MaintenanceCaseTag.find({
+  const activeSiblings = await MaintenanceCaseTag.find({
     type: tag.type,
     isActive: true,
     _id: { $ne: tag._id },
   });
-  if (siblings.some((entry) => namesEquivalent(entry.name, nextName))) {
+  if (activeSiblings.some((entry) => namesEquivalent(entry.name, nextName))) {
     const err = new Error('A tag with this name already exists');
     err.status = 400;
     throw err;
@@ -156,6 +171,9 @@ export async function updateMaintenanceTagById(tagId, payload, userId) {
 
   const field = caseFieldForTagType(tag.type);
   const oldName = tag.name;
+
+  await clearTagNameSlot(tag.type, tag._id, nextName);
+
   if (!namesEquivalent(oldName, nextName)) {
     await MaintenanceCase.updateMany(
       { [field]: fieldValueRegex(oldName) },
