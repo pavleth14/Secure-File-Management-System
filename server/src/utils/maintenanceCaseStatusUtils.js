@@ -11,6 +11,19 @@ export function canonicalCaseStatusName(name) {
   return STANDARD_CASE_STATUS_CANONICAL[key] || trimmed;
 }
 
+/** Stored tag/case name: same word = case-insensitive only (Close ≠ Closed). Preserves user casing. */
+export function resolveCaseStatusStorageName(name) {
+  const trimmed = String(name || '').trim();
+  if (!trimmed) return '';
+  return trimmed;
+}
+
+export function caseStatusNamesEquivalent(a, b) {
+  return (
+    String(a || '').trim().toLowerCase() === String(b || '').trim().toLowerCase()
+  );
+}
+
 function pickPreferredCaseStatusTag(tags) {
   if (!tags.length) return null;
   const ranked = [...tags].sort((a, b) => {

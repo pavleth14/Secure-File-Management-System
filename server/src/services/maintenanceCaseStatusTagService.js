@@ -3,6 +3,7 @@ import { MaintenanceCaseTag } from '../models/MaintenanceCaseTag.js';
 import { ensureMaintenanceTag } from './maintenanceTagService.js';
 import {
   canonicalCaseStatusName,
+  caseStatusNamesEquivalent,
   pickPreferredCaseStatusTag,
 } from '../utils/maintenanceCaseStatusUtils.js';
 
@@ -38,13 +39,10 @@ export async function dedupeMaintenanceCaseStatusTags() {
   let casesUpdated = 0;
 
   for (const group of groups.values()) {
-    const { keeper, canonicalName } = pickPreferredCaseStatusTag(group);
-    if (!keeper) continue;
-
-    if (keeper.name !== canonicalName) {
-      keeper.name = canonicalName;
-      await keeper.save();
-    }
+    const pick = pickPreferredCaseStatusTag(group);
+    if (!pick?.keeper) continue;
+    const { keeper } = pick;
+    const mergeName = keeper.name;
 
     const duplicateIds = group.filter((t) => t._id.toString() !== keeper._id.toString());
     for (const dup of duplicateIds) {
@@ -53,11 +51,13 @@ export async function dedupeMaintenanceCaseStatusTags() {
       tagsDeactivated += 1;
     }
 
-    const updateResult = await MaintenanceCase.updateMany(
-      { caseStatus: caseStatusRegex(canonicalName) },
-      { $set: { caseStatus: canonicalName } }
-    );
-    casesUpdated += updateResult.modifiedCount || 0;
+    for (const variant of group) {
+      const updateResult = await MaintenanceCase.updateMany(
+        { caseStatus: caseStatusRegex(variant.name) },
+        { $set: { caseStatus: mergeName } }
+      );
+      casesUpdated += updateResult.modifiedCount || 0;
+    }
   }
 
   return { tagsDeactivated, casesUpdated, groups: groups.size };
@@ -95,13 +95,9 @@ export async function deleteCaseStatusTag(tagId, options, userId) {
       );
       replacementName = created.name;
     } else if (options?.replacementName) {
-      const candidates = await MaintenanceCaseTag.find({
-        type: CASE_STATUS_TYPE,
-        isActive: true,
-      });
-      const existing = candidates.find(
-        (entry) =>
-          entry.name.toLowerCase() === String(options.replacementName).trim().toLowerCase()
+      const candidates = await MaintenanceCaseTag.find({ type: CASE_STATUS_TYPE, isActive: true });
+      const existing = candidates.find((entry) =>
+        caseStatusNamesEquivalent(entry.name, options.replacementName)
       );
       if (!existing) {
         const err = new Error('Replacement status does not exist');
@@ -115,7 +111,7 @@ export async function deleteCaseStatusTag(tagId, options, userId) {
       throw err;
     }
 
-    if (caseStatusRegex(replacementName).test(tag.name)) {
+    if (caseStatusNamesEquivalent(replacementName, tag.name)) {
       const err = new Error('Replacement status must differ from the status being removed');
       err.status = 400;
       throw err;

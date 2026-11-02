@@ -4,8 +4,8 @@ import {
   MAINTENANCE_DEFAULT_PROJECTS,
 } from '../config/maintenanceConstants.js';
 import {
-  canonicalCaseStatusName,
   dedupeCaseStatusTagRecords,
+  resolveCaseStatusStorageName,
 } from '../utils/maintenanceCaseStatusUtils.js';
 
 const CASE_STATUS_TYPE = 'case_status';
@@ -55,20 +55,29 @@ export async function ensureMaintenanceTag(type, name, userId, color) {
     throw err;
   }
 
-  const displayName = type === CASE_STATUS_TYPE ? canonicalCaseStatusName(normalized) : normalized;
+  const storageName =
+    type === CASE_STATUS_TYPE ? resolveCaseStatusStorageName(normalized) : normalized;
 
-  let tag = await findTagCaseInsensitive(type, displayName);
+  let tag = await findTagByCaseInsensitiveName(type, storageName);
   if (tag) {
-    if (!tag.isActive) {
-      tag.isActive = true;
-      await tag.save();
-    }
+    tag.isActive = true;
+    if (color) tag.color = color;
+    tag.name = storageName;
+    await tag.save();
     return tag;
+  }
+
+  const exactInactive = await MaintenanceCaseTag.findOne({ type, name: storageName });
+  if (exactInactive) {
+    exactInactive.isActive = true;
+    if (color) exactInactive.color = color;
+    await exactInactive.save();
+    return exactInactive;
   }
 
   tag = await MaintenanceCaseTag.create({
     type,
-    name: displayName,
+    name: storageName,
     color: color || '#94A3B8',
     isActive: true,
     createdBy: userId,
@@ -76,11 +85,13 @@ export async function ensureMaintenanceTag(type, name, userId, color) {
   return tag;
 }
 
-async function findTagCaseInsensitive(type, name) {
+async function findTagByCaseInsensitiveName(type, name) {
   const normalized = normalizeTagName(name);
   if (!normalized) return null;
-  const records = await MaintenanceCaseTag.find({ type, isActive: true });
-  return records.find((entry) => entry.name.toLowerCase() === normalized.toLowerCase()) || null;
+  const records = await MaintenanceCaseTag.find({ type });
+  return (
+    records.find((entry) => entry.name.toLowerCase() === normalized.toLowerCase()) || null
+  );
 }
 
 export async function getTagColorMap() {
