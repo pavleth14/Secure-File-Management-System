@@ -204,8 +204,11 @@ export function AuthProvider({ children }) {
   const canCommentOnLoads = hasDispatchModuleAccess || hasSafetyModuleAccess;
   const shouldShowBoards = hasDispatchModuleAccess;
 
-  const canEditMaintenanceCases = hasMaintenanceAccess;
-  const canCreateMaintenanceCases = hasMaintenanceAccess;
+  const isMaintenanceViewOnly =
+    isMaintenanceViewer && !isMaintenance && !isMaintenanceManager && !isSuperAdmin;
+  const canEditMaintenanceCases =
+    isSuperAdmin || isMaintenanceManager || (isMaintenance && !isMaintenanceViewOnly);
+  const canCreateMaintenanceCases = canEditMaintenanceCases;
   const canDeleteMaintenanceCases = isSuperAdmin || isMaintenanceManager;
   const shouldShowMaintenance = hasMaintenanceAccess;
 
@@ -251,6 +254,7 @@ export function AuthProvider({ children }) {
         isMaintenance,
         isMaintenanceManager,
         isMaintenanceViewer,
+        isMaintenanceViewOnly,
         hasMaintenanceAccess,
         canEditMaintenanceCases,
         canCreateMaintenanceCases,

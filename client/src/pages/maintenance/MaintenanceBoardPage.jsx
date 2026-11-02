@@ -51,6 +51,7 @@ function buildPayload(form) {
 export default function MaintenanceBoardPage() {
   const {
     user,
+    isMaintenanceViewOnly,
     canEditMaintenanceCases,
     canCreateMaintenanceCases,
     canDeleteMaintenanceCases,
@@ -284,7 +285,13 @@ export default function MaintenanceBoardPage() {
                 <tr
                   key={row.id}
                   className="hover:bg-slate-50 dark:hover:bg-slate-800/80"
-                  onContextMenu={(event) => openContextMenu(event, buildMenuItems(row))}
+                  onContextMenu={
+                    isMaintenanceViewOnly
+                      ? (event) => {
+                          event.preventDefault();
+                        }
+                      : (event) => openContextMenu(event, buildMenuItems(row))
+                  }
                 >
                   <td className="max-w-[12rem] px-3 py-2 font-medium">{row.issue}</td>
                   <td className="whitespace-nowrap px-3 py-2">
@@ -383,7 +390,7 @@ export default function MaintenanceBoardPage() {
         open={modalOpen}
         onClose={() => setModalOpen(false)}
         caseData={selectedCase}
-        readOnly={Boolean(selectedCase) && readOnly}
+        readOnly={readOnly}
         currentUserId={user?.id}
         canDelete={canDeleteMaintenanceCases}
         onSave={handleSave}

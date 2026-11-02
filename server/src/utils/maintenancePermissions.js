@@ -23,7 +23,10 @@ export function isMaintenanceViewOnly(user) {
 }
 
 export function canEditMaintenanceCases(user) {
-  return hasMaintenanceModuleAccess(user);
+  if (isMaintenanceViewOnly(user)) return false;
+  return Boolean(
+    isSuperAdmin(user) || user?.isMaintenanceManager || user?.isMaintenance
+  );
 }
 
 export function canDeleteMaintenanceCases(user) {
@@ -44,7 +47,7 @@ export function canAssignMaintenanceCaseToAnyone(user) {
 }
 
 export function canCreateMaintenanceCases(user) {
-  return hasMaintenanceModuleAccess(user);
+  return canEditMaintenanceCases(user);
 }
 
 export function canUploadMaintenanceCaseAttachment(user, maintenanceCase) {
