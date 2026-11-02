@@ -156,8 +156,18 @@ function parseOptionalDate(value) {
 
 export async function formatMaintenanceCase(record, tagColorMap) {
   const obj = record.toObject ? record.toObject() : record;
-  const colorFor = (type, name) =>
-    tagColorMap?.get(`${type}:${name}`) || '#94A3B8';
+  const colorFor = (type, name) => {
+    const direct = tagColorMap?.get(`${type}:${name}`);
+    if (direct) return direct;
+    if (!name || !tagColorMap) return '#94A3B8';
+    const lower = String(name).toLowerCase();
+    for (const [key, color] of tagColorMap.entries()) {
+      if (!key.startsWith(`${type}:`)) continue;
+      const tagName = key.slice(type.length + 1);
+      if (tagName.toLowerCase() === lower) return color;
+    }
+    return '#94A3B8';
+  };
 
   const comments = [...(obj.comments || [])]
     .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))

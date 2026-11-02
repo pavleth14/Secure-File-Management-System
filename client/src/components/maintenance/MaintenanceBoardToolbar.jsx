@@ -283,7 +283,7 @@ export default function MaintenanceBoardToolbar({
         />
 
         <FilterMultiSelect
-          label="Type"
+          label="Case Type"
           options={caseTypeOptions}
           values={filters.caseTypes}
           onChange={(value) => set('caseTypes', value)}

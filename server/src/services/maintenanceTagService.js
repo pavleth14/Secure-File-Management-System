@@ -3,6 +3,12 @@ import {
   MAINTENANCE_TAG_TYPES,
   MAINTENANCE_DEFAULT_PROJECTS,
 } from '../config/maintenanceConstants.js';
+import {
+  canonicalCaseStatusName,
+  dedupeCaseStatusTagRecords,
+} from '../utils/maintenanceCaseStatusUtils.js';
+
+const CASE_STATUS_TYPE = 'case_status';
 
 function normalizeTagName(name) {
   return String(name || '').trim();
@@ -18,7 +24,11 @@ export function assertValidTagType(type) {
 
 export async function listMaintenanceTags(type) {
   assertValidTagType(type);
-  const records = await MaintenanceCaseTag.find({ type, isActive: true }).sort({ name: 1 });
+  let records = await MaintenanceCaseTag.find({ type, isActive: true }).sort({ name: 1 });
+  if (type === CASE_STATUS_TYPE) {
+    records = dedupeCaseStatusTagRecords(records);
+    return records;
+  }
   if (type !== 'project') return records;
 
   const byName = new Map(records.map((tag) => [tag.name, tag]));
@@ -45,7 +55,9 @@ export async function ensureMaintenanceTag(type, name, userId, color) {
     throw err;
   }
 
-  let tag = await MaintenanceCaseTag.findOne({ type, name: normalized });
+  const displayName = type === CASE_STATUS_TYPE ? canonicalCaseStatusName(normalized) : normalized;
+
+  let tag = await findTagCaseInsensitive(type, displayName);
   if (tag) {
     if (!tag.isActive) {
       tag.isActive = true;
@@ -56,12 +68,19 @@ export async function ensureMaintenanceTag(type, name, userId, color) {
 
   tag = await MaintenanceCaseTag.create({
     type,
-    name: normalized,
+    name: displayName,
     color: color || '#94A3B8',
     isActive: true,
     createdBy: userId,
   });
   return tag;
+}
+
+async function findTagCaseInsensitive(type, name) {
+  const normalized = normalizeTagName(name);
+  if (!normalized) return null;
+  const records = await MaintenanceCaseTag.find({ type, isActive: true });
+  return records.find((entry) => entry.name.toLowerCase() === normalized.toLowerCase()) || null;
 }
 
 export async function getTagColorMap() {

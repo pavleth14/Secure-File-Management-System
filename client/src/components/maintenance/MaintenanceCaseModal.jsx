@@ -9,6 +9,8 @@ import {
   MAINTENANCE_TAG_TYPES,
 } from '../../constants/maintenanceConstants';
 import MaintenanceTagPill from './MaintenanceTagPill';
+import MaintenanceReplaceCaseStatusDialog from './MaintenanceReplaceCaseStatusDialog';
+import { useContextMenu } from '../../hooks/useContextMenu';
 
 const inputClass =
   'w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100';
@@ -82,21 +84,43 @@ function buildFormFromCaseData(caseData) {
   };
 }
 
-function TagField({ label, type, value, onChange, readOnly, tags, onCreateTag }) {
+function tagNamesMatch(a, b) {
+  return String(a || '').trim().toLowerCase() === String(b || '').trim().toLowerCase();
+}
+
+function TagField({
+  label,
+  type,
+  value,
+  onChange,
+  readOnly,
+  tags,
+  onCreateTag,
+  allowDeleteStatus,
+  onDeleteStatusTag,
+}) {
   const [color, setColor] = useState('#6366F1');
   const [showCreate, setShowCreate] = useState(false);
   const [newTagName, setNewTagName] = useState('');
+  const { openContextMenu, contextMenuNode } = useContextMenu();
 
-  const handleSaveTag = () => {
+  const handleSaveTag = async () => {
     const name = newTagName.trim();
     if (!name) return;
-    onCreateTag(type, name, color);
-    onChange(name);
+    if (tags.some((tag) => tagNamesMatch(tag.name, name))) {
+      const existing = tags.find((tag) => tagNamesMatch(tag.name, name));
+      onChange(existing.name);
+      setNewTagName('');
+      setShowCreate(false);
+      return;
+    }
+    const createdName = await onCreateTag(type, name, color);
+    onChange(createdName || name);
     setNewTagName('');
     setShowCreate(false);
   };
 
-  const selectedColor = tags.find((t) => t.name === value)?.color;
+  const selectedColor = tags.find((t) => tagNamesMatch(t.name, value))?.color;
 
   return (
     <div>
@@ -111,15 +135,26 @@ function TagField({ label, type, value, onChange, readOnly, tags, onCreateTag })
                 key={tag.id}
                 type="button"
                 onClick={() => onChange(tag.name)}
+                onContextMenu={(event) => {
+                  if (!allowDeleteStatus || readOnly || !onDeleteStatusTag) return;
+                  if (String(tag.id).startsWith('default:')) return;
+                  openContextMenu(event, [
+                    {
+                      id: 'delete-status',
+                      label: 'Delete status',
+                      onClick: () => onDeleteStatusTag(tag),
+                    },
+                  ]);
+                }}
                 className={`rounded-full px-2 py-0.5 text-xs font-medium text-white ${
-                  value === tag.name ? 'ring-2 ring-brand-500 ring-offset-1' : ''
+                  tagNamesMatch(value, tag.name) ? 'ring-2 ring-brand-500 ring-offset-1' : ''
                 }`}
                 style={{ backgroundColor: tag.color }}
               >
                 {tag.name}
               </button>
             ))}
-            {value && !tags.some((t) => t.name === value) && (
+            {value && !tags.some((t) => tagNamesMatch(t.name, value)) && (
               <MaintenanceTagPill label={value} color={selectedColor} />
             )}
             <button
@@ -179,6 +214,7 @@ function TagField({ label, type, value, onChange, readOnly, tags, onCreateTag })
           )}
         </>
       )}
+      {contextMenuNode}
     </div>
   );
 }
@@ -275,6 +311,9 @@ export default function MaintenanceCaseModal({
   const [uploadError, setUploadError] = useState('');
   const [pendingAttachmentFiles, setPendingAttachmentFiles] = useState([]);
   const [error, setError] = useState('');
+  const [statusDelete, setStatusDelete] = useState(null);
+  const [statusDeleteError, setStatusDeleteError] = useState('');
+  const [statusDeleteSubmitting, setStatusDeleteSubmitting] = useState(false);
 
   const canUploadAttachments = useMemo(() => {
     if (!caseData?.id) return false;
@@ -363,8 +402,53 @@ export default function MaintenanceCaseModal({
   if (!open || !form) return null;
 
   const handleCreateTag = async (type, name, color) => {
-    await api.post(`/maintenance/tags/${type}`, { name, color });
+    const { data } = await api.post(`/maintenance/tags/${type}`, { name, color });
     await loadTags();
+    return data.tag?.name;
+  };
+
+  const requestDeleteCaseStatus = async (tag) => {
+    try {
+      const { data } = await api.get(`/maintenance/tags/case_status/${tag.id}/usage`);
+      if (data.count === 0) {
+        if (!window.confirm(`Delete status "${tag.name}"?`)) return;
+        await api.delete(`/maintenance/tags/case_status/${tag.id}`, { data: {} });
+        await loadTags();
+        if (tagNamesMatch(form.caseStatus, tag.name)) {
+          setForm((prev) => ({ ...prev, caseStatus: '' }));
+        }
+        return;
+      }
+      setStatusDelete({ tag, count: data.count });
+      setStatusDeleteError('');
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to check status usage');
+    }
+  };
+
+  const confirmDeleteCaseStatus = async (payload) => {
+    if (!statusDelete?.tag?.id) return;
+    setStatusDeleteSubmitting(true);
+    setStatusDeleteError('');
+    try {
+      const { data } = await api.delete(`/maintenance/tags/case_status/${statusDelete.tag.id}`, {
+        data: payload,
+      });
+      await loadTags();
+      if (tagNamesMatch(form.caseStatus, statusDelete.tag.name)) {
+        const nextStatus =
+          data.replacementName ||
+          payload.replacementName ||
+          payload.newReplacement?.name ||
+          '';
+        setForm((prev) => ({ ...prev, caseStatus: nextStatus }));
+      }
+      setStatusDelete(null);
+    } catch (err) {
+      setStatusDeleteError(err.response?.data?.message || 'Failed to delete status');
+    } finally {
+      setStatusDeleteSubmitting(false);
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -570,6 +654,8 @@ export default function MaintenanceCaseModal({
               readOnly={readOnly}
               tags={tags[MAINTENANCE_TAG_TYPES.caseStatus] || []}
               onCreateTag={handleCreateTag}
+              allowDeleteStatus
+              onDeleteStatusTag={readOnly ? undefined : requestDeleteCaseStatus}
             />
             <div>
               <label className="mb-1 block text-xs font-medium uppercase text-slate-500">
@@ -886,6 +972,19 @@ export default function MaintenanceCaseModal({
         </form>
         </div>
       </div>
+
+      <MaintenanceReplaceCaseStatusDialog
+        open={Boolean(statusDelete)}
+        statusName={statusDelete?.tag?.name}
+        caseCount={statusDelete?.count || 0}
+        replacementOptions={(tags[MAINTENANCE_TAG_TYPES.caseStatus] || []).map((tag) => tag.name)}
+        onCancel={() => {
+          if (!statusDeleteSubmitting) setStatusDelete(null);
+        }}
+        onConfirm={confirmDeleteCaseStatus}
+        submitting={statusDeleteSubmitting}
+        error={statusDeleteError}
+      />
 
       <ConfirmDialog
         open={discardConfirmOpen}

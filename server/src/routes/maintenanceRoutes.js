@@ -13,6 +13,10 @@ import {
   formatTagRecord,
 } from '../services/maintenanceTagService.js';
 import {
+  getCaseStatusTagUsage,
+  deleteCaseStatusTag,
+} from '../services/maintenanceCaseStatusTagService.js';
+import {
   listMaintenanceCases,
   getMaintenanceCaseById,
   createMaintenanceCase,
@@ -64,6 +68,24 @@ router.post('/tags/:type', requireMaintenanceEdit, async (req, res, next) => {
       req.body.color
     );
     res.status(201).json({ tag: formatTagRecord(tag) });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.get('/tags/case_status/:id/usage', requireMaintenanceEdit, async (req, res, next) => {
+  try {
+    const { tag, count } = await getCaseStatusTagUsage(req.params.id);
+    res.json({ tag: formatTagRecord(tag), count });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.delete('/tags/case_status/:id', requireMaintenanceEdit, async (req, res, next) => {
+  try {
+    const result = await deleteCaseStatusTag(req.params.id, req.body, req.user._id);
+    res.json(result);
   } catch (err) {
     next(err);
   }

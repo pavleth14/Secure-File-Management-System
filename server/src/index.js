@@ -26,6 +26,7 @@ import { ensureDefaultLeadSources } from './services/leadSourceService.js';
 import { ensureDefaultLeadStatuses, migrateObsoleteLeadStatuses } from './services/leadStatusService.js';
 import { ensureRoundRobinDefaults } from './services/roundRobinService.js';
 import { initializeRingCentralIntegration } from './services/ringCentralSubscriptionService.js';
+import { dedupeMaintenanceCaseStatusTags } from './services/maintenanceCaseStatusTagService.js';
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -98,6 +99,10 @@ app.use(errorHandler);
 async function start() {
   await connectDB();
   await seedDatabase();
+  const maintenanceStatusDedupe = await dedupeMaintenanceCaseStatusTags();
+  if (maintenanceStatusDedupe.tagsDeactivated || maintenanceStatusDedupe.casesUpdated) {
+    console.log('[MAINTENANCE] Deduplicated case status tags', maintenanceStatusDedupe);
+  }
   await ensureDefaultLeadSources();
   await ensureDefaultLeadStatuses();
   const migration = await migrateObsoleteLeadStatuses();
