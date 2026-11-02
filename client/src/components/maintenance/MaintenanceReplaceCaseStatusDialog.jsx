@@ -8,6 +8,7 @@ export default function MaintenanceReplaceCaseStatusDialog({
   statusName,
   caseCount,
   replacementOptions,
+  tagLabel = 'status',
   onCancel,
   onConfirm,
   submitting,
@@ -51,9 +52,11 @@ export default function MaintenanceReplaceCaseStatusDialog({
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4">
       <div className="w-full max-w-md rounded-xl border bg-white p-5 shadow-xl dark:border-slate-700 dark:bg-slate-900">
-        <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Delete status</h3>
+        <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
+          Delete {tagLabel}
+        </h3>
         <p className="mt-2 text-sm text-slate-600 dark:text-slate-400">
-          Status <span className="font-medium">{statusName}</span> is used on{' '}
+          <span className="font-medium">{statusName}</span> is used on{' '}
           <span className="font-medium">{caseCount}</span> case
           {caseCount === 1 ? '' : 's'}. Choose a replacement before deleting.
         </p>
@@ -69,7 +72,7 @@ export default function MaintenanceReplaceCaseStatusDialog({
                 checked={mode === 'replace'}
                 onChange={() => setMode('replace')}
               />
-              Replace with existing status
+              Replace with existing {tagLabel}
             </label>
             {mode === 'replace' && (
               <select
@@ -97,7 +100,7 @@ export default function MaintenanceReplaceCaseStatusDialog({
                 checked={mode === 'create'}
                 onChange={() => setMode('create')}
               />
-              Create new status
+              Create new {tagLabel}
             </label>
             {mode === 'create' && (
               <div className="flex flex-wrap gap-2">
@@ -137,7 +140,7 @@ export default function MaintenanceReplaceCaseStatusDialog({
                 (mode === 'create' && !newName.trim())
               }
             >
-              {submitting ? 'Deleting…' : 'Delete status'}
+              {submitting ? 'Deleting…' : `Delete ${tagLabel}`}
             </button>
           </div>
         </form>

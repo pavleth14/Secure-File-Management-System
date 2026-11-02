@@ -10,7 +10,24 @@ import {
 } from '../../constants/maintenanceConstants';
 import MaintenanceTagPill from './MaintenanceTagPill';
 import MaintenanceReplaceCaseStatusDialog from './MaintenanceReplaceCaseStatusDialog';
+import MaintenanceEditTagDialog from './MaintenanceEditTagDialog';
 import { useContextMenu } from '../../hooks/useContextMenu';
+
+const TAG_FORM_FIELD_BY_TYPE = {
+  case_status: 'caseStatus',
+  project: 'project',
+  case_type: 'caseType',
+  invoice_status: 'invoiceStatus',
+  dispatch_status: 'dispatchStatus',
+};
+
+const TAG_UI_LABEL_BY_TYPE = {
+  case_status: 'status',
+  project: 'project',
+  case_type: 'type',
+  invoice_status: 'invoice status',
+  dispatch_status: 'dispatch status',
+};
 
 const inputClass =
   'w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100';
@@ -96,8 +113,9 @@ function TagField({
   readOnly,
   tags,
   onCreateTag,
-  allowDeleteStatus,
-  onDeleteStatusTag,
+  manageTags,
+  onEditTag,
+  onDeleteTag,
 }) {
   const [color, setColor] = useState('#6366F1');
   const [showCreate, setShowCreate] = useState(false);
@@ -136,13 +154,18 @@ function TagField({
                 type="button"
                 onClick={() => onChange(tag.name)}
                 onContextMenu={(event) => {
-                  if (!allowDeleteStatus || readOnly || !onDeleteStatusTag) return;
+                  if (!manageTags || readOnly || !onDeleteTag || !onEditTag) return;
                   if (String(tag.id).startsWith('default:')) return;
                   openContextMenu(event, [
                     {
-                      id: 'delete-status',
-                      label: 'Delete status',
-                      onClick: () => onDeleteStatusTag(tag),
+                      id: 'edit-tag',
+                      label: 'Edit',
+                      onClick: () => onEditTag(tag),
+                    },
+                    {
+                      id: 'delete-tag',
+                      label: 'Delete',
+                      onClick: () => onDeleteTag(tag),
                     },
                   ]);
                 }}
@@ -311,9 +334,12 @@ export default function MaintenanceCaseModal({
   const [uploadError, setUploadError] = useState('');
   const [pendingAttachmentFiles, setPendingAttachmentFiles] = useState([]);
   const [error, setError] = useState('');
-  const [statusDelete, setStatusDelete] = useState(null);
-  const [statusDeleteError, setStatusDeleteError] = useState('');
-  const [statusDeleteSubmitting, setStatusDeleteSubmitting] = useState(false);
+  const [tagDelete, setTagDelete] = useState(null);
+  const [tagDeleteError, setTagDeleteError] = useState('');
+  const [tagDeleteSubmitting, setTagDeleteSubmitting] = useState(false);
+  const [tagEdit, setTagEdit] = useState(null);
+  const [tagEditError, setTagEditError] = useState('');
+  const [tagEditSubmitting, setTagEditSubmitting] = useState(false);
 
   const canUploadAttachments = useMemo(() => {
     if (!caseData?.id) return false;
@@ -407,47 +433,84 @@ export default function MaintenanceCaseModal({
     return data.tag?.name;
   };
 
-  const requestDeleteCaseStatus = async (tag) => {
+  const manageTagProps = readOnly
+    ? {}
+    : {
+        manageTags: true,
+        onEditTag: (tag) => {
+          setTagEdit({ tag });
+          setTagEditError('');
+        },
+        onDeleteTag: (tag) => requestDeleteTag(tag),
+      };
+
+  const updateFormFieldIfMatched = (tagType, oldName, newName) => {
+    const field = TAG_FORM_FIELD_BY_TYPE[tagType];
+    if (!field) return;
+    setForm((prev) => {
+      if (!tagNamesMatch(prev[field], oldName)) return prev;
+      return { ...prev, [field]: newName ?? '' };
+    });
+  };
+
+  const requestDeleteTag = async (tag) => {
+    const label = TAG_UI_LABEL_BY_TYPE[tag.type] || 'tag';
     try {
-      const { data } = await api.get(`/maintenance/tags/case_status/${tag.id}/usage`);
+      const { data } = await api.get(`/maintenance/tags/by-id/${tag.id}/usage`);
       if (data.count === 0) {
-        if (!window.confirm(`Delete status "${tag.name}"?`)) return;
-        await api.delete(`/maintenance/tags/case_status/${tag.id}`, { data: {} });
+        if (!window.confirm(`Delete ${label} "${tag.name}"?`)) return;
+        await api.delete(`/maintenance/tags/by-id/${tag.id}`, { data: {} });
         await loadTags();
-        if (tagNamesMatch(form.caseStatus, tag.name)) {
-          setForm((prev) => ({ ...prev, caseStatus: '' }));
-        }
+        updateFormFieldIfMatched(tag.type, tag.name, '');
         return;
       }
-      setStatusDelete({ tag, count: data.count });
-      setStatusDeleteError('');
+      setTagDelete({ tag, count: data.count });
+      setTagDeleteError('');
     } catch (err) {
-      setError(err.response?.data?.message || 'Failed to check status usage');
+      setError(err.response?.data?.message || 'Failed to check tag usage');
     }
   };
 
-  const confirmDeleteCaseStatus = async (payload) => {
-    if (!statusDelete?.tag?.id) return;
-    setStatusDeleteSubmitting(true);
-    setStatusDeleteError('');
+  const confirmDeleteTag = async (payload) => {
+    if (!tagDelete?.tag?.id) return;
+    setTagDeleteSubmitting(true);
+    setTagDeleteError('');
     try {
-      const { data } = await api.delete(`/maintenance/tags/case_status/${statusDelete.tag.id}`, {
+      const { data } = await api.delete(`/maintenance/tags/by-id/${tagDelete.tag.id}`, {
         data: payload,
       });
       await loadTags();
-      if (tagNamesMatch(form.caseStatus, statusDelete.tag.name)) {
-        const nextStatus =
-          data.replacementName ||
-          payload.replacementName ||
-          payload.newReplacement?.name ||
-          '';
-        setForm((prev) => ({ ...prev, caseStatus: nextStatus }));
-      }
-      setStatusDelete(null);
+      const replacement =
+        data.replacementName ||
+        payload.replacementName ||
+        payload.newReplacement?.name ||
+        '';
+      updateFormFieldIfMatched(tagDelete.tag.type, tagDelete.tag.name, replacement);
+      setTagDelete(null);
     } catch (err) {
-      setStatusDeleteError(err.response?.data?.message || 'Failed to delete status');
+      setTagDeleteError(err.response?.data?.message || 'Failed to delete tag');
     } finally {
-      setStatusDeleteSubmitting(false);
+      setTagDeleteSubmitting(false);
+    }
+  };
+
+  const confirmEditTag = async ({ name, color }) => {
+    if (!tagEdit?.tag?.id) return;
+    setTagEditSubmitting(true);
+    setTagEditError('');
+    try {
+      const oldName = tagEdit.tag.name;
+      const { data } = await api.patch(`/maintenance/tags/by-id/${tagEdit.tag.id}`, {
+        name,
+        color,
+      });
+      await loadTags();
+      updateFormFieldIfMatched(tagEdit.tag.type, oldName, data.tag?.name || name);
+      setTagEdit(null);
+    } catch (err) {
+      setTagEditError(err.response?.data?.message || 'Failed to update tag');
+    } finally {
+      setTagEditSubmitting(false);
     }
   };
 
@@ -654,8 +717,7 @@ export default function MaintenanceCaseModal({
               readOnly={readOnly}
               tags={tags[MAINTENANCE_TAG_TYPES.caseStatus] || []}
               onCreateTag={handleCreateTag}
-              allowDeleteStatus
-              onDeleteStatusTag={readOnly ? undefined : requestDeleteCaseStatus}
+              {...manageTagProps}
             />
             <div>
               <label className="mb-1 block text-xs font-medium uppercase text-slate-500">
@@ -685,6 +747,7 @@ export default function MaintenanceCaseModal({
               readOnly={readOnly}
               tags={tags[MAINTENANCE_TAG_TYPES.project] || []}
               onCreateTag={handleCreateTag}
+              {...manageTagProps}
             />
             <div>
               <label className="mb-1 block text-xs font-medium uppercase text-slate-500">
@@ -713,6 +776,7 @@ export default function MaintenanceCaseModal({
             readOnly={readOnly}
             tags={tags[MAINTENANCE_TAG_TYPES.caseType] || []}
             onCreateTag={handleCreateTag}
+            {...manageTagProps}
           />
 
           <div>
@@ -749,6 +813,7 @@ export default function MaintenanceCaseModal({
               readOnly={readOnly}
               tags={tags[MAINTENANCE_TAG_TYPES.invoiceStatus] || []}
               onCreateTag={handleCreateTag}
+              {...manageTagProps}
             />
             <TagField
               label="Dispatch status"
@@ -758,6 +823,7 @@ export default function MaintenanceCaseModal({
               readOnly={readOnly}
               tags={tags[MAINTENANCE_TAG_TYPES.dispatchStatus] || []}
               onCreateTag={handleCreateTag}
+              {...manageTagProps}
             />
           </div>
 
@@ -974,16 +1040,30 @@ export default function MaintenanceCaseModal({
       </div>
 
       <MaintenanceReplaceCaseStatusDialog
-        open={Boolean(statusDelete)}
-        statusName={statusDelete?.tag?.name}
-        caseCount={statusDelete?.count || 0}
-        replacementOptions={(tags[MAINTENANCE_TAG_TYPES.caseStatus] || []).map((tag) => tag.name)}
+        open={Boolean(tagDelete)}
+        statusName={tagDelete?.tag?.name}
+        caseCount={tagDelete?.count || 0}
+        tagLabel={TAG_UI_LABEL_BY_TYPE[tagDelete?.tag?.type] || 'tag'}
+        replacementOptions={(tags[tagDelete?.tag?.type] || []).map((tag) => tag.name)}
         onCancel={() => {
-          if (!statusDeleteSubmitting) setStatusDelete(null);
+          if (!tagDeleteSubmitting) setTagDelete(null);
         }}
-        onConfirm={confirmDeleteCaseStatus}
-        submitting={statusDeleteSubmitting}
-        error={statusDeleteError}
+        onConfirm={confirmDeleteTag}
+        submitting={tagDeleteSubmitting}
+        error={tagDeleteError}
+      />
+
+      <MaintenanceEditTagDialog
+        open={Boolean(tagEdit)}
+        tagName={tagEdit?.tag?.name}
+        tagColor={tagEdit?.tag?.color}
+        tagLabel={TAG_UI_LABEL_BY_TYPE[tagEdit?.tag?.type] || 'tag'}
+        onCancel={() => {
+          if (!tagEditSubmitting) setTagEdit(null);
+        }}
+        onConfirm={confirmEditTag}
+        submitting={tagEditSubmitting}
+        error={tagEditError}
       />
 
       <ConfirmDialog

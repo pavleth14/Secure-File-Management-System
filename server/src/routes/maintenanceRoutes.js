@@ -13,9 +13,10 @@ import {
   formatTagRecord,
 } from '../services/maintenanceTagService.js';
 import {
-  getCaseStatusTagUsage,
-  deleteCaseStatusTag,
-} from '../services/maintenanceCaseStatusTagService.js';
+  getMaintenanceTagUsage,
+  deleteMaintenanceTagById,
+  updateMaintenanceTagById,
+} from '../services/maintenanceTagManageService.js';
 import {
   listMaintenanceCases,
   getMaintenanceCaseById,
@@ -73,19 +74,28 @@ router.post('/tags/:type', requireMaintenanceEdit, async (req, res, next) => {
   }
 });
 
-router.get('/tags/case_status/:id/usage', requireMaintenanceEdit, async (req, res, next) => {
+router.get('/tags/by-id/:id/usage', requireMaintenanceEdit, async (req, res, next) => {
   try {
-    const { tag, count } = await getCaseStatusTagUsage(req.params.id);
+    const { tag, count } = await getMaintenanceTagUsage(req.params.id);
     res.json({ tag: formatTagRecord(tag), count });
   } catch (err) {
     next(err);
   }
 });
 
-router.delete('/tags/case_status/:id', requireMaintenanceEdit, async (req, res, next) => {
+router.delete('/tags/by-id/:id', requireMaintenanceEdit, async (req, res, next) => {
   try {
-    const result = await deleteCaseStatusTag(req.params.id, req.body, req.user._id);
+    const result = await deleteMaintenanceTagById(req.params.id, req.body, req.user._id);
     res.json(result);
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.patch('/tags/by-id/:id', requireMaintenanceEdit, async (req, res, next) => {
+  try {
+    const tag = await updateMaintenanceTagById(req.params.id, req.body, req.user._id);
+    res.json({ tag: formatTagRecord(tag) });
   } catch (err) {
     next(err);
   }
