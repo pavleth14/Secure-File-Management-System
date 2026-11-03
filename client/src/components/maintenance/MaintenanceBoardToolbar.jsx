@@ -94,7 +94,7 @@ export const MAINTENANCE_BOARD_INITIAL_FILTERS = {
   dateOpened: '',
   dateClosed: '',
   equipment: '',
-  statusFilter: 'Open',
+  statusFilters: ['Open'],
   priorities: [],
   projects: [],
   oosStatuses: [],
@@ -115,10 +115,14 @@ export function buildMaintenanceCaseQueryParams(filters, { limit = 100 } = {}) {
   if (filters.dateClosed) params.dateClosed = filters.dateClosed;
   if (filters.equipment.trim()) params.equipment = filters.equipment.trim();
   if (filters.repairShop.trim()) params.repairShop = filters.repairShop.trim();
-  const statusFilter = String(filters.statusFilter || '').trim();
-  if (statusFilter && statusFilter !== 'all') {
-    params.caseStatus = statusFilter;
-  }
+  const statusFilters = Array.isArray(filters.statusFilters)
+    ? filters.statusFilters.filter(Boolean)
+    : (() => {
+        const legacy = String(filters.statusFilter || '').trim();
+        if (!legacy || legacy === 'all') return [];
+        return [legacy];
+      })();
+  if (statusFilters.length) params.caseStatus = statusFilters.join(',');
   if (filters.priorities.length) params.priority = filters.priorities.join(',');
   if (filters.projects.length) params.project = filters.projects.join(',');
   if (filters.oosStatuses.length) params.oosStatus = filters.oosStatuses.join(',');
@@ -245,20 +249,12 @@ export default function MaintenanceBoardToolbar({
           />
         </FilterField>
 
-        <FilterField label="Status">
-          <select
-            value={filters.statusFilter}
-            onChange={(event) => set('statusFilter', event.target.value)}
-            className={inputClass}
-          >
-            <option value="all">All</option>
-            {caseStatusOptions.map((status) => (
-              <option key={status} value={status}>
-                {status}
-              </option>
-            ))}
-          </select>
-        </FilterField>
+        <FilterMultiSelect
+          label="Status"
+          options={caseStatusOptions}
+          values={Array.isArray(filters.statusFilters) ? filters.statusFilters : []}
+          onChange={(value) => set('statusFilters', value)}
+        />
 
         <FilterMultiSelect
           label="Priority"

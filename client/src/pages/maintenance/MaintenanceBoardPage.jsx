@@ -101,21 +101,31 @@ export default function MaintenanceBoardPage() {
     if (!statuses.length) return;
 
     setFilters((prev) => {
-      const current = prev.statusFilter;
-      if (current === 'all') return prev;
-
-      const legacyMap = { open: 'Open', pending: 'Pending', closed: 'Closed' };
-      const legacyTarget = legacyMap[current];
-      if (legacyTarget) {
-        const match = statuses.find((s) => s.toLowerCase() === legacyTarget.toLowerCase());
-        if (match) return match === current ? prev : { ...prev, statusFilter: match };
-        return { ...prev, statusFilter: 'all' };
+      let selected = Array.isArray(prev.statusFilters) ? [...prev.statusFilters] : [];
+      if (!selected.length && prev.statusFilter) {
+        const legacy = String(prev.statusFilter).trim();
+        if (legacy && legacy !== 'all') {
+          const legacyMap = { open: 'Open', pending: 'Pending', closed: 'Closed' };
+          selected = [legacyMap[legacy] || legacy];
+        }
       }
 
-      const match = statuses.find((s) => s.toLowerCase() === String(current).toLowerCase());
-      if (!match) return { ...prev, statusFilter: 'all' };
-      if (match !== current) return { ...prev, statusFilter: match };
-      return prev;
+      const normalized = selected
+        .map((value) => {
+          const match = statuses.find(
+            (s) => s.toLowerCase() === String(value).toLowerCase()
+          );
+          return match || null;
+        })
+        .filter(Boolean);
+
+      const same =
+        Array.isArray(prev.statusFilters) &&
+        prev.statusFilters.length === normalized.length &&
+        prev.statusFilters.every((v, i) => v === normalized[i]);
+      if (same) return prev;
+
+      return { ...prev, statusFilters: normalized, statusFilter: undefined };
     });
   }, [tagOptions.caseStatus]);
 
