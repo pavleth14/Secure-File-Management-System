@@ -1,6 +1,5 @@
 import { MaintenanceInfoPage } from '../models/MaintenanceInfoPage.js';
 import { assertValidMaintenanceInfoPageSlug } from '../config/maintenanceInfoPages.js';
-import { sanitizeMaintenanceInfoHtml } from '../utils/maintenanceInfoHtml.js';
 import { canEditMaintenanceInfoPages } from '../utils/maintenancePermissions.js';
 
 function formatPage(doc) {
@@ -46,7 +45,11 @@ export async function updateMaintenanceInfoPage(slug, content, user) {
     throw err;
   }
   const validSlug = assertValidMaintenanceInfoPageSlug(slug);
-  const safeContent = sanitizeMaintenanceInfoHtml(content);
+  // Store author content (Markdown or HTML); sanitization runs on render.
+  const safeContent = String(content ?? '').replace(
+    /<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi,
+    ''
+  );
   const page = await getOrCreatePage(validSlug);
   page.content = safeContent;
   page.updatedBy = user._id;

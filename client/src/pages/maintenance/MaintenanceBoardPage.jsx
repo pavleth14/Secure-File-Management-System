@@ -165,7 +165,6 @@ export default function MaintenanceBoardPage() {
         ...buildMaintenanceCaseQueryParams(filters),
         period: filters.reportPeriod || 'month',
         referenceDate: filters.reportReferenceDate || undefined,
-        withCostOnly: filters.reportWithCostOnly ? 'true' : undefined,
       };
       const { data, headers } = await api.get('/maintenance/reports/cost-export', {
         params,

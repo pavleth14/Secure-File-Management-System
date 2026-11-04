@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import api from '../../api/client';
 import { useAuth } from '../../context/AuthContext';
 import MaintenanceInfoContent from '../../components/maintenance/MaintenanceInfoContent';
+import MaintenanceInfoEditor from '../../components/maintenance/MaintenanceInfoEditor';
 
 export default function MaintenanceInfoPage({ slug, title }) {
   const { canEditMaintenanceInfoPages } = useAuth();
@@ -121,23 +122,17 @@ export default function MaintenanceInfoPage({ slug, title }) {
 
       {error && <p className="mb-2 text-xs text-red-600">{error}</p>}
 
-      <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-800">
+      <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-900/40">
         {loading ? (
           <p className="text-sm text-slate-500">Loading…</p>
         ) : editing ? (
-          <div>
-            <p className="mb-2 text-xs text-slate-500 dark:text-slate-400">
-              Plain text or HTML (e.g. paste a table from Excel/Word as HTML, or use{' '}
-              <code className="rounded bg-slate-100 px-1 dark:bg-slate-900">&lt;table&gt;</code>{' '}
-              tags). Saved content is shown to all maintenance users as-is.
-            </p>
-            <textarea
-              value={draft}
-              onChange={(event) => setDraft(event.target.value)}
-              className="min-h-[min(70vh,32rem)] w-full resize-y rounded-lg border border-slate-300 bg-white px-3 py-2 font-mono text-sm text-slate-900 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
-              spellCheck={false}
-            />
-          </div>
+          <MaintenanceInfoEditor
+            slug={slug}
+            pageTitle={title}
+            value={draft}
+            onChange={setDraft}
+            disabled={saving}
+          />
         ) : (
           <MaintenanceInfoContent content={content} />
         )}

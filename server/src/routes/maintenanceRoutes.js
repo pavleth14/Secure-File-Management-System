@@ -36,12 +36,30 @@ import {
   getMaintenanceInfoPage,
   updateMaintenanceInfoPage,
 } from '../services/maintenanceInfoPageService.js';
+import {
+  getMaintenanceInfoAssetPath,
+  saveMaintenanceInfoImage,
+} from '../services/maintenanceInfoAssetService.js';
+import path from 'path';
 
 const router = Router();
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 50 * 1024 * 1024 },
   fileFilter: createUploadFileFilter(),
+});
+
+const infoImageUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 12 * 1024 * 1024 },
+  fileFilter: (_req, file, cb) => {
+    const ext = path.extname(file.originalname || '').slice(1).toLowerCase();
+    if (!['png', 'jpg', 'jpeg', 'gif', 'webp'].includes(ext)) {
+      cb(Object.assign(new Error('Only image files are allowed'), { status: 400 }));
+      return;
+    }
+    cb(null, true);
+  },
 });
 
 router.use(authMiddleware);
@@ -64,6 +82,42 @@ router.put('/info-pages/:slug', requireMaintenanceInfoEdit, async (req, res, nex
       req.user
     );
     res.json({ page });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post('/info-pages/:slug/images', requireMaintenanceInfoEdit, (req, res, next) => {
+  infoImageUpload.single('file')(req, res, async (uploadErr) => {
+    if (uploadErr) return next(uploadErr);
+    try {
+      if (!req.file) {
+        return res.status(400).json({ message: 'Image file is required' });
+      }
+      const result = await saveMaintenanceInfoImage(req.params.slug, req.file, req.user);
+      res.status(201).json(result);
+    } catch (err) {
+      next(err);
+    }
+  });
+});
+
+router.get('/info-pages/:slug/assets/:filename', async (req, res, next) => {
+  try {
+    const { fullPath, storedName } = await getMaintenanceInfoAssetPath(
+      req.params.slug,
+      req.params.filename
+    );
+    const ext = path.extname(storedName).toLowerCase();
+    const types = {
+      '.png': 'image/png',
+      '.jpg': 'image/jpeg',
+      '.jpeg': 'image/jpeg',
+      '.gif': 'image/gif',
+      '.webp': 'image/webp',
+    };
+    res.type(types[ext] || 'application/octet-stream');
+    res.sendFile(fullPath);
   } catch (err) {
     next(err);
   }

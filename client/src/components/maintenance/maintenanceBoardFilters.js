@@ -13,9 +13,9 @@ export const MAINTENANCE_BOARD_INITIAL_FILTERS = {
   repairShop: '',
   invoiceStatuses: [],
   dispatchStatuses: [],
+  hasCost: '',
   reportPeriod: 'month',
   reportReferenceDate: '',
-  reportWithCostOnly: false,
 };
 
 export function buildMaintenanceCaseQueryParams(filters, { limit = 100 } = {}) {
@@ -41,5 +41,8 @@ export function buildMaintenanceCaseQueryParams(filters, { limit = 100 } = {}) {
   if (filters.caseTypes.length) params.caseType = filters.caseTypes.join(',');
   if (filters.invoiceStatuses.length) params.invoiceStatus = filters.invoiceStatuses.join(',');
   if (filters.dispatchStatuses.length) params.dispatchStatus = filters.dispatchStatuses.join(',');
+  if (filters.hasCost === 'yes' || filters.hasCost === 'no') {
+    params.hasCost = filters.hasCost;
+  }
   return params;
 }

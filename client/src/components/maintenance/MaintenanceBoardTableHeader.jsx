@@ -346,7 +346,23 @@ export default function MaintenanceBoardTableHeader({
           </label>
         )}
 
-        <PlainHeader label="Cost" />
+        {filterHeader(
+          'cost',
+          'Cost',
+          filters.hasCost === 'yes' || filters.hasCost === 'no',
+          <label className="block">
+            <span className={popoverLabelClass}>Cost filter</span>
+            <select
+              value={filters.hasCost || ''}
+              onChange={(event) => set('hasCost', event.target.value)}
+              className={inputClass}
+            >
+              <option value="">All cases</option>
+              <option value="yes">With cost only</option>
+              <option value="no">Without cost</option>
+            </select>
+          </label>
+        )}
 
         {filterHeader(
           'dateClosed',

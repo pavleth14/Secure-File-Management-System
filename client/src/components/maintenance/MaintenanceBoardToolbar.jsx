@@ -25,13 +25,13 @@ export default function MaintenanceBoardToolbar({
 
   return (
     <div className="mb-2 flex flex-wrap items-center gap-x-2 gap-y-1 rounded-lg border border-slate-200 bg-white px-2 py-1.5 dark:border-slate-700 dark:bg-slate-800">
-      <button type="button" onClick={onClearFilters} className={compactBtnClass}>
-        Clear filters
-      </button>
+     
+     <span className="hidden text-[11px] text-slate-400 lg:inline">Filter via ▾ on columns</span>
+  
       <span className="text-xs text-slate-500 dark:text-slate-400">
         {loading ? 'Loading…' : `${totalCount} case${totalCount === 1 ? '' : 's'}`}
       </span>
-      <span className="hidden text-[11px] text-slate-400 lg:inline">Filter via ▾ on columns</span>
+
 
       <span className="hidden h-3 w-px bg-slate-200 dark:bg-slate-600 sm:inline" aria-hidden />
 
@@ -57,15 +57,9 @@ export default function MaintenanceBoardToolbar({
           title="Week / month / quarter containing this date (Chicago). Empty = today."
         />
       </label>
-      <label className="flex cursor-pointer items-center gap-1 text-[11px] text-slate-600 dark:text-slate-400">
-        <input
-          type="checkbox"
-          checked={Boolean(filters.reportWithCostOnly)}
-          onChange={(event) => set('reportWithCostOnly', event.target.checked)}
-          className="rounded border-slate-300 text-emerald-600 dark:border-slate-600"
-        />
-        With cost only
-      </label>
+      <button type="button" onClick={onClearFilters} className={compactBtnClass}>
+        Clear filters
+      </button>
       {onExportCostReport && (
         <button
           type="button"

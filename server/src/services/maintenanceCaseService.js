@@ -372,9 +372,11 @@ async function buildMaintenanceCaseListFilter(query = {}) {
 
   const hasCost = String(query.hasCost || '').toLowerCase();
   if (hasCost === 'yes') {
-    and.push({ cost: { $ne: null } });
+    and.push({ cost: { $type: 'number' } });
   } else if (hasCost === 'no') {
-    and.push({ $or: [{ cost: null }, { cost: { $exists: false } }] });
+    and.push({
+      $or: [{ cost: null }, { cost: { $exists: false } }],
+    });
   }
 
   const equipment = String(query.equipment || '').trim();
