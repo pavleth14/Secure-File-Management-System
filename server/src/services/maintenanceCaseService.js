@@ -314,6 +314,9 @@ async function buildMaintenanceCaseListFilter(query = {}) {
   } else {
     applyDateRange(and, 'dateClosed', query.dateClosedFrom, query.dateClosedTo);
   }
+  if (query.dueDate) {
+    applyDateOnDay(and, 'dueDate', query.dueDate);
+  }
 
   const shop = String(query.repairShop || '').trim();
   if (shop) {

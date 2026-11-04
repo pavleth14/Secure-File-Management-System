@@ -9,6 +9,7 @@ import MaintenanceBoardToolbar, {
   MAINTENANCE_BOARD_INITIAL_FILTERS,
   buildMaintenanceCaseQueryParams,
 } from '../../components/maintenance/MaintenanceBoardToolbar';
+import MaintenanceBoardTableHeader from '../../components/maintenance/MaintenanceBoardTableHeader';
 import { MAINTENANCE_TAG_TYPES } from '../../constants/maintenanceConstants';
 import { useContextMenu } from '../../hooks/useContextMenu';
 
@@ -254,21 +255,14 @@ export default function MaintenanceBoardPage() {
 
   return (
     <div>
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">
-          TBF — Maintenance Case Tracker
-        </h1>
-        <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">
-          Centralized maintenance case tracking for trucks and trailers.
-        </p>
-      </div>
+      <h1 className="mb-1.5 text-lg font-semibold text-slate-900 dark:text-slate-100">
+        TBF — Maintenance Case Tracker
+      </h1>
 
       <MaintenanceBoardToolbar
         filters={filters}
         onFilterChange={updateFilter}
         onClearFilters={clearFilters}
-        assignees={assignees}
-        tagOptions={tagOptions}
         totalCount={totalCount}
         loading={loading}
         showNewCase={canCreateMaintenanceCases}
@@ -276,30 +270,16 @@ export default function MaintenanceBoardPage() {
         onExportCostReport={handleExportCostReport}
       />
 
-      {error && <p className="mb-4 text-sm text-red-600">{error}</p>}
+      {error && <p className="mb-2 text-xs text-red-600">{error}</p>}
 
       <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
         <table className="min-w-full divide-y divide-slate-200 text-sm dark:divide-slate-700">
-          <thead className="bg-slate-50 text-xs uppercase text-slate-500 dark:bg-slate-900/50">
-            <tr>
-              <th className="px-3 py-3 text-left">Case / Issue</th>
-              <th className="px-3 py-3 text-left">Assignee</th>
-              <th className="px-3 py-3 text-left">Due</th>
-              <th className="px-3 py-3 text-left">Truck / Trailer</th>
-              <th className="px-3 py-3 text-left">Status</th>
-              <th className="px-3 py-3 text-left">Priority</th>
-              <th className="px-3 py-3 text-left">Project</th>
-              <th className="px-3 py-3 text-left">OOS</th>
-              <th className="px-3 py-3 text-left">Type</th>
-              <th className="px-3 py-3 text-left">Shop</th>
-              <th className="px-3 py-3 text-left">Cost</th>
-              <th className="px-3 py-3 text-left">Date closed</th>
-              <th className="px-3 py-3 text-left">Invoice status</th>
-              <th className="px-3 py-3 text-left">Dispatch status</th>
-              <th className="px-3 py-3 text-left">Last update</th>
-              <th className="px-3 py-3 text-left">Edited</th>
-            </tr>
-          </thead>
+          <MaintenanceBoardTableHeader
+            filters={filters}
+            onFilterChange={updateFilter}
+            assignees={assignees}
+            tagOptions={tagOptions}
+          />
           <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
             {loading ? (
               <tr>
