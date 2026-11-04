@@ -40,6 +40,8 @@ import LoadsPage from './pages/dispatch/LoadsPage';
 import ArchiveLoadsPage from './pages/dispatch/ArchiveLoadsPage';
 import DispatchBoardPage from './pages/dispatch/DispatchBoardPage';
 import MaintenanceBoardPage from './pages/maintenance/MaintenanceBoardPage';
+import MaintenanceCompanyInfoPage from './pages/maintenance/MaintenanceCompanyInfoPage';
+import MaintenanceNationalAccountsPage from './pages/maintenance/MaintenanceNationalAccountsPage';
 import { MaintenanceAccessGuard } from './components/MaintenanceGuard';
 
 function ProtectedRoute({ children, roles }) {
@@ -258,6 +260,22 @@ export default function App() {
           element={
             <MaintenanceAccessGuard>
               <MaintenanceBoardPage />
+            </MaintenanceAccessGuard>
+          }
+        />
+        <Route
+          path="/maintenance/company-info"
+          element={
+            <MaintenanceAccessGuard>
+              <MaintenanceCompanyInfoPage />
+            </MaintenanceAccessGuard>
+          }
+        />
+        <Route
+          path="/maintenance/national-accounts"
+          element={
+            <MaintenanceAccessGuard>
+              <MaintenanceNationalAccountsPage />
             </MaintenanceAccessGuard>
           }
         />

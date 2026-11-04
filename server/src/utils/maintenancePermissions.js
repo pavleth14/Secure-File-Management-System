@@ -50,6 +50,11 @@ export function canCreateMaintenanceCases(user) {
   return canEditMaintenanceCases(user);
 }
 
+/** Company info & vendor program pages — managers and super admin only. */
+export function canEditMaintenanceInfoPages(user) {
+  return Boolean(isSuperAdmin(user) || user?.isMaintenanceManager);
+}
+
 export function canUploadMaintenanceCaseAttachment(user, maintenanceCase) {
   if (canEditMaintenanceCases(user)) return true;
   if (!hasMaintenanceModuleAccess(user) || !maintenanceCase) return false;

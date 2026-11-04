@@ -6,6 +6,7 @@ import {
   requireMaintenanceEdit,
   requireMaintenanceDelete,
   requireMaintenanceCreate,
+  requireMaintenanceInfoEdit,
 } from '../middleware/maintenanceMiddleware.js';
 import {
   listMaintenanceTags,
@@ -31,6 +32,10 @@ import {
 import { resolveFullPath } from '../config/storage.js';
 import { createUploadFileFilter } from '../config/uploadTypes.js';
 import { exportMaintenanceCostReport } from '../services/maintenanceCostReportService.js';
+import {
+  getMaintenanceInfoPage,
+  updateMaintenanceInfoPage,
+} from '../services/maintenanceInfoPageService.js';
 
 const router = Router();
 const upload = multer({
@@ -41,6 +46,28 @@ const upload = multer({
 
 router.use(authMiddleware);
 router.use(requireMaintenanceAccess);
+
+router.get('/info-pages/:slug', async (req, res, next) => {
+  try {
+    const page = await getMaintenanceInfoPage(req.params.slug);
+    res.json({ page });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.put('/info-pages/:slug', requireMaintenanceInfoEdit, async (req, res, next) => {
+  try {
+    const page = await updateMaintenanceInfoPage(
+      req.params.slug,
+      req.body.content,
+      req.user
+    );
+    res.json({ page });
+  } catch (err) {
+    next(err);
+  }
+});
 
 router.get('/assignees', async (req, res, next) => {
   try {

@@ -3,6 +3,7 @@ import {
   canEditMaintenanceCases,
   canDeleteMaintenanceCases,
   canCreateMaintenanceCases,
+  canEditMaintenanceInfoPages,
 } from '../utils/maintenancePermissions.js';
 
 export function requireMaintenanceAccess(req, res, next) {
@@ -29,6 +30,13 @@ export function requireMaintenanceCreate(req, res, next) {
 export function requireMaintenanceDelete(req, res, next) {
   if (!canDeleteMaintenanceCases(req.user)) {
     return res.status(403).json({ message: 'Only maintenance managers can delete cases' });
+  }
+  next();
+}
+
+export function requireMaintenanceInfoEdit(req, res, next) {
+  if (!canEditMaintenanceInfoPages(req.user)) {
+    return res.status(403).json({ message: 'Only maintenance managers can edit info pages' });
   }
   next();
 }

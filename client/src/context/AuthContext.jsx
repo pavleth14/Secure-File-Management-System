@@ -210,6 +210,7 @@ export function AuthProvider({ children }) {
     isSuperAdmin || isMaintenanceManager || (isMaintenance && !isMaintenanceViewOnly);
   const canCreateMaintenanceCases = canEditMaintenanceCases;
   const canDeleteMaintenanceCases = isSuperAdmin || isMaintenanceManager;
+  const canEditMaintenanceInfoPages = isSuperAdmin || isMaintenanceManager;
   const shouldShowMaintenance = hasMaintenanceAccess;
 
   return (
@@ -259,6 +260,7 @@ export function AuthProvider({ children }) {
         canEditMaintenanceCases,
         canCreateMaintenanceCases,
         canDeleteMaintenanceCases,
+        canEditMaintenanceInfoPages,
         shouldShowMaintenance,
       }}
     >

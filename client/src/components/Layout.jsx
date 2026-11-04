@@ -182,12 +182,24 @@ function MaintenanceDropdown({ location }) {
           >
             Maintenance Board
           </Link>
-          <span
-            className="block cursor-not-allowed rounded-lg px-3 py-2 text-sm text-slate-400 dark:text-slate-500"
-            title="Coming soon"
+          <Link
+            to="/maintenance/company-info"
+            className={dropdownLinkClass()}
+            onClick={close}
+            aria-current={location.pathname === '/maintenance/company-info' ? 'page' : undefined}
           >
-            Information Board / Notes
-          </span>
+            Company Info Main
+          </Link>
+          <Link
+            to="/maintenance/national-accounts"
+            className={dropdownLinkClass()}
+            onClick={close}
+            aria-current={
+              location.pathname === '/maintenance/national-accounts' ? 'page' : undefined
+            }
+          >
+            TBF | National Accounts &amp; Vendor Programs
+          </Link>
         </div>
       </div>
     </div>
