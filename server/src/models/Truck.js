@@ -28,10 +28,13 @@ const truckSchema = new mongoose.Schema(
       ref: 'User',
       default: null,
     },
+    /** Row index from spreadsheet import (0 = first data row); keeps list order matching file. */
+    importSheetOrder: { type: Number, default: null },
   },
   { timestamps: true }
 );
 
 truckSchema.index({ status: 1, truckNumber: 1 });
+truckSchema.index({ importSheetOrder: 1 });
 
 export const Truck = mongoose.model('Truck', truckSchema);

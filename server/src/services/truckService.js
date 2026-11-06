@@ -48,7 +48,20 @@ function validateTruckPayload(payload, { isUpdate = false } = {}) {
     throw err;
   }
 
-  return {
+  let importSheetOrder;
+  if (payload.importSheetOrder !== undefined) {
+    if (payload.importSheetOrder === null || payload.importSheetOrder === '') {
+      importSheetOrder = null;
+    } else {
+      const num = Number(payload.importSheetOrder);
+      importSheetOrder =
+        Number.isFinite(num) && num >= 0 ? Math.floor(num) : null;
+    }
+  } else if (!isUpdate) {
+    importSheetOrder = null;
+  }
+
+  const result = {
     truckNumber,
     type: String(payload.type || '').trim(),
     status: payload.status || 'Active',
@@ -62,6 +75,12 @@ function validateTruckPayload(payload, { isUpdate = false } = {}) {
     notes: String(payload.notes || '').trim(),
     linkedFolderId: payload.linkedFolderId || null,
   };
+
+  if (importSheetOrder !== undefined) {
+    result.importSheetOrder = importSheetOrder;
+  }
+
+  return result;
 }
 
 export async function listTrucks({ search, status, user } = {}) {
@@ -78,7 +97,14 @@ export async function listTrucks({ search, status, user } = {}) {
     TRUCK_SEARCH_FIELDS.map((field) => truck[field])
   );
 
-  trucks.sort((a, b) => compareNaturalStrings(a.truckNumber, b.truckNumber));
+  trucks.sort((a, b) => {
+    const ao = a.importSheetOrder;
+    const bo = b.importSheetOrder;
+    if (ao != null && bo != null && ao !== bo) return ao - bo;
+    if (ao != null && bo == null) return -1;
+    if (ao == null && bo != null) return 1;
+    return compareNaturalStrings(a.truckNumber, b.truckNumber);
+  });
 
   return trucks.map((truck) => formatTruck(truck));
 }
@@ -115,6 +141,7 @@ export async function createTruck(payload, userId, user) {
 
   const truck = await Truck.create({
     ...data,
+    importSheetOrder: data.importSheetOrder ?? null,
     createdBy: userId,
   });
 
@@ -127,7 +154,12 @@ export async function createTruck(payload, userId, user) {
 
 export async function updateTruck(id, payload, user) {
   const truck = await getTruckById(id);
-  const data = validateTruckPayload({ ...truck.toObject(), ...payload }, { isUpdate: true });
+  const existing = truck.toObject();
+  const merged = { ...existing, ...payload };
+  if (payload.importSheetOrder === undefined) {
+    delete merged.importSheetOrder;
+  }
+  const data = validateTruckPayload(merged, { isUpdate: true });
 
   if (data.truckNumber && data.truckNumber !== truck.truckNumber) {
     const exists = await Truck.findOne({ truckNumber: data.truckNumber, _id: { $ne: id } });
@@ -163,6 +195,9 @@ export async function updateTruck(id, payload, user) {
   truck.dotInspectionExpiration = data.dotInspectionExpiration;
   truck.platesExpiration = data.platesExpiration;
   truck.notes = data.notes;
+  if (data.importSheetOrder !== undefined) {
+    truck.importSheetOrder = data.importSheetOrder;
+  }
 
   await truck.save();
 

@@ -48,7 +48,20 @@ function validateTrailerPayload(payload, { isUpdate = false } = {}) {
     throw err;
   }
 
-  return {
+  let importSheetOrder;
+  if (payload.importSheetOrder !== undefined) {
+    if (payload.importSheetOrder === null || payload.importSheetOrder === '') {
+      importSheetOrder = null;
+    } else {
+      const num = Number(payload.importSheetOrder);
+      importSheetOrder =
+        Number.isFinite(num) && num >= 0 ? Math.floor(num) : null;
+    }
+  } else if (!isUpdate) {
+    importSheetOrder = null;
+  }
+
+  const result = {
     trailerNumber,
     type: String(payload.type || '').trim(),
     status: payload.status || 'Active',
@@ -63,6 +76,12 @@ function validateTrailerPayload(payload, { isUpdate = false } = {}) {
     notes: String(payload.notes || '').trim(),
     linkedFolderId: payload.linkedFolderId || null,
   };
+
+  if (importSheetOrder !== undefined) {
+    result.importSheetOrder = importSheetOrder;
+  }
+
+  return result;
 }
 
 export async function listTrailers({ search, status, user } = {}) {
@@ -79,7 +98,14 @@ export async function listTrailers({ search, status, user } = {}) {
     TRAILER_SEARCH_FIELDS.map((field) => trailer[field])
   );
 
-  trailers.sort((a, b) => compareNaturalStrings(a.trailerNumber, b.trailerNumber));
+  trailers.sort((a, b) => {
+    const ao = a.importSheetOrder;
+    const bo = b.importSheetOrder;
+    if (ao != null && bo != null && ao !== bo) return ao - bo;
+    if (ao != null && bo == null) return -1;
+    if (ao == null && bo != null) return 1;
+    return compareNaturalStrings(a.trailerNumber, b.trailerNumber);
+  });
 
   return trailers.map((trailer) => formatTrailer(trailer));
 }
@@ -116,6 +142,7 @@ export async function createTrailer(payload, userId, user) {
 
   const trailer = await Trailer.create({
     ...data,
+    importSheetOrder: data.importSheetOrder ?? null,
     createdBy: userId,
   });
 
@@ -124,7 +151,12 @@ export async function createTrailer(payload, userId, user) {
 
 export async function updateTrailer(id, payload, user) {
   const trailer = await getTrailerById(id);
-  const data = validateTrailerPayload({ ...trailer.toObject(), ...payload }, { isUpdate: true });
+  const existing = trailer.toObject();
+  const merged = { ...existing, ...payload };
+  if (payload.importSheetOrder === undefined) {
+    delete merged.importSheetOrder;
+  }
+  const data = validateTrailerPayload(merged, { isUpdate: true });
 
   if (data.trailerNumber && data.trailerNumber !== trailer.trailerNumber) {
     const exists = await Trailer.findOne({
@@ -164,6 +196,9 @@ export async function updateTrailer(id, payload, user) {
   trailer.dotInspectionExpiration = data.dotInspectionExpiration;
   trailer.platesExpiration = data.platesExpiration;
   trailer.notes = data.notes;
+  if (data.importSheetOrder !== undefined) {
+    trailer.importSheetOrder = data.importSheetOrder;
+  }
 
   await trailer.save();
   return getTrailerById(trailer._id);

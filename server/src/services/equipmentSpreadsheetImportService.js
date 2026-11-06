@@ -236,7 +236,11 @@ export async function importTrucksFromBuffer(buffer, user) {
     }
 
     try {
-      const truck = await createTruck(payload, user._id, user);
+      const truck = await createTruck(
+        { ...payload, importSheetOrder: i },
+        user._id,
+        user
+      );
       created.push(formatTruckResponse(truck));
     } catch (e) {
       errors.push({
@@ -323,7 +327,11 @@ export async function importTrailersFromBuffer(buffer, user) {
     }
 
     try {
-      const trailer = await createTrailer(payload, user._id, user);
+      const trailer = await createTrailer(
+        { ...payload, importSheetOrder: i },
+        user._id,
+        user
+      );
       created.push(formatTrailerResponse(trailer));
     } catch (e) {
       errors.push({

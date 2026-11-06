@@ -29,10 +29,13 @@ const trailerSchema = new mongoose.Schema(
       ref: 'User',
       default: null,
     },
+    /** Row index from spreadsheet import (0 = first data row); keeps list order matching file. */
+    importSheetOrder: { type: Number, default: null },
   },
   { timestamps: true }
 );
 
 trailerSchema.index({ status: 1, trailerNumber: 1 });
+trailerSchema.index({ importSheetOrder: 1 });
 
 export const Trailer = mongoose.model('Trailer', trailerSchema);

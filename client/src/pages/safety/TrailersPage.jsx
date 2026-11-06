@@ -171,7 +171,8 @@ export default function TrailersPage() {
           <p className="mt-2 text-xs text-slate-600 dark:text-slate-400">
             Required columns: Trailer# / Unit# / Unit (first column works), VIN / Vin#. Optional: Type, Status, Active, Size, Make,
             Model, Year, Plate#, DOT Inspection Expiration, Plates Expiration. VIN must be unique;
-            duplicate rows in the file are skipped.
+            duplicate rows in the file are skipped. List order follows spreadsheet row order for
+            imported rows (then manually added units).
           </p>
         </div>
       )}
