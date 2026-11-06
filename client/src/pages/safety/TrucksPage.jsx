@@ -175,7 +175,7 @@ export default function TrucksPage() {
             </ul>
           )}
           <p className="mt-2 text-xs text-slate-600 dark:text-slate-400">
-            Required columns: Truck# (or Unit), VIN. Optional: Type, Status, Active, Make, Model, Year,
+            Required columns: Truck# / Unit# / Unit, VIN / Vin#. Optional: Type, Status, Active, Make, Model, Year,
             Plate#, DOT Inspection Expiration, Plates Expiration. VIN must be unique; duplicate rows
             in the file are skipped.
           </p>

@@ -28,7 +28,21 @@ function sheetToObjects(buffer) {
 
 function buildTruckPayloadFromRow(map) {
   const unit = normalizeUnitNumber(
-    getCell(map, 'Truck', 'truck', 'truck number', 'truck#', 'unit', 'truck #')
+    getCell(
+      map,
+      'Truck',
+      'Truck#',
+      'Truck #',
+      'truck',
+      'truck number',
+      'truck#',
+      'Unit',
+      'Unit#',
+      'Unit #',
+      'unit',
+      'unit #',
+      'truck #'
+    )
   );
   const vinRaw = getCell(map, 'VIN', 'VIN#', 'vin', 'vin number', 'vin ');
 
@@ -82,7 +96,20 @@ function buildTruckPayloadFromRow(map) {
 
 function buildTrailerPayloadFromRow(map) {
   const unit = normalizeUnitNumber(
-    getCell(map, 'Trailer', 'Trailer#', 'trailer', 'trailer number', 'unit', 'trailer #')
+    getCell(
+      map,
+      'Trailer',
+      'Trailer#',
+      'Trailer #',
+      'trailer',
+      'trailer number',
+      'Unit',
+      'Unit#',
+      'Unit #',
+      'unit',
+      'unit #',
+      'trailer #'
+    )
   );
   const vinRaw = getCell(map, 'VIN', 'VIN#', 'vin', 'vin number', 'vin ');
 
