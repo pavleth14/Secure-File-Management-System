@@ -33,10 +33,12 @@ const driverSchema = new mongoose.Schema(
       ref: 'User',
       default: null,
     },
+    importSheetOrder: { type: Number, default: null },
   },
   { timestamps: true }
 );
 
 driverSchema.index({ status: 1, name: 1 });
+driverSchema.index({ importSheetOrder: 1 });
 
 export const Driver = mongoose.model('Driver', driverSchema);

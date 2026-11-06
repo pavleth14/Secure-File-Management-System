@@ -4,11 +4,12 @@ import { formatDriver } from '../utils/dispatchFormat.js';
 import {
   filterBySearch,
   filterByStatus,
-  parseDateInput,
   assertFolderExists,
 } from './dispatchEntityHelpers.js';
 import { DRIVER_TYPES, EQUIPMENT_STATUSES } from '../config/dispatchConstants.js';
 import { canEditSafetyEntities } from '../utils/dispatchPermissions.js';
+import { compareNaturalStrings } from '../utils/naturalStringSort.js';
+import { parseFlexibleDate } from '../utils/equipmentImportUtils.js';
 
 const DRIVER_SEARCH_FIELDS = [
   'name',
@@ -29,6 +30,57 @@ function validateDriverPayload(payload, { isUpdate = false } = {}) {
     throw err;
   }
 
+  const phone = String(payload.phone || '').trim();
+  const ssnRaw = String(payload.ssn || '').trim();
+  const cdlNumber = String(payload.cdlNumber || '').trim();
+
+  if (!isUpdate) {
+    if (!phone) {
+      const err = new Error('Phone# is required');
+      err.status = 400;
+      throw err;
+    }
+    const phoneDigits = phone.replace(/\D/g, '');
+    if (phoneDigits.length < 7) {
+      const err = new Error('Phone# must have at least 7 digits');
+      err.status = 400;
+      throw err;
+    }
+    const ssnDigits = ssnRaw.replace(/\D/g, '');
+    if (ssnDigits.length !== 9) {
+      const err = new Error('SSN must have 9 digits');
+      err.status = 400;
+      throw err;
+    }
+    if (!cdlNumber) {
+      const err = new Error('CDL# is required');
+      err.status = 400;
+      throw err;
+    }
+  } else {
+    if (payload.phone !== undefined) {
+      const digits = phone.replace(/\D/g, '');
+      if (!phone.trim() || digits.length < 7) {
+        const err = new Error('Phone# must have at least 7 digits');
+        err.status = 400;
+        throw err;
+      }
+    }
+    if (payload.ssn !== undefined) {
+      const digits = ssnRaw.replace(/\D/g, '');
+      if (!ssnRaw.trim() || digits.length !== 9) {
+        const err = new Error('SSN must have 9 digits');
+        err.status = 400;
+        throw err;
+      }
+    }
+    if (payload.cdlNumber !== undefined && !cdlNumber) {
+      const err = new Error('CDL# cannot be empty');
+      err.status = 400;
+      throw err;
+    }
+  }
+
   if (payload.driverType && !DRIVER_TYPES.includes(payload.driverType)) {
     const err = new Error('Invalid driver type');
     err.status = 400;
@@ -41,27 +93,44 @@ function validateDriverPayload(payload, { isUpdate = false } = {}) {
     throw err;
   }
 
-  return {
+  let importSheetOrder;
+  if (payload.importSheetOrder !== undefined) {
+    if (payload.importSheetOrder === null || payload.importSheetOrder === '') {
+      importSheetOrder = null;
+    } else {
+      const num = Number(payload.importSheetOrder);
+      importSheetOrder =
+        Number.isFinite(num) && num >= 0 ? Math.floor(num) : null;
+    }
+  } else if (!isUpdate) {
+    importSheetOrder = null;
+  }
+
+  const result = {
     name,
     driverType: payload.driverType || 'Solo',
     isOwnerOperator: Boolean(payload.isOwnerOperator),
-    dateOfBirth: parseDateInput(payload.dateOfBirth),
-    ssn: String(payload.ssn || '').trim(),
-    phone: String(payload.phone || '').trim(),
+    dateOfBirth: parseFlexibleDate(payload.dateOfBirth),
+    ssn: ssnRaw,
+    phone,
     email: String(payload.email || '').trim(),
-    hiredDate: parseDateInput(payload.hiredDate),
+    hiredDate: parseFlexibleDate(payload.hiredDate),
     status: payload.status || 'Active',
-    cdlNumber: String(payload.cdlNumber || '').trim(),
+    cdlNumber,
     cdlState: String(payload.cdlState || '').trim(),
-    cdlExpiration: parseDateInput(payload.cdlExpiration),
+    cdlExpiration: parseFlexibleDate(payload.cdlExpiration),
     linkedFolderId: payload.linkedFolderId || null,
   };
+
+  if (importSheetOrder !== undefined) {
+    result.importSheetOrder = importSheetOrder;
+  }
+
+  return result;
 }
 
 export async function listDrivers({ search, status, user } = {}) {
-  let drivers = await Driver.find()
-    .populate('linkedFolderId', 'name relativePath')
-    .sort({ name: 1 });
+  let drivers = await Driver.find().populate('linkedFolderId', 'name relativePath');
 
   drivers = drivers.map((d) => d.toObject());
 
@@ -73,6 +142,15 @@ export async function listDrivers({ search, status, user } = {}) {
   drivers = filterBySearch(drivers, search, (driver) =>
     DRIVER_SEARCH_FIELDS.map((field) => driver[field])
   );
+
+  drivers.sort((a, b) => {
+    const ao = a.importSheetOrder;
+    const bo = b.importSheetOrder;
+    if (ao != null && bo != null && ao !== bo) return ao - bo;
+    if (ao != null && bo == null) return -1;
+    if (ao == null && bo != null) return 1;
+    return compareNaturalStrings(a.name, b.name);
+  });
 
   return drivers.map((driver) => formatDriver(driver));
 }
@@ -93,6 +171,7 @@ export async function createDriver(payload, userId, user) {
 
   const driver = await Driver.create({
     ...data,
+    importSheetOrder: data.importSheetOrder ?? null,
     createdBy: userId,
   });
 
@@ -101,7 +180,12 @@ export async function createDriver(payload, userId, user) {
 
 export async function updateDriver(id, payload, user) {
   const driver = await getDriverById(id);
-  const data = validateDriverPayload({ ...driver.toObject(), ...payload }, { isUpdate: true });
+  const existing = driver.toObject();
+  const merged = { ...existing, ...payload };
+  if (payload.importSheetOrder === undefined) {
+    delete merged.importSheetOrder;
+  }
+  const data = validateDriverPayload(merged, { isUpdate: true });
 
   if (payload.linkedFolderId !== undefined) {
     await assertFolderExists(payload.linkedFolderId, user);
@@ -120,6 +204,9 @@ export async function updateDriver(id, payload, user) {
   driver.cdlNumber = data.cdlNumber;
   driver.cdlState = data.cdlState;
   driver.cdlExpiration = data.cdlExpiration;
+  if (data.importSheetOrder !== undefined) {
+    driver.importSheetOrder = data.importSheetOrder;
+  }
 
   await driver.save();
   return getDriverById(driver._id);

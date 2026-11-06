@@ -5,6 +5,7 @@ import ContextMenu from '../../components/ContextMenu';
 import SafetyListToolbar from '../../components/dispatch-safety/SafetyListToolbar';
 import DriverFormModal from '../../components/dispatch-safety/DriverFormModal';
 import LinkedFolderCell, { buildViewFilesMenuItem } from '../../components/dispatch-safety/LinkedFolderCell';
+import EquipmentImportButton from '../../components/dispatch-safety/EquipmentImportButton';
 
 export default function DriversPage() {
   const { canEditSafetyEntities, canDeleteSafetyEntities, canLinkFolders } = useAuth();
@@ -16,6 +17,7 @@ export default function DriversPage() {
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedDriver, setSelectedDriver] = useState(null);
   const [menu, setMenu] = useState(null);
+  const [importResult, setImportResult] = useState(null);
 
   const loadDrivers = useCallback(async () => {
     setLoading(true);
@@ -58,6 +60,16 @@ export default function DriversPage() {
     } else {
       await api.post('/dispatch/drivers', form);
     }
+    await loadDrivers();
+  };
+
+  const handleImportDrivers = async (file) => {
+    const body = new FormData();
+    body.append('file', file);
+    const { data } = await api.post('/dispatch/drivers/import', body, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    setImportResult(data);
     await loadDrivers();
   };
 
@@ -112,15 +124,61 @@ export default function DriversPage() {
         </div>
       )}
 
-      <SafetyListToolbar
-        search={search}
-        onSearchChange={setSearch}
-        status={status}
-        onStatusChange={setStatus}
-        onNew={openCreate}
-        newLabel="New Driver"
-        canCreate={canEditSafetyEntities}
-      />
+      <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+        <div className="min-w-0 flex-1">
+          <SafetyListToolbar
+            search={search}
+            onSearchChange={setSearch}
+            status={status}
+            onStatusChange={setStatus}
+            onNew={openCreate}
+            newLabel="New Driver"
+            canCreate={canEditSafetyEntities}
+          />
+        </div>
+        {canEditSafetyEntities && (
+          <EquipmentImportButton label="Import drivers (CSV/Excel)" onImport={handleImportDrivers} />
+        )}
+      </div>
+
+      {importResult && (
+        <div className="mb-4 rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm dark:border-slate-600 dark:bg-slate-800/80">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p className="font-medium text-slate-800 dark:text-slate-100">
+              Import finished: {importResult.created ?? 0} driver(s) created
+              {(importResult.errors?.length ?? 0) > 0
+                ? `, ${importResult.errors.length} row error(s)`
+                : ''}
+              .
+            </p>
+            <button
+              type="button"
+              onClick={() => setImportResult(null)}
+              className="text-xs text-brand-600 hover:underline dark:text-brand-400"
+            >
+              Dismiss
+            </button>
+          </div>
+          {importResult.errors?.length > 0 && (
+            <ul className="mt-2 max-h-40 list-inside list-disc overflow-y-auto text-xs text-red-700 dark:text-red-300">
+              {importResult.errors.slice(0, 50).map((rowErr) => (
+                <li key={`${rowErr.row}-${rowErr.message}`}>
+                  Row {rowErr.row}: {rowErr.message}
+                </li>
+              ))}
+              {importResult.errors.length > 50 && (
+                <li>…and {importResult.errors.length - 50} more</li>
+              )}
+            </ul>
+          )}
+          <p className="mt-2 text-xs text-slate-600 dark:text-slate-400">
+            Required: Name, Phone# (≥7 digits), SSN# (9 digits), CDL#. Optional: Type of Driver,
+            Owner Operator / Solo column, Date of Birth, Email, Hired Date, Status, CDL State, CDL
+            Expiration. Duplicates by phone, SSN, or CDL in the file or DB are skipped (listed
+            above). List order matches spreadsheet rows for imported drivers.
+          </p>
+        </div>
+      )}
 
       <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
         <table className="min-w-full divide-y divide-slate-200 dark:divide-slate-700">

@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import multer from 'multer';
 import { authMiddleware } from '../middleware/authMiddleware.js';
 import {
   requireDispatchSafetyView,
@@ -21,8 +22,16 @@ import {
   auditDriverUpdated,
   auditDriverDeleted,
 } from '../services/dispatchAuditService.js';
+import { createUploadFileFilter } from '../config/uploadTypes.js';
+import { importDriversFromBuffer } from '../services/driverSpreadsheetImportService.js';
 
 const router = Router();
+
+const equipmentImportUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 15 * 1024 * 1024 },
+  fileFilter: createUploadFileFilter(),
+});
 
 router.use(authMiddleware);
 router.use(requireDispatchSafetyView);
@@ -51,23 +60,38 @@ router.get('/', async (req, res, next) => {
   }
 });
 
-router.get('/:id', async (req, res, next) => {
-  try {
-    const driver = await getDriverById(req.params.id);
-    res.json({
-      driver: formatDriverResponse(driver, { includeSsn: canEditSafetyEntities(req.user) }),
-    });
-  } catch (err) {
-    next(err);
-  }
-});
-
 router.post('/', requireSafetyEdit, async (req, res, next) => {
   try {
     const driver = await createDriver(req.body, req.user._id, req.user);
     await auditDriverCreated({ user: req.user, driver, req });
     res.status(201).json({
       driver: formatDriverResponse(driver, { includeSsn: true }),
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post('/import', requireSafetyEdit, (req, res, next) => {
+  equipmentImportUpload.single('file')(req, res, async (uploadErr) => {
+    if (uploadErr) return next(uploadErr);
+    try {
+      if (!req.file?.buffer) {
+        return res.status(400).json({ message: 'File is required (CSV or Excel)' });
+      }
+      const result = await importDriversFromBuffer(req.file.buffer, req.user);
+      res.status(200).json(result);
+    } catch (err) {
+      next(err);
+    }
+  });
+});
+
+router.get('/:id', async (req, res, next) => {
+  try {
+    const driver = await getDriverById(req.params.id);
+    res.json({
+      driver: formatDriverResponse(driver, { includeSsn: canEditSafetyEntities(req.user) }),
     });
   } catch (err) {
     next(err);

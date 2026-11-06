@@ -79,6 +79,7 @@ export function formatDriver(driver, { includeSsn = false } = {}) {
     linkedFolderId: obj.linkedFolderId?._id || obj.linkedFolderId || null,
     linkedFolderName: obj.linkedFolderId?.name || null,
     linkedFolderPath: obj.linkedFolderId?.relativePath || null,
+    importSheetOrder: obj.importSheetOrder ?? null,
     createdAt: obj.createdAt,
     updatedAt: obj.updatedAt,
   };
