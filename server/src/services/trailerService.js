@@ -6,6 +6,7 @@ import {
   parseDateInput,
   assertFolderExists,
 } from './dispatchEntityHelpers.js';
+import { compareNaturalStrings } from '../utils/naturalStringSort.js';
 import { EQUIPMENT_STATUSES } from '../config/dispatchConstants.js';
 import { canEditSafetyEntities } from '../utils/dispatchPermissions.js';
 
@@ -65,9 +66,7 @@ function validateTrailerPayload(payload, { isUpdate = false } = {}) {
 }
 
 export async function listTrailers({ search, status, user } = {}) {
-  let trailers = await Trailer.find()
-    .populate('linkedFolderId', 'name relativePath')
-    .sort({ trailerNumber: 1 });
+  let trailers = await Trailer.find().populate('linkedFolderId', 'name relativePath');
 
   trailers = trailers.map((t) => t.toObject());
 
@@ -79,6 +78,8 @@ export async function listTrailers({ search, status, user } = {}) {
   trailers = filterBySearch(trailers, search, (trailer) =>
     TRAILER_SEARCH_FIELDS.map((field) => trailer[field])
   );
+
+  trailers.sort((a, b) => compareNaturalStrings(a.trailerNumber, b.trailerNumber));
 
   return trailers.map((trailer) => formatTrailer(trailer));
 }

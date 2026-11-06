@@ -7,7 +7,8 @@ export function normalizeColumnKey(header) {
     .trim()
     .toLowerCase()
     .replace(/#/g, '')
-    .replace(/\s+/g, ' ');
+    .replace(/\s+/g, ' ')
+    .trim();
 }
 
 /** Build lookup: normalized key -> value (first wins if duplicate columns). */

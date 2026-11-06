@@ -30,7 +30,7 @@ function buildTruckPayloadFromRow(map) {
   const unit = normalizeUnitNumber(
     getCell(map, 'Truck', 'truck', 'truck number', 'truck#', 'unit', 'truck #')
   );
-  const vinRaw = getCell(map, 'VIN', 'VIN#', 'vin', 'vin number');
+  const vinRaw = getCell(map, 'VIN', 'VIN#', 'vin', 'vin number', 'vin ');
 
   let status;
   try {
@@ -63,7 +63,16 @@ function buildTruckPayloadFromRow(map) {
     model: getCell(map, 'Model', 'model'),
     year: getCell(map, 'Year', 'year'),
     vin: normalizeVin(vinRaw),
-    plateNumber: getCell(map, 'Plate#', 'Plate', 'plate', 'plate number'),
+    plateNumber: getCell(
+      map,
+      'Plate#',
+      'Plate',
+      'plate',
+      'plate number',
+      'Plates#',
+      'Plates',
+      'plates'
+    ),
     dotInspectionExpiration: parseFlexibleDate(dotRaw),
     platesExpiration: parseFlexibleDate(platesExpRaw),
     notes: '',
@@ -75,7 +84,7 @@ function buildTrailerPayloadFromRow(map) {
   const unit = normalizeUnitNumber(
     getCell(map, 'Trailer', 'Trailer#', 'trailer', 'trailer number', 'unit', 'trailer #')
   );
-  const vinRaw = getCell(map, 'VIN', 'VIN#', 'vin', 'vin number');
+  const vinRaw = getCell(map, 'VIN', 'VIN#', 'vin', 'vin number', 'vin ');
 
   let status;
   try {
@@ -109,7 +118,16 @@ function buildTrailerPayloadFromRow(map) {
     model: getCell(map, 'Model', 'model'),
     year: getCell(map, 'Year', 'year'),
     vin: normalizeVin(vinRaw),
-    plateNumber: getCell(map, 'Plate#', 'Plate', 'plate', 'plate number'),
+    plateNumber: getCell(
+      map,
+      'Plate#',
+      'Plate',
+      'plate',
+      'plate number',
+      'Plates#',
+      'Plates',
+      'plates'
+    ),
     dotInspectionExpiration: parseFlexibleDate(dotRaw),
     platesExpiration: parseFlexibleDate(platesExpRaw),
     notes: '',
@@ -154,11 +172,17 @@ export async function importTrucksFromBuffer(buffer, user) {
     const unitKey = payload.truckNumber.toLowerCase();
     const vinKey = payload.vin;
     if (seenUnits.has(unitKey)) {
-      errors.push({ row: sheetRow, message: `Duplicate Truck# in file: ${payload.truckNumber}` });
+      errors.push({
+        row: sheetRow,
+        message: `Skipped — duplicate Truck# in file: ${payload.truckNumber}`,
+      });
       continue;
     }
     if (seenVins.has(vinKey)) {
-      errors.push({ row: sheetRow, message: `Duplicate VIN in file: ${payload.vin}` });
+      errors.push({
+        row: sheetRow,
+        message: `Skipped — duplicate VIN in file: ${payload.vin}`,
+      });
       continue;
     }
     seenUnits.add(unitKey);
@@ -170,7 +194,7 @@ export async function importTrucksFromBuffer(buffer, user) {
     if (existingUnit) {
       errors.push({
         row: sheetRow,
-        message: `Truck# already exists: ${payload.truckNumber}`,
+        message: `Skipped — Truck# already in database: ${payload.truckNumber}`,
       });
       continue;
     }
@@ -179,7 +203,7 @@ export async function importTrucksFromBuffer(buffer, user) {
     if (existingVin) {
       errors.push({
         row: sheetRow,
-        message: `VIN already exists on truck ${existingVin.truckNumber}`,
+        message: `Skipped — VIN already in database (Truck# ${existingVin.truckNumber})`,
       });
       continue;
     }
@@ -237,12 +261,15 @@ export async function importTrailersFromBuffer(buffer, user) {
     if (seenUnits.has(unitKey)) {
       errors.push({
         row: sheetRow,
-        message: `Duplicate Trailer# in file: ${payload.trailerNumber}`,
+        message: `Skipped — duplicate Trailer# in file: ${payload.trailerNumber}`,
       });
       continue;
     }
     if (seenVins.has(vinKey)) {
-      errors.push({ row: sheetRow, message: `Duplicate VIN in file: ${payload.vin}` });
+      errors.push({
+        row: sheetRow,
+        message: `Skipped — duplicate VIN in file: ${payload.vin}`,
+      });
       continue;
     }
     seenUnits.add(unitKey);
@@ -254,7 +281,7 @@ export async function importTrailersFromBuffer(buffer, user) {
     if (existingUnit) {
       errors.push({
         row: sheetRow,
-        message: `Trailer# already exists: ${payload.trailerNumber}`,
+        message: `Skipped — Trailer# already in database: ${payload.trailerNumber}`,
       });
       continue;
     }
@@ -263,7 +290,7 @@ export async function importTrailersFromBuffer(buffer, user) {
     if (existingVin) {
       errors.push({
         row: sheetRow,
-        message: `VIN already exists on trailer ${existingVin.trailerNumber}`,
+        message: `Skipped — VIN already in database (Trailer# ${existingVin.trailerNumber})`,
       });
       continue;
     }
