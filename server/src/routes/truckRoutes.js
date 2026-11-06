@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import multer from 'multer';
 import { authMiddleware } from '../middleware/authMiddleware.js';
 import { requireDispatchSafetyView } from '../middleware/dispatchMiddleware.js';
 import {
@@ -21,8 +22,16 @@ import {
   auditTruckUpdated,
   auditTruckDeleted,
 } from '../services/dispatchAuditService.js';
+import { createUploadFileFilter } from '../config/uploadTypes.js';
+import { importTrucksFromBuffer } from '../services/equipmentSpreadsheetImportService.js';
 
 const router = Router();
+
+const equipmentImportUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 15 * 1024 * 1024 },
+  fileFilter: createUploadFileFilter(),
+});
 
 router.use(authMiddleware);
 router.use(requireDispatchSafetyView);
@@ -54,22 +63,37 @@ router.get('/', async (req, res, next) => {
   }
 });
 
+router.post('/', requireSafetyEdit, async (req, res, next) => {
+  try {
+    const truck = await createTruck(req.body, req.user._id, req.user);
+    await auditTruckCreated({ user: req.user, truck, req });
+    res.status(201).json({ truck: formatTruckResponse(truck) });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post('/import', requireSafetyEdit, (req, res, next) => {
+  equipmentImportUpload.single('file')(req, res, async (uploadErr) => {
+    if (uploadErr) return next(uploadErr);
+    try {
+      if (!req.file?.buffer) {
+        return res.status(400).json({ message: 'File is required (CSV or Excel)' });
+      }
+      const result = await importTrucksFromBuffer(req.file.buffer, req.user);
+      res.status(200).json(result);
+    } catch (err) {
+      next(err);
+    }
+  });
+});
+
 router.get('/:id', async (req, res, next) => {
   try {
     const truck = await getTruckById(req.params.id);
     res.json({
       truck: formatTruckResponse(truck, { includeSsn: canEditSafetyEntities(req.user) }),
     });
-  } catch (err) {
-    next(err);
-  }
-});
-
-router.post('/', requireSafetyEdit, async (req, res, next) => {
-  try {
-    const truck = await createTruck(req.body, req.user._id, req.user);
-    await auditTruckCreated({ user: req.user, truck, req });
-    res.status(201).json({ truck: formatTruckResponse(truck) });
   } catch (err) {
     next(err);
   }

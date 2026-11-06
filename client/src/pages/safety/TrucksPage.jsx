@@ -6,6 +6,7 @@ import ContextMenu from '../../components/ContextMenu';
 import SafetyListToolbar from '../../components/dispatch-safety/SafetyListToolbar';
 import TruckFormModal from '../../components/dispatch-safety/TruckFormModal';
 import LinkedFolderCell, { buildViewFilesMenuItem } from '../../components/dispatch-safety/LinkedFolderCell';
+import EquipmentImportButton from '../../components/dispatch-safety/EquipmentImportButton';
 
 export default function TrucksPage() {
   const navigate = useNavigate();
@@ -19,6 +20,7 @@ export default function TrucksPage() {
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedTruck, setSelectedTruck] = useState(null);
   const [menu, setMenu] = useState(null);
+  const [importResult, setImportResult] = useState(null);
 
   const loadTrucks = useCallback(async () => {
     setLoading(true);
@@ -56,6 +58,16 @@ export default function TrucksPage() {
     } else {
       await api.post('/dispatch/trucks', form);
     }
+    await loadTrucks();
+  };
+
+  const handleImportTrucks = async (file) => {
+    const body = new FormData();
+    body.append('file', file);
+    const { data } = await api.post('/dispatch/trucks/import', body, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    setImportResult(data);
     await loadTrucks();
   };
 
@@ -115,15 +127,60 @@ export default function TrucksPage() {
         </div>
       )}
 
-      <SafetyListToolbar
-        search={search}
-        onSearchChange={setSearch}
-        status={status}
-        onStatusChange={setStatus}
-        onNew={openCreate}
-        newLabel="New Truck"
-        canCreate={canEditSafetyEntities}
-      />
+      <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+        <div className="min-w-0 flex-1">
+          <SafetyListToolbar
+            search={search}
+            onSearchChange={setSearch}
+            status={status}
+            onStatusChange={setStatus}
+            onNew={openCreate}
+            newLabel="New Truck"
+            canCreate={canEditSafetyEntities}
+          />
+        </div>
+        {canEditSafetyEntities && (
+          <EquipmentImportButton label="Import trucks (CSV/Excel)" onImport={handleImportTrucks} />
+        )}
+      </div>
+
+      {importResult && (
+        <div className="mb-4 rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm dark:border-slate-600 dark:bg-slate-800/80">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p className="font-medium text-slate-800 dark:text-slate-100">
+              Import finished: {importResult.created ?? 0} truck(s) created
+              {(importResult.errors?.length ?? 0) > 0
+                ? `, ${importResult.errors.length} row error(s)`
+                : ''}
+              .
+            </p>
+            <button
+              type="button"
+              onClick={() => setImportResult(null)}
+              className="text-xs text-brand-600 hover:underline dark:text-brand-400"
+            >
+              Dismiss
+            </button>
+          </div>
+          {importResult.errors?.length > 0 && (
+            <ul className="mt-2 max-h-40 list-inside list-disc overflow-y-auto text-xs text-red-700 dark:text-red-300">
+              {importResult.errors.slice(0, 50).map((rowErr) => (
+                <li key={`${rowErr.row}-${rowErr.message}`}>
+                  Row {rowErr.row}: {rowErr.message}
+                </li>
+              ))}
+              {importResult.errors.length > 50 && (
+                <li>…and {importResult.errors.length - 50} more</li>
+              )}
+            </ul>
+          )}
+          <p className="mt-2 text-xs text-slate-600 dark:text-slate-400">
+            Required columns: Truck# (or Unit), VIN. Optional: Type, Status, Active, Make, Model, Year,
+            Plate#, DOT Inspection Expiration, Plates Expiration. VIN must be unique; duplicate rows
+            in the file are skipped.
+          </p>
+        </div>
+      )}
 
       <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
         <table className="min-w-full divide-y divide-slate-200 dark:divide-slate-700">

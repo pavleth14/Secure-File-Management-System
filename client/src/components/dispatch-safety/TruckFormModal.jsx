@@ -105,7 +105,7 @@ export default function TruckFormModal({ truck, open, onClose, onSave, canEdit, 
           <Field label="Make" value={form.make} onChange={(v) => setForm({ ...form, make: v })} readOnly={readOnly} />
           <Field label="Model" value={form.model} onChange={(v) => setForm({ ...form, model: v })} readOnly={readOnly} />
           <Field label="Year" value={form.year} onChange={(v) => setForm({ ...form, year: v })} readOnly={readOnly} />
-          <Field label="VIN#" value={form.vin} onChange={(v) => setForm({ ...form, vin: v })} readOnly={readOnly} />
+          <Field label="VIN#" value={form.vin} onChange={(v) => setForm({ ...form, vin: v })} readOnly={readOnly} required />
           <Field label="Plate#" value={form.plateNumber} onChange={(v) => setForm({ ...form, plateNumber: v })} readOnly={readOnly} />
           <Field label="DOT Inspection Expiration" type="date" value={form.dotInspectionExpiration} onChange={(v) => setForm({ ...form, dotInspectionExpiration: v })} readOnly={readOnly} />
           <Field label="Plates Expiration" type="date" value={form.platesExpiration} onChange={(v) => setForm({ ...form, platesExpiration: v })} readOnly={readOnly} />

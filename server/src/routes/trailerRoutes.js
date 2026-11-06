@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import multer from 'multer';
 import { authMiddleware } from '../middleware/authMiddleware.js';
 import {
   requireDispatchSafetyView,
@@ -20,8 +21,16 @@ import {
   auditTrailerUpdated,
   auditTrailerDeleted,
 } from '../services/dispatchAuditService.js';
+import { createUploadFileFilter } from '../config/uploadTypes.js';
+import { importTrailersFromBuffer } from '../services/equipmentSpreadsheetImportService.js';
 
 const router = Router();
+
+const equipmentImportUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 15 * 1024 * 1024 },
+  fileFilter: createUploadFileFilter(),
+});
 
 router.use(authMiddleware);
 router.use(requireDispatchSafetyView);
@@ -51,20 +60,35 @@ router.get('/', async (req, res, next) => {
   }
 });
 
-router.get('/:id', async (req, res, next) => {
-  try {
-    const trailer = await getTrailerById(req.params.id);
-    res.json({ trailer: formatTrailerResponse(trailer) });
-  } catch (err) {
-    next(err);
-  }
-});
-
 router.post('/', requireSafetyEdit, async (req, res, next) => {
   try {
     const trailer = await createTrailer(req.body, req.user._id, req.user);
     await auditTrailerCreated({ user: req.user, trailer, req });
     res.status(201).json({ trailer: formatTrailerResponse(trailer) });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post('/import', requireSafetyEdit, (req, res, next) => {
+  equipmentImportUpload.single('file')(req, res, async (uploadErr) => {
+    if (uploadErr) return next(uploadErr);
+    try {
+      if (!req.file?.buffer) {
+        return res.status(400).json({ message: 'File is required (CSV or Excel)' });
+      }
+      const result = await importTrailersFromBuffer(req.file.buffer, req.user);
+      res.status(200).json(result);
+    } catch (err) {
+      next(err);
+    }
+  });
+});
+
+router.get('/:id', async (req, res, next) => {
+  try {
+    const trailer = await getTrailerById(req.params.id);
+    res.json({ trailer: formatTrailerResponse(trailer) });
   } catch (err) {
     next(err);
   }

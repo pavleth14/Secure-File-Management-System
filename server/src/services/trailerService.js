@@ -22,10 +22,21 @@ const TRAILER_SEARCH_FIELDS = [
   'notes',
 ];
 
+function normalizeVinInput(value) {
+  return String(value || '').trim().toUpperCase();
+}
+
 function validateTrailerPayload(payload, { isUpdate = false } = {}) {
   const trailerNumber = String(payload.trailerNumber || '').trim();
   if (!isUpdate && !trailerNumber) {
     const err = new Error('Trailer# is required');
+    err.status = 400;
+    throw err;
+  }
+
+  const vin = normalizeVinInput(payload.vin);
+  if (!vin) {
+    const err = new Error('VIN is required');
     err.status = 400;
     throw err;
   }
@@ -44,7 +55,7 @@ function validateTrailerPayload(payload, { isUpdate = false } = {}) {
     make: String(payload.make || '').trim(),
     model: String(payload.model || '').trim(),
     year: String(payload.year || '').trim(),
-    vin: String(payload.vin || '').trim(),
+    vin,
     plateNumber: String(payload.plateNumber || '').trim(),
     dotInspectionExpiration: parseDateInput(payload.dotInspectionExpiration),
     platesExpiration: parseDateInput(payload.platesExpiration),
@@ -93,6 +104,15 @@ export async function createTrailer(payload, userId, user) {
     throw err;
   }
 
+  if (data.vin) {
+    const vinTaken = await Trailer.findOne({ vin: data.vin });
+    if (vinTaken) {
+      const err = new Error(`VIN already exists on trailer ${vinTaken.trailerNumber}`);
+      err.status = 409;
+      throw err;
+    }
+  }
+
   const trailer = await Trailer.create({
     ...data,
     createdBy: userId,
@@ -116,6 +136,15 @@ export async function updateTrailer(id, payload, user) {
       throw err;
     }
     trailer.trailerNumber = data.trailerNumber;
+  }
+
+  if (data.vin && data.vin !== normalizeVinInput(trailer.vin)) {
+    const vinTaken = await Trailer.findOne({ vin: data.vin, _id: { $ne: id } });
+    if (vinTaken) {
+      const err = new Error(`VIN already exists on trailer ${vinTaken.trailerNumber}`);
+      err.status = 409;
+      throw err;
+    }
   }
 
   if (payload.linkedFolderId !== undefined) {

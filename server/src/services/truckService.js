@@ -22,10 +22,21 @@ const TRUCK_SEARCH_FIELDS = [
   'notes',
 ];
 
+function normalizeVinInput(value) {
+  return String(value || '').trim().toUpperCase();
+}
+
 function validateTruckPayload(payload, { isUpdate = false } = {}) {
   const truckNumber = String(payload.truckNumber || '').trim();
   if (!isUpdate && !truckNumber) {
     const err = new Error('Truck# is required');
+    err.status = 400;
+    throw err;
+  }
+
+  const vin = normalizeVinInput(payload.vin);
+  if (!vin) {
+    const err = new Error('VIN is required');
     err.status = 400;
     throw err;
   }
@@ -43,7 +54,7 @@ function validateTruckPayload(payload, { isUpdate = false } = {}) {
     make: String(payload.make || '').trim(),
     model: String(payload.model || '').trim(),
     year: String(payload.year || '').trim(),
-    vin: String(payload.vin || '').trim(),
+    vin,
     plateNumber: String(payload.plateNumber || '').trim(),
     dotInspectionExpiration: parseDateInput(payload.dotInspectionExpiration),
     platesExpiration: parseDateInput(payload.platesExpiration),
@@ -92,6 +103,15 @@ export async function createTruck(payload, userId, user) {
     throw err;
   }
 
+  if (data.vin) {
+    const vinTaken = await Truck.findOne({ vin: data.vin });
+    if (vinTaken) {
+      const err = new Error(`VIN already exists on truck ${vinTaken.truckNumber}`);
+      err.status = 409;
+      throw err;
+    }
+  }
+
   const truck = await Truck.create({
     ...data,
     createdBy: userId,
@@ -116,6 +136,15 @@ export async function updateTruck(id, payload, user) {
       throw err;
     }
     truck.truckNumber = data.truckNumber;
+  }
+
+  if (data.vin && data.vin !== normalizeVinInput(truck.vin)) {
+    const vinTaken = await Truck.findOne({ vin: data.vin, _id: { $ne: id } });
+    if (vinTaken) {
+      const err = new Error(`VIN already exists on truck ${vinTaken.truckNumber}`);
+      err.status = 409;
+      throw err;
+    }
   }
 
   if (payload.linkedFolderId !== undefined) {

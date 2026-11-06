@@ -14,7 +14,7 @@ const trailerSchema = new mongoose.Schema(
     make: { type: String, default: '', trim: true },
     model: { type: String, default: '', trim: true },
     year: { type: String, default: '', trim: true },
-    vin: { type: String, default: '', trim: true },
+    vin: { type: String, default: '', trim: true, unique: true, sparse: true },
     plateNumber: { type: String, default: '', trim: true },
     dotInspectionExpiration: { type: Date, default: null },
     platesExpiration: { type: Date, default: null },
