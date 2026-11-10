@@ -47,8 +47,8 @@ function validateDriverPayload(payload, { isUpdate = false } = {}) {
       throw err;
     }
     const ssnDigits = ssnRaw.replace(/\D/g, '');
-    if (ssnDigits.length !== 9) {
-      const err = new Error('SSN must have 9 digits');
+    if (ssnRaw.trim() && ssnDigits.length !== 9) {
+      const err = new Error('SSN must have 9 digits when provided');
       err.status = 400;
       throw err;
     }
@@ -68,8 +68,8 @@ function validateDriverPayload(payload, { isUpdate = false } = {}) {
     }
     if (payload.ssn !== undefined) {
       const digits = ssnRaw.replace(/\D/g, '');
-      if (!ssnRaw.trim() || digits.length !== 9) {
-        const err = new Error('SSN must have 9 digits');
+      if (ssnRaw.trim() && digits.length !== 9) {
+        const err = new Error('SSN must have 9 digits when provided');
         err.status = 400;
         throw err;
       }

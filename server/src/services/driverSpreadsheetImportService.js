@@ -221,8 +221,9 @@ export async function importDriversFromBuffer(buffer, user) {
     }
 
     const ssnDigits = normalizeSsnDigits(payload.ssn);
-    if (!ssnDigits || ssnDigits.length !== 9) {
-      errors.push({ row: sheetRow, message: 'Missing or invalid SSN (need 9 digits)' });
+    const ssnProvided = String(payload.ssn || '').trim();
+    if (ssnProvided && ssnDigits.length !== 9) {
+      errors.push({ row: sheetRow, message: 'Invalid SSN (need 9 digits when provided)' });
       continue;
     }
 
@@ -240,7 +241,7 @@ export async function importDriversFromBuffer(buffer, user) {
       });
       continue;
     }
-    if (seenSsns.has(ssnDigits)) {
+    if (ssnDigits.length === 9 && seenSsns.has(ssnDigits)) {
       errors.push({
         row: sheetRow,
         message: 'Skipped — duplicate SSN in file',
@@ -262,7 +263,7 @@ export async function importDriversFromBuffer(buffer, user) {
       });
       continue;
     }
-    if (dbSsns.has(ssnDigits)) {
+    if (ssnDigits.length === 9 && dbSsns.has(ssnDigits)) {
       errors.push({
         row: sheetRow,
         message: 'Skipped — SSN already in database',
@@ -278,7 +279,7 @@ export async function importDriversFromBuffer(buffer, user) {
     }
 
     seenPhones.add(phoneDigits);
-    seenSsns.add(ssnDigits);
+    if (ssnDigits.length === 9) seenSsns.add(ssnDigits);
     seenCdls.add(cdlNorm);
 
     try {
@@ -286,7 +287,7 @@ export async function importDriversFromBuffer(buffer, user) {
         {
           ...payload,
           phone: payload.phone.trim(),
-          ssn: payload.ssn.trim(),
+          ssn: ssnDigits.length === 9 ? payload.ssn.trim() : '',
           cdlNumber: payload.cdlNumber.trim(),
           importSheetOrder: i,
         },
@@ -295,11 +296,11 @@ export async function importDriversFromBuffer(buffer, user) {
       );
       created.push(formatDriverResponse(driver, { includeSsn: true }));
       dbPhones.add(phoneDigits);
-      dbSsns.add(ssnDigits);
+      if (ssnDigits.length === 9) dbSsns.add(ssnDigits);
       dbCdls.add(cdlNorm);
     } catch (e) {
       seenPhones.delete(phoneDigits);
-      seenSsns.delete(ssnDigits);
+      if (ssnDigits.length === 9) seenSsns.delete(ssnDigits);
       seenCdls.delete(cdlNorm);
       errors.push({
         row: sheetRow,

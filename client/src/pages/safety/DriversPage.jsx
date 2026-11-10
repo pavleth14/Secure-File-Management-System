@@ -172,7 +172,7 @@ export default function DriversPage() {
             </ul>
           )}
           <p className="mt-2 text-xs text-slate-600 dark:text-slate-400">
-            Required: Name, Phone# (≥7 digits), SSN# (9 digits), CDL#. Optional: Type of Driver,
+            Required: Name, Phone# (≥7 digits), CDL#. Optional: SSN# (9 digits if provided), Type of Driver,
             Owner Operator / Solo column, Date of Birth, Email, Hired Date, Status, CDL State, CDL
             Expiration. Duplicates by phone, SSN, or CDL in the file or DB are skipped (listed
             above). List order matches spreadsheet rows for imported drivers.

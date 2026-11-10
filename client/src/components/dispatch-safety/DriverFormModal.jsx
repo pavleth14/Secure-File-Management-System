@@ -114,7 +114,7 @@ export default function DriverFormModal({ driver, open, onClose, onSave, canEdit
             Owner Operator
           </label>
           <Field label="Date of Birth" type="date" value={form.dateOfBirth} onChange={(v) => setForm({ ...form, dateOfBirth: v })} readOnly={readOnly} />
-          <Field label="SSN#" value={form.ssn} onChange={(v) => setForm({ ...form, ssn: v })} readOnly={readOnly} required />
+          <Field label="SSN#" value={form.ssn} onChange={(v) => setForm({ ...form, ssn: v })} readOnly={readOnly} />
           <Field label="Phone#" value={form.phone} onChange={(v) => setForm({ ...form, phone: v })} readOnly={readOnly} required />
           <Field label="Email" value={form.email} onChange={(v) => setForm({ ...form, email: v })} readOnly={readOnly} />
           <Field label="Hired Date" type="date" value={form.hiredDate} onChange={(v) => setForm({ ...form, hiredDate: v })} readOnly={readOnly} />
