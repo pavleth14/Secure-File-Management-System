@@ -1,7 +1,12 @@
 import XLSX from 'xlsx';
 import { Driver } from '../models/Driver.js';
 import { createDriver, formatDriverResponse } from './driverService.js';
-import { rowToNormalizedMap, getCell, parseFlexibleDate } from '../utils/equipmentImportUtils.js';
+import {
+  rowToNormalizedMap,
+  getCell,
+  parseFlexibleDate,
+  normalizeColumnKey,
+} from '../utils/equipmentImportUtils.js';
 import { DRIVER_TYPES, EQUIPMENT_STATUSES } from '../config/dispatchConstants.js';
 
 const MAX_ROWS = 5000;
@@ -41,16 +46,75 @@ function parseYesNo(value) {
   return null;
 }
 
+/** PT list: Type=TRUE → Company Driver; FALSE → Owner Operator (also Company Driver column). */
+function parseEmploymentFromTypeColumn(map) {
+  const raw = map.get(normalizeColumnKey('Type'));
+  if (raw === true) return { isOwnerOperator: false };
+  if (raw === false) return { isOwnerOperator: true };
+
+  const s = String(raw ?? '').trim().toLowerCase();
+  if (!s) return null;
+  if (s === 'true') return { isOwnerOperator: false };
+  if (s === 'false') return { isOwnerOperator: true };
+  if (s === 'company driver' || s === 'company') return { isOwnerOperator: false };
+  if (s === 'owner operator' || s === 'owner') return { isOwnerOperator: true };
+  if (['solo', 'team', 'local', 'solo driver', 'team driver'].includes(s)) return null;
+  if (DRIVER_TYPE_SET.has(String(raw).trim())) return null;
+  return null;
+}
+
 function parseDriverTypeAndOo(map) {
-  const typeCol = getCell(
-    map,
-    'Type of Driver',
-    'type of driver',
-    'Driver Type',
-    'driver type',
-    'Type',
-    'type'
-  );
+  let isOwnerOperator = false;
+  let employmentFromTypeColumn = false;
+
+  const companyDriverCell = getCell(map, 'Company Driver', 'company driver');
+  const companyDriverFlag = parseYesNo(companyDriverCell);
+  if (companyDriverFlag !== null) {
+    isOwnerOperator = !companyDriverFlag;
+    employmentFromTypeColumn = true;
+  } else {
+    const employmentFromType = parseEmploymentFromTypeColumn(map);
+    if (employmentFromType) {
+      isOwnerOperator = employmentFromType.isOwnerOperator;
+      employmentFromTypeColumn = true;
+    }
+  }
+
+  if (!employmentFromTypeColumn) {
+    const ooCol = getCell(
+      map,
+      'Owner Operator',
+      'owner operator',
+      'Owner operator',
+      'OO',
+      'O/O'
+    );
+    const ooParsed = parseYesNo(ooCol);
+    if (ooParsed !== null) {
+      isOwnerOperator = ooParsed;
+    } else {
+      const lower = String(ooCol || '').trim().toLowerCase();
+      if (lower.includes('owner') && lower.includes('operator')) isOwnerOperator = true;
+    }
+  }
+
+  const typeCol = employmentFromTypeColumn
+    ? getCell(
+        map,
+        'Type of Driver',
+        'type of driver',
+        'Driver Type',
+        'driver type'
+      )
+    : getCell(
+        map,
+        'Type of Driver',
+        'type of driver',
+        'Driver Type',
+        'driver type',
+        'Type',
+        'type'
+      );
   const soloCol = parseYesNo(getCell(map, 'Solo', 'solo'));
   const teamWord = getCell(map, 'Team', 'team');
 
@@ -63,23 +127,6 @@ function parseDriverTypeAndOo(map) {
     else if (DRIVER_TYPE_SET.has(t)) driverType = t;
   } else if (soloCol === false && teamWord) {
     driverType = 'Team';
-  }
-
-  let isOwnerOperator = false;
-  const ooCol = getCell(
-    map,
-    'Owner Operator',
-    'owner operator',
-    'Owner operator',
-    'OO',
-    'O/O'
-  );
-  const ooParsed = parseYesNo(ooCol);
-  if (ooParsed !== null) {
-    isOwnerOperator = ooParsed;
-  } else {
-    const lower = String(ooCol || '').trim().toLowerCase();
-    if (lower.includes('owner') && lower.includes('operator')) isOwnerOperator = true;
   }
 
   return { driverType, isOwnerOperator };
