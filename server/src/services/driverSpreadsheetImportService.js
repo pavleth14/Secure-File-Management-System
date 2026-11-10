@@ -8,6 +8,10 @@ import {
   normalizeColumnKey,
 } from '../utils/equipmentImportUtils.js';
 import { DRIVER_TYPES, EQUIPMENT_STATUSES } from '../config/dispatchConstants.js';
+import {
+  parseEmploymentTypeLabel,
+  syncLegacyOwnerOperatorFlag,
+} from '../utils/driverEmploymentType.js';
 
 const MAX_ROWS = 5000;
 
@@ -49,38 +53,46 @@ function parseYesNo(value) {
 /** PT list: Type=TRUE → Company Driver; FALSE → Owner Operator (also Company Driver column). */
 function parseEmploymentFromTypeColumn(map) {
   const raw = map.get(normalizeColumnKey('Type'));
-  if (raw === true) return { isOwnerOperator: false };
-  if (raw === false) return { isOwnerOperator: true };
+  if (raw === true) return 'Company Driver';
+  if (raw === false) return 'Owner Operator';
+
+  const explicit = getCell(
+    map,
+    'Employment Type',
+    'employment type',
+    'Driver Category',
+    'driver category'
+  );
+  const fromExplicit = parseEmploymentTypeLabel(explicit);
+  if (fromExplicit) return fromExplicit;
 
   const s = String(raw ?? '').trim().toLowerCase();
   if (!s) return null;
-  if (s === 'true') return { isOwnerOperator: false };
-  if (s === 'false') return { isOwnerOperator: true };
-  if (s === 'company driver' || s === 'company') return { isOwnerOperator: false };
-  if (s === 'owner operator' || s === 'owner') return { isOwnerOperator: true };
+  const fromType = parseEmploymentTypeLabel(raw);
+  if (fromType) return fromType;
   if (['solo', 'team', 'local', 'solo driver', 'team driver'].includes(s)) return null;
   if (DRIVER_TYPE_SET.has(String(raw).trim())) return null;
   return null;
 }
 
 function parseDriverTypeAndOo(map) {
-  let isOwnerOperator = false;
+  let employmentType = null;
   let employmentFromTypeColumn = false;
 
   const companyDriverCell = getCell(map, 'Company Driver', 'company driver');
   const companyDriverFlag = parseYesNo(companyDriverCell);
   if (companyDriverFlag !== null) {
-    isOwnerOperator = !companyDriverFlag;
+    employmentType = companyDriverFlag ? 'Company Driver' : 'Owner Operator';
     employmentFromTypeColumn = true;
   } else {
     const employmentFromType = parseEmploymentFromTypeColumn(map);
     if (employmentFromType) {
-      isOwnerOperator = employmentFromType.isOwnerOperator;
+      employmentType = employmentFromType;
       employmentFromTypeColumn = true;
     }
   }
 
-  if (!employmentFromTypeColumn) {
+  if (!employmentType) {
     const ooCol = getCell(
       map,
       'Owner Operator',
@@ -90,13 +102,22 @@ function parseDriverTypeAndOo(map) {
       'O/O'
     );
     const ooParsed = parseYesNo(ooCol);
-    if (ooParsed !== null) {
-      isOwnerOperator = ooParsed;
-    } else {
-      const lower = String(ooCol || '').trim().toLowerCase();
-      if (lower.includes('owner') && lower.includes('operator')) isOwnerOperator = true;
+    if (ooParsed === true) employmentType = 'Owner Operator';
+    else if (ooParsed === false) employmentType = 'Company Driver';
+    else {
+      const fromOoText = parseEmploymentTypeLabel(ooCol);
+      if (fromOoText) employmentType = fromOoText;
+      else {
+        const lower = String(ooCol || '').trim().toLowerCase();
+        if (lower.includes('owner') && lower.includes('operator')) {
+          employmentType = 'Owner Operator';
+        }
+      }
     }
   }
+
+  if (!employmentType) employmentType = 'Company Driver';
+  const isOwnerOperator = syncLegacyOwnerOperatorFlag(employmentType);
 
   const typeCol = employmentFromTypeColumn
     ? getCell(
@@ -129,7 +150,7 @@ function parseDriverTypeAndOo(map) {
     driverType = 'Team';
   }
 
-  return { driverType, isOwnerOperator };
+  return { driverType, employmentType, isOwnerOperator };
 }
 
 function parseStatusCell(map) {
@@ -156,7 +177,7 @@ function buildDriverPayloadFromRow(map) {
     'Full Name',
     'full name'
   );
-  const { driverType, isOwnerOperator } = parseDriverTypeAndOo(map);
+  const { driverType, employmentType, isOwnerOperator } = parseDriverTypeAndOo(map);
 
   const dobRaw = getCell(
     map,
@@ -202,6 +223,7 @@ function buildDriverPayloadFromRow(map) {
   return {
     name,
     driverType,
+    employmentType,
     isOwnerOperator,
     dateOfBirth: parseFlexibleDate(dobRaw),
     ssn: String(ssnRaw || '').trim(),

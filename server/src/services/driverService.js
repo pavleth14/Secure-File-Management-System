@@ -6,7 +6,16 @@ import {
   filterByStatus,
   assertFolderExists,
 } from './dispatchEntityHelpers.js';
-import { DRIVER_TYPES, EQUIPMENT_STATUSES } from '../config/dispatchConstants.js';
+import {
+  DRIVER_TYPES,
+  EQUIPMENT_STATUSES,
+  SAFETY_DRIVER_EMPLOYMENT_TYPES,
+} from '../config/dispatchConstants.js';
+import {
+  parseEmploymentTypeLabel,
+  resolveDriverEmploymentType,
+  syncLegacyOwnerOperatorFlag,
+} from '../utils/driverEmploymentType.js';
 import { canEditSafetyEntities } from '../utils/dispatchPermissions.js';
 import { compareNaturalStrings } from '../utils/naturalStringSort.js';
 import { parseFlexibleDate } from '../utils/equipmentImportUtils.js';
@@ -14,6 +23,7 @@ import { parseFlexibleDate } from '../utils/equipmentImportUtils.js';
 const DRIVER_SEARCH_FIELDS = [
   'name',
   'driverType',
+  'employmentType',
   'status',
   'phone',
   'email',
@@ -87,6 +97,21 @@ function validateDriverPayload(payload, { isUpdate = false } = {}) {
     throw err;
   }
 
+  let employmentType;
+  const employmentRaw = payload.employmentType;
+  if (employmentRaw !== undefined && employmentRaw !== null && String(employmentRaw).trim() !== '') {
+    const parsed =
+      parseEmploymentTypeLabel(employmentRaw) || String(employmentRaw).trim();
+    if (!SAFETY_DRIVER_EMPLOYMENT_TYPES.includes(parsed)) {
+      const err = new Error('Invalid employment type');
+      err.status = 400;
+      throw err;
+    }
+    employmentType = parsed;
+  } else {
+    employmentType = resolveDriverEmploymentType(payload);
+  }
+
   if (payload.status && !EQUIPMENT_STATUSES.includes(payload.status)) {
     const err = new Error('Invalid driver status');
     err.status = 400;
@@ -109,7 +134,8 @@ function validateDriverPayload(payload, { isUpdate = false } = {}) {
   const result = {
     name,
     driverType: payload.driverType || 'Solo',
-    isOwnerOperator: Boolean(payload.isOwnerOperator),
+    employmentType,
+    isOwnerOperator: syncLegacyOwnerOperatorFlag(employmentType),
     dateOfBirth: parseFlexibleDate(payload.dateOfBirth),
     ssn: ssnRaw,
     phone,
@@ -194,6 +220,7 @@ export async function updateDriver(id, payload, user) {
 
   driver.name = data.name;
   driver.driverType = data.driverType;
+  driver.employmentType = data.employmentType;
   driver.isOwnerOperator = data.isOwnerOperator;
   driver.dateOfBirth = data.dateOfBirth;
   driver.ssn = data.ssn;

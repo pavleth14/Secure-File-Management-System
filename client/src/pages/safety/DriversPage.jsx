@@ -6,7 +6,7 @@ import SafetyListToolbar from '../../components/dispatch-safety/SafetyListToolba
 import DriverFormModal from '../../components/dispatch-safety/DriverFormModal';
 import LinkedFolderCell, { buildViewFilesMenuItem } from '../../components/dispatch-safety/LinkedFolderCell';
 import EquipmentImportButton from '../../components/dispatch-safety/EquipmentImportButton';
-import { formatDriverEmploymentType } from '../../constants/dispatchConstants';
+import { formatEmploymentTypeForTable } from '../../constants/dispatchConstants';
 
 export default function DriversPage() {
   const { canEditSafetyEntities, canDeleteSafetyEntities, canLinkFolders } = useAuth();
@@ -174,8 +174,8 @@ export default function DriversPage() {
           )}
           <p className="mt-2 text-xs text-slate-600 dark:text-slate-400">
             Required: Name, Phone# (≥7 digits), CDL#. Optional: SSN# (9 digits if provided), Type
-            (TRUE/FALSE or Company Driver column → Company Driver / Owner Operator in table), Type of
-            Driver (Solo/Team), Date of Birth, Email, Hired Date, Status, CDL State, CDL
+            (TRUE/FALSE → Company Driver / Owner Operator; or Company Driver, Owner Operator, DFOOP),
+            Date of Birth, Email, Hired Date, Status, CDL State, CDL
             Expiration. Duplicates by phone, SSN, or CDL in the file or DB are skipped (listed
             above). List order matches spreadsheet rows for imported drivers.
           </p>
@@ -221,7 +221,7 @@ export default function DriversPage() {
                 >
                   <td className="px-4 py-3 text-sm font-medium">{driver.name}</td>
                   <td className="px-4 py-3 text-sm">
-                    {formatDriverEmploymentType(driver.isOwnerOperator)}
+                    {formatEmploymentTypeForTable(driver.employmentType)}
                   </td>
                   <td className="px-4 py-3 text-sm">{driver.status}</td>
                   <td className="px-4 py-3 text-sm">{driver.phone || '—'}</td>

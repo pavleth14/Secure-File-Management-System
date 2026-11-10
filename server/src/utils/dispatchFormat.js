@@ -1,3 +1,5 @@
+import { resolveDriverEmploymentType } from './driverEmploymentType.js';
+
 export function maskSsn(ssn) {
   const value = String(ssn || '').replace(/\D/g, '');
   if (value.length < 4) return '***-**-****';
@@ -62,10 +64,12 @@ export function formatTrailer(trailer) {
 
 export function formatDriver(driver, { includeSsn = false } = {}) {
   const obj = driver.toObject ? driver.toObject() : driver;
+  const employmentType = resolveDriverEmploymentType(obj);
   return {
     id: obj._id,
     name: obj.name,
     driverType: obj.driverType,
+    employmentType,
     isOwnerOperator: Boolean(obj.isOwnerOperator),
     dateOfBirth: formatDate(obj.dateOfBirth),
     ssn: includeSsn ? obj.ssn || '' : maskSsn(obj.ssn),

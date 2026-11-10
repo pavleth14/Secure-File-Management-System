@@ -9,6 +9,10 @@ import XLSX from 'xlsx';
 import path from 'path';
 import mongoose from 'mongoose';
 import { Driver } from '../src/models/Driver.js';
+import {
+  parseEmploymentTypeLabel,
+  syncLegacyOwnerOperatorFlag,
+} from '../src/utils/driverEmploymentType.js';
 
 const defaultPath =
   'C:/Users/Administrator/Downloads/PT Active Driver List 11-10-2026 (1).xlsx';
@@ -22,12 +26,9 @@ function normalizeCdl(value) {
 }
 
 function employmentFromType(raw) {
-  if (raw === true) return false;
-  if (raw === false) return true;
-  const s = String(raw ?? '').trim().toLowerCase();
-  if (s === 'true') return false;
-  if (s === 'false') return true;
-  return null;
+  if (raw === true) return 'Company Driver';
+  if (raw === false) return 'Owner Operator';
+  return parseEmploymentTypeLabel(raw);
 }
 
 async function main() {
@@ -47,32 +48,41 @@ async function main() {
   const byCdl = new Map();
   const byPhone = new Map();
   for (const row of rows) {
-    const isOo = employmentFromType(row.Type);
-    if (isOo === null) continue;
+    const employmentType = employmentFromType(row.Type);
+    if (!employmentType) continue;
     const cdl = normalizeCdl(row['CDL#'] || row['CDL Number']);
     const phone = normalizePhone(row['Phone#'] || row['Cell-Phone']);
-    if (cdl) byCdl.set(cdl, isOo);
-    if (phone.length >= 7) byPhone.set(phone, isOo);
+    if (cdl) byCdl.set(cdl, employmentType);
+    if (phone.length >= 7) byPhone.set(phone, employmentType);
   }
 
   await mongoose.connect(uri);
-  const drivers = await Driver.find().select('name cdlNumber phone isOwnerOperator').lean();
+  const drivers = await Driver.find().select('name cdlNumber phone employmentType isOwnerOperator').lean();
 
   let updated = 0;
   let unmatched = 0;
   for (const doc of drivers) {
     const cdl = normalizeCdl(doc.cdlNumber);
     const phone = normalizePhone(doc.phone);
-    let isOo = cdl && byCdl.has(cdl) ? byCdl.get(cdl) : undefined;
-    if (isOo === undefined && phone.length >= 7 && byPhone.has(phone)) {
-      isOo = byPhone.get(phone);
+    let employmentType =
+      cdl && byCdl.has(cdl) ? byCdl.get(cdl) : undefined;
+    if (employmentType === undefined && phone.length >= 7 && byPhone.has(phone)) {
+      employmentType = byPhone.get(phone);
     }
-    if (isOo === undefined) {
+    if (employmentType === undefined) {
       unmatched += 1;
       continue;
     }
-    if (Boolean(doc.isOwnerOperator) !== Boolean(isOo)) {
-      await Driver.updateOne({ _id: doc._id }, { $set: { isOwnerOperator: isOo } });
+    if (doc.employmentType !== employmentType) {
+      await Driver.updateOne(
+        { _id: doc._id },
+        {
+          $set: {
+            employmentType,
+            isOwnerOperator: syncLegacyOwnerOperatorFlag(employmentType),
+          },
+        }
+      );
       updated += 1;
     }
   }

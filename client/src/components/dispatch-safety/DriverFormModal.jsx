@@ -1,12 +1,15 @@
 import { useEffect, useState } from 'react';
-import { DRIVER_TYPES, EQUIPMENT_STATUSES } from '../../constants/dispatchConstants';
+import {
+  EQUIPMENT_STATUSES,
+  SAFETY_DRIVER_EMPLOYMENT_TYPES,
+  SAFETY_DRIVER_EMPLOYMENT_LABELS,
+} from '../../constants/dispatchConstants';
 import FolderLinkField from './FolderLinkField';
 import { inputClass } from './SafetyListToolbar';
 
 const emptyForm = {
   name: '',
-  driverType: 'Solo',
-  isOwnerOperator: false,
+  employmentType: 'Company Driver',
   dateOfBirth: '',
   ssn: '',
   phone: '',
@@ -35,8 +38,7 @@ export default function DriverFormModal({ driver, open, onClose, onSave, canEdit
     if (driver) {
       setForm({
         name: driver.name || '',
-        driverType: driver.driverType || 'Solo',
-        isOwnerOperator: Boolean(driver.isOwnerOperator),
+        employmentType: driver.employmentType || 'Company Driver',
         dateOfBirth: toDateInput(driver.dateOfBirth),
         ssn: driver.ssn || '',
         phone: driver.phone || '',
@@ -91,28 +93,20 @@ export default function DriverFormModal({ driver, open, onClose, onSave, canEdit
         <div className="grid gap-4 sm:grid-cols-2">
           <Field label="Name" value={form.name} onChange={(v) => setForm({ ...form, name: v })} readOnly={readOnly} required />
           <div>
-            <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">Type of Driver</label>
+            <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">Type</label>
             <select
-              value={form.driverType}
-              onChange={(event) => setForm({ ...form, driverType: event.target.value })}
+              value={form.employmentType}
+              onChange={(event) => setForm({ ...form, employmentType: event.target.value })}
               disabled={readOnly}
               className={inputClass}
             >
-              {DRIVER_TYPES.map((type) => (
-                <option key={type} value={type}>{type}</option>
+              {SAFETY_DRIVER_EMPLOYMENT_TYPES.map((type) => (
+                <option key={type} value={type}>
+                  {SAFETY_DRIVER_EMPLOYMENT_LABELS[type] || type}
+                </option>
               ))}
             </select>
           </div>
-          <label className="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-300 sm:col-span-2">
-            <input
-              type="checkbox"
-              checked={form.isOwnerOperator}
-              onChange={(event) => setForm({ ...form, isOwnerOperator: event.target.checked })}
-              disabled={readOnly}
-              className="rounded border-slate-300 dark:border-slate-600"
-            />
-            Owner Operator
-          </label>
           <Field label="Date of Birth" type="date" value={form.dateOfBirth} onChange={(v) => setForm({ ...form, dateOfBirth: v })} readOnly={readOnly} />
           <Field label="SSN#" value={form.ssn} onChange={(v) => setForm({ ...form, ssn: v })} readOnly={readOnly} />
           <Field label="Phone#" value={form.phone} onChange={(v) => setForm({ ...form, phone: v })} readOnly={readOnly} required />

@@ -2,6 +2,13 @@ export const EQUIPMENT_STATUSES = Object.freeze(['Active', 'Terminated', 'Not Ac
 
 export const DRIVER_TYPES = Object.freeze(['Solo', 'Team']);
 
+/** Safety module: company / OO / DFOOP (separate from dispatch Solo/Team on driverType). */
+export const SAFETY_DRIVER_EMPLOYMENT_TYPES = Object.freeze([
+  'Company Driver',
+  'Owner Operator',
+  'DFOOP',
+]);
+
 export const ASSIGNMENT_HISTORY_ACTIONS = Object.freeze([
   'created',
   'driver_assigned',

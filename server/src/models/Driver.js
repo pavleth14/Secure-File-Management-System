@@ -1,5 +1,9 @@
 import mongoose from 'mongoose';
-import { DRIVER_TYPES, EQUIPMENT_STATUSES } from '../config/dispatchConstants.js';
+import {
+  DRIVER_TYPES,
+  EQUIPMENT_STATUSES,
+  SAFETY_DRIVER_EMPLOYMENT_TYPES,
+} from '../config/dispatchConstants.js';
 
 const driverSchema = new mongoose.Schema(
   {
@@ -10,6 +14,11 @@ const driverSchema = new mongoose.Schema(
       default: 'Solo',
     },
     isOwnerOperator: { type: Boolean, default: false },
+    employmentType: {
+      type: String,
+      enum: SAFETY_DRIVER_EMPLOYMENT_TYPES,
+      default: 'Company Driver',
+    },
     dateOfBirth: { type: Date, default: null },
     ssn: { type: String, default: '', trim: true },
     phone: { type: String, default: '', trim: true },
