@@ -113,6 +113,8 @@ const loadSchema = new mongoose.Schema(
 );
 
 loadSchema.index({ archived: 1, createdAt: -1 });
+loadSchema.index({ archived: 1, loadNumber: -1 });
+loadSchema.index({ archived: 1, status: 1, loadNumber: -1 });
 loadSchema.index({ truckId: 1, archived: 1, status: 1 });
 loadSchema.index({ trailerId: 1, archived: 1, status: 1 });
 loadSchema.index({ driverId: 1, archived: 1, status: 1 });

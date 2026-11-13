@@ -22,4 +22,6 @@ const personalFileSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+personalFileSchema.index({ userId: 1, createdAt: -1 });
+
 export const PersonalFile = mongoose.model('PersonalFile', personalFileSchema);

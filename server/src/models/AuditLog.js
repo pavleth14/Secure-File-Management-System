@@ -39,5 +39,6 @@ const auditLogSchema = new mongoose.Schema(
 auditLogSchema.index({ timestamp: -1 });
 auditLogSchema.index({ username: 1 });
 auditLogSchema.index({ category: 1, timestamp: -1 });
+auditLogSchema.index({ userId: 1, action: 1, targetType: 1, timestamp: -1 });
 
 export const AuditLog = mongoose.model('AuditLog', auditLogSchema);

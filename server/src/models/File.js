@@ -26,4 +26,7 @@ const fileSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+fileSchema.index({ folderId: 1, subfolderId: 1, createdAt: -1 });
+fileSchema.index({ uploadedBy: 1, createdAt: -1 });
+
 export const FileModel = mongoose.model('File', fileSchema);

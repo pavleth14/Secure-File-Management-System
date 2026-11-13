@@ -94,5 +94,11 @@ maintenanceCaseSchema.index({ lastEditedAt: -1 });
 maintenanceCaseSchema.index({ dueDate: 1 });
 maintenanceCaseSchema.index({ truckId: 1 });
 maintenanceCaseSchema.index({ trailerId: 1 });
+maintenanceCaseSchema.index({ assigneeId: 1, lastEditedAt: -1 });
+maintenanceCaseSchema.index({ caseStatus: 1, lastEditedAt: -1 });
+maintenanceCaseSchema.index({ priority: 1, lastEditedAt: -1 });
+maintenanceCaseSchema.index({ createdAt: -1 });
+maintenanceCaseSchema.index({ dateClosed: 1 });
+maintenanceCaseSchema.index({ cost: 1 });
 
 export const MaintenanceCase = mongoose.model('MaintenanceCase', maintenanceCaseSchema);

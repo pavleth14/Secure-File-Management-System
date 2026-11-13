@@ -114,7 +114,11 @@ const leadSchema = new mongoose.Schema(
 );
 
 leadSchema.index({ assignedRecruiter: 1, archived: 1, createdAt: -1 });
+leadSchema.index({ assignedRecruiter: 1, archived: 1, status: 1, createdAt: -1 });
 leadSchema.index({ archived: 1, archivedAt: -1 });
+leadSchema.index({ archived: 1, driverType: 1, createdAt: -1 });
+leadSchema.index({ archived: 1, date: 1 });
+leadSchema.index({ archived: 1, hiredDate: 1 });
 leadSchema.index({ status: 1 });
 leadSchema.index({ source: 1 });
 leadSchema.index({ createdAt: -1 });
