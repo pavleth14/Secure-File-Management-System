@@ -19,17 +19,6 @@ export function DispatchSafetyViewGuard({ children }) {
   return children;
 }
 
-export function SafetyEditGuard({ children }) {
-  const { canEditSafetyEntities, loading } = useAuth();
-
-  if (loading) return null;
-  if (!canEditSafetyEntities) {
-    return <Navigate to="/dashboard" replace />;
-  }
-
-  return children;
-}
-
 export function DispatchModuleGuard({ children }) {
   const { loading, hasDispatchModuleAccess } = useAuth();
 

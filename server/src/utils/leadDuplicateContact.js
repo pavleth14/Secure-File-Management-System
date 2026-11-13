@@ -104,19 +104,6 @@ export function getLeadDuplicateContactReason(
   return 'phone';
 }
 
-/** @deprecated Use buildLeadDuplicateFilter — kept for import modules. */
-export function buildImportDuplicateFilter(
-  normalizedEmail,
-  normalizedPhone,
-  emailMissing = false
-) {
-  return buildLeadDuplicateFilter({
-    email: normalizedEmail,
-    phone: normalizedPhone,
-    emailMissing,
-  });
-}
-
 export function buildOldLeadDuplicateFilter(
   normalizedEmail,
   normalizedPhone,

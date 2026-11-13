@@ -26,7 +26,6 @@ import {
   generateImportPlaceholderEmail,
 } from '../utils/importPlaceholderEmail.js';
 import {
-  buildImportDuplicateFilter,
   getLeadDuplicateContactReason,
   normalizeLeadContactPhoneDigits,
 } from '../utils/leadDuplicateContact.js';
@@ -926,7 +925,6 @@ export {
   buildImportCommentEntries,
   resolveImportEmail,
   generateImportPlaceholderEmail,
-  buildImportDuplicateFilter,
   MAX_IMPORT_COMMENTS,
   MISSING_EMAIL_IMPORT_WARNING,
 };

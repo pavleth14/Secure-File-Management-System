@@ -11,10 +11,6 @@ export function hasMaintenanceModuleAccess(user) {
   );
 }
 
-export function canViewMaintenanceBoard(user) {
-  return hasMaintenanceModuleAccess(user);
-}
-
 export function isMaintenanceViewOnly(user) {
   if (isSuperAdmin(user) || user?.isMaintenanceManager || user?.isMaintenance) {
     return false;
@@ -31,14 +27,6 @@ export function canEditMaintenanceCases(user) {
 
 export function canDeleteMaintenanceCases(user) {
   return Boolean(isSuperAdmin(user) || user?.isMaintenanceManager);
-}
-
-export function canCommentOnMaintenanceCase(user) {
-  return canEditMaintenanceCases(user);
-}
-
-export function canManageMaintenanceTags(user) {
-  return canEditMaintenanceCases(user);
 }
 
 /** Maint. Mgr and Super Admin may assign cases to any eligible maintenance assignee. */

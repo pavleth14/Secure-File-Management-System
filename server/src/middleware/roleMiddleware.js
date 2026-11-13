@@ -14,14 +14,6 @@ export function roleMiddleware(...allowedRoles) {
   };
 }
 
-export function isAdminOrAbove(user) {
-  return user.role === ROLES.SUPER_ADMIN || user.role === ROLES.ADMIN;
-}
-
-export function isSuperAdmin(user) {
-  return user.role === ROLES.SUPER_ADMIN;
-}
-
 export function canManageTargetUser(actor, target) {
   if (actor.role === ROLES.SUPER_ADMIN) return true;
   if (actor.role === ROLES.ADMIN) {

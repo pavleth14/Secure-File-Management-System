@@ -47,7 +47,3 @@ export function getLeadPhoneTelHref(value) {
   if (!nationalDigits) return null;
   return `tel:+1${nationalDigits}`;
 }
-
-export function isUsPhoneNumber(value) {
-  return parseUsPhoneDigits(value) !== null;
-}
