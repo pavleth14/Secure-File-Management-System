@@ -4,6 +4,7 @@ import api from '../../api/client';
 import { useAuth } from '../../context/AuthContext';
 import MaintenanceTagPill from '../../components/maintenance/MaintenanceTagPill';
 import MaintenanceCaseModal from '../../components/maintenance/MaintenanceCaseModal';
+import RepairShopLink from '../../components/maintenance/RepairShopLink';
 import MaintenanceCommentsCell from '../../components/maintenance/MaintenanceCommentsCell';
 import MaintenanceBoardToolbar, {
   MAINTENANCE_BOARD_INITIAL_FILTERS,
@@ -350,7 +351,9 @@ export default function MaintenanceBoardPage() {
                   <td className="px-3 py-2">
                     <MaintenanceTagPill label={row.caseType} color={row.caseTypeColor} />
                   </td>
-                  <td className="max-w-[8rem] truncate px-3 py-2">{row.repairShop || '—'}</td>
+                  <td className="max-w-[8rem] px-3 py-2">
+                    <RepairShopLink shop={row.repairShop} truncate />
+                  </td>
                   <td className="whitespace-nowrap px-3 py-2 tabular-nums">
                     {row.costLabel || '—'}
                   </td>

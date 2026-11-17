@@ -12,6 +12,8 @@ import MaintenanceTagPill from './MaintenanceTagPill';
 import MaintenanceReplaceCaseStatusDialog from './MaintenanceReplaceCaseStatusDialog';
 import MaintenanceEditTagDialog from './MaintenanceEditTagDialog';
 import { useContextMenu } from '../../hooks/useContextMenu';
+import { buildGoogleMapsSearchUrl } from '../../utils/repairShopMaps';
+import RepairShopLink from './RepairShopLink';
 
 const TAG_FORM_FIELD_BY_TYPE = {
   case_status: 'caseStatus',
@@ -567,23 +569,30 @@ export default function MaintenanceCaseModal({
     }
   };
 
-  const handleAttachmentUpload = async (file) => {
-    if (!caseData?.id || !onUpload) return;
+  const handleAttachmentUploadMany = async (files) => {
+    if (!caseData?.id || !onUpload || !files.length) return;
     setUploading(true);
     setUploadError('');
     try {
-      await onUpload(caseData.id, file);
+      for (const file of files) {
+        await onUpload(caseData.id, file);
+      }
     } catch (err) {
-      setUploadError(err.response?.data?.message || err.message || 'Failed to upload file');
+      setUploadError(err.response?.data?.message || err.message || 'Failed to upload files');
     } finally {
       setUploading(false);
     }
   };
 
-  const handleQueueAttachment = (file) => {
-    if (!file || readOnly) return;
+  const handleAttachmentFilesSelected = (fileList) => {
+    const files = Array.from(fileList || []).filter(Boolean);
+    if (!files.length || readOnly) return;
     setUploadError('');
-    setPendingAttachmentFiles((prev) => [...prev, file]);
+    if (caseData) {
+      handleAttachmentUploadMany(files);
+    } else {
+      setPendingAttachmentFiles((prev) => [...prev, ...files]);
+    }
   };
 
   const handleRemovePendingAttachment = (index) => {
@@ -795,6 +804,14 @@ export default function MaintenanceCaseModal({
               value={form.repairShop}
               onChange={(e) => setForm({ ...form, repairShop: e.target.value })}
             />
+            {form.repairShop?.trim() && buildGoogleMapsSearchUrl(form.repairShop) && (
+              <p className="mt-1.5 text-sm">
+                <RepairShopLink shop={form.repairShop} />
+                <span className="ml-1 text-xs text-slate-500 dark:text-slate-400">
+                  (opens Google Maps in a new tab)
+                </span>
+              </p>
+            )}
           </div>
 
           <div>
@@ -933,20 +950,18 @@ export default function MaintenanceCaseModal({
               <div className="mt-2">
                 <input
                   type="file"
+                  multiple
                   accept={ATTACHMENT_ACCEPT}
                   className="text-sm"
                   disabled={uploading || saving}
                   onChange={(e) => {
-                    const file = e.target.files?.[0];
-                    if (!file) return;
-                    if (caseData) {
-                      handleAttachmentUpload(file);
-                    } else {
-                      handleQueueAttachment(file);
-                    }
+                    handleAttachmentFilesSelected(e.target.files);
                     e.target.value = '';
                   }}
                 />
+                <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                  Select one or more PDFs or images (Ctrl/Cmd+click or shift-select).
+                </p>
                 {(uploading || (saving && pendingAttachmentFiles.length > 0)) && (
                   <p className="mt-1 text-xs text-slate-500">
                     {saving && pendingAttachmentFiles.length > 0
