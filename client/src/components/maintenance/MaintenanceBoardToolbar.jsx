@@ -20,6 +20,7 @@ export default function MaintenanceBoardToolbar({
   showNewCase = false,
   onNewCase,
   onExportCostReport,
+  onManageRepairShops,
 }) {
   const set = (key, value) => onFilterChange(key, value);
 
@@ -67,6 +68,15 @@ export default function MaintenanceBoardToolbar({
           className="rounded border border-emerald-600/70 bg-emerald-600 px-2 py-0.5 text-xs font-medium text-white hover:bg-emerald-700 dark:bg-emerald-700 dark:hover:bg-emerald-600"
         >
           Cost CSV
+        </button>
+      )}
+      {onManageRepairShops && (
+        <button
+          type="button"
+          onClick={onManageRepairShops}
+          className={compactBtnClass}
+        >
+          Repair shops
         </button>
       )}
 

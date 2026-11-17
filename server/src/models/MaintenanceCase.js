@@ -67,6 +67,11 @@ const maintenanceCaseSchema = new mongoose.Schema(
     },
     caseType: { type: String, trim: true, default: '' },
     repairShop: { type: String, trim: true, default: '' },
+    repairShopId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'MaintenanceRepairShop',
+      default: null,
+    },
     issueDescription: { type: String, trim: true, default: '' },
     invoiceStatus: { type: String, trim: true, default: '' },
     dateClosed: { type: Date, default: null },

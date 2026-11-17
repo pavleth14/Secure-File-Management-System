@@ -5,6 +5,7 @@ import { useAuth } from '../../context/AuthContext';
 import MaintenanceTagPill from '../../components/maintenance/MaintenanceTagPill';
 import MaintenanceCaseModal from '../../components/maintenance/MaintenanceCaseModal';
 import RepairShopLink from '../../components/maintenance/RepairShopLink';
+import MaintenanceRepairShopsDialog from '../../components/maintenance/MaintenanceRepairShopsDialog';
 import MaintenanceCommentsCell from '../../components/maintenance/MaintenanceCommentsCell';
 import MaintenanceBoardToolbar, {
   MAINTENANCE_BOARD_INITIAL_FILTERS,
@@ -70,6 +71,7 @@ export default function MaintenanceBoardPage() {
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedCase, setSelectedCase] = useState(null);
   const [openCommentsCaseId, setOpenCommentsCaseId] = useState(null);
+  const [repairShopsOpen, setRepairShopsOpen] = useState(false);
   const { openContextMenu, contextMenuNode } = useContextMenu();
 
   const COLUMN_COUNT = 16;
@@ -268,6 +270,7 @@ export default function MaintenanceBoardPage() {
         showNewCase={canCreateMaintenanceCases}
         onNewCase={openCreate}
         onExportCostReport={handleExportCostReport}
+        onManageRepairShops={() => setRepairShopsOpen(true)}
       />
 
       {error && <p className="mb-2 text-xs text-red-600">{error}</p>}
@@ -352,7 +355,11 @@ export default function MaintenanceBoardPage() {
                     <MaintenanceTagPill label={row.caseType} color={row.caseTypeColor} />
                   </td>
                   <td className="max-w-[8rem] px-3 py-2">
-                    <RepairShopLink shop={row.repairShop} truncate />
+                    <RepairShopLink
+                      shop={row.repairShop}
+                      mapsUrl={row.repairShopMapsUrl}
+                      truncate
+                    />
                   </td>
                   <td className="whitespace-nowrap px-3 py-2 tabular-nums">
                     {row.costLabel || '—'}
@@ -400,6 +407,13 @@ export default function MaintenanceBoardPage() {
         </table>
       </div>
       {contextMenuNode}
+
+      <MaintenanceRepairShopsDialog
+        open={repairShopsOpen}
+        onClose={() => setRepairShopsOpen(false)}
+        canEdit={canEditMaintenanceCases}
+        onChanged={loadCases}
+      />
 
       <MaintenanceCaseModal
         open={modalOpen}

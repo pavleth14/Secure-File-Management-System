@@ -25,6 +25,11 @@ import path from 'path';
 import fs from 'fs/promises';
 import { resolveFullPath } from '../config/storage.js';
 import { pathExists } from './storageService.js';
+import { ensureMaintenanceRepairShop } from './maintenanceRepairShopService.js';
+import {
+  buildAutoMapsSearchUrl,
+  resolveRepairShopMapsUrl,
+} from '../utils/repairShopMaps.js';
 
 const CASE_POPULATE = [
   { path: 'assigneeId', select: 'name email ringCentralExtensionNumber' },
@@ -33,10 +38,46 @@ const CASE_POPULATE = [
   { path: 'createdBy', select: 'name' },
   { path: 'comments.author', select: 'name' },
   { path: 'attachments.fileId', select: 'originalName mimeType size relativePath' },
+  {
+    path: 'repairShopId',
+    select: 'name mapsUrl address city state zip isActive',
+  },
 ];
 
 function touchLastEdited(maintenanceCase) {
   maintenanceCase.lastEditedAt = new Date();
+}
+
+async function applyRepairShopToCase(maintenanceCase, payload, userId) {
+  if (payload.repairShopId !== undefined) {
+    if (!payload.repairShopId) {
+      maintenanceCase.repairShopId = null;
+      maintenanceCase.repairShop = '';
+      return;
+    }
+    const { MaintenanceRepairShop } = await import('../models/MaintenanceRepairShop.js');
+    const byId = await MaintenanceRepairShop.findById(payload.repairShopId);
+    if (!byId) {
+      const err = new Error('Repair shop not found');
+      err.status = 404;
+      throw err;
+    }
+    maintenanceCase.repairShopId = byId._id;
+    maintenanceCase.repairShop = byId.name;
+    return;
+  }
+
+  if (payload.repairShop !== undefined) {
+    const name = String(payload.repairShop || '').trim();
+    if (!name) {
+      maintenanceCase.repairShop = '';
+      maintenanceCase.repairShopId = null;
+      return;
+    }
+    const shop = await ensureMaintenanceRepairShop(name, userId);
+    maintenanceCase.repairShopId = shop._id;
+    maintenanceCase.repairShop = shop.name;
+  }
 }
 
 async function validateAssignee(assigneeId) {
@@ -211,6 +252,12 @@ export async function formatMaintenanceCase(record, tagColorMap) {
     caseType: obj.caseType || '',
     caseTypeColor: colorFor('case_type', obj.caseType),
     repairShop: obj.repairShop || '',
+    repairShopId: obj.repairShopId?._id?.toString() || obj.repairShopId?.toString() || null,
+    repairShopMapsUrl: obj.repairShopId
+      ? resolveRepairShopMapsUrl(obj.repairShopId)
+      : obj.repairShop
+        ? buildAutoMapsSearchUrl({ name: obj.repairShop })
+        : null,
     issueDescription: obj.issueDescription || '',
     invoiceStatus: obj.invoiceStatus || '',
     invoiceStatusColor: colorFor('invoice_status', obj.invoiceStatus),
@@ -475,7 +522,7 @@ export async function createMaintenanceCase(payload, user) {
     trailerId,
     priority: payload.priority || 'Normal',
     oosStatus: payload.oosStatus || 'In Service',
-    repairShop: String(payload.repairShop || '').trim(),
+    repairShop: '',
     issueDescription: String(payload.issueDescription || '').trim(),
     dateClosed: parseOptionalDate(payload.dateClosed),
     cost: parseOptionalCost(payload.cost),
@@ -485,6 +532,8 @@ export async function createMaintenanceCase(payload, user) {
     lastEditedAt: new Date(),
   });
 
+  await applyRepairShopToCase(maintenanceCase, payload, user._id);
+
   const folderId = await ensureMaintenanceCaseFolder({
     truckId,
     trailerId,
@@ -493,8 +542,8 @@ export async function createMaintenanceCase(payload, user) {
   });
   if (folderId) {
     maintenanceCase.attachmentFolderId = folderId;
-    await maintenanceCase.save();
   }
+  await maintenanceCase.save();
 
   return getMaintenanceCaseById(maintenanceCase._id);
 }
@@ -555,8 +604,8 @@ export async function updateMaintenanceCase(id, payload, user) {
     }
     maintenanceCase.oosStatus = payload.oosStatus;
   }
-  if (payload.repairShop !== undefined) {
-    maintenanceCase.repairShop = String(payload.repairShop || '').trim();
+  if (payload.repairShop !== undefined || payload.repairShopId !== undefined) {
+    await applyRepairShopToCase(maintenanceCase, payload, user._id);
   }
   if (payload.issueDescription !== undefined) {
     maintenanceCase.issueDescription = String(payload.issueDescription || '').trim();

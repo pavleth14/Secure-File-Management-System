@@ -1,12 +1,17 @@
-import { buildGoogleMapsSearchUrl } from '../../utils/repairShopMaps';
+import { resolveRepairShopLink } from '../../utils/repairShopMaps';
 
-export default function RepairShopLink({ shop, className = '', truncate = false }) {
+export default function RepairShopLink({
+  shop,
+  mapsUrl,
+  className = '',
+  truncate = false,
+}) {
   const label = String(shop || '').trim();
   if (!label) {
     return <span className={className}>—</span>;
   }
 
-  const url = buildGoogleMapsSearchUrl(label);
+  const url = resolveRepairShopLink({ mapsUrl, shopName: label });
   if (!url) {
     return <span className={className}>{label}</span>;
   }

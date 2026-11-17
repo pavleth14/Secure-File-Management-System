@@ -40,6 +40,13 @@ import {
   getMaintenanceInfoAssetPath,
   saveMaintenanceInfoImage,
 } from '../services/maintenanceInfoAssetService.js';
+import {
+  listMaintenanceRepairShops,
+  createMaintenanceRepairShop,
+  updateMaintenanceRepairShop,
+  getMaintenanceRepairShopUsage,
+  deactivateMaintenanceRepairShop,
+} from '../services/maintenanceRepairShopService.js';
 import path from 'path';
 
 const router = Router();
@@ -118,6 +125,53 @@ router.get('/info-pages/:slug/assets/:filename', async (req, res, next) => {
     };
     res.type(types[ext] || 'application/octet-stream');
     res.sendFile(fullPath);
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.get('/repair-shops', async (req, res, next) => {
+  try {
+    const activeOnly = req.query.activeOnly === '1' || req.query.activeOnly === 'true';
+    const includeInactive = req.query.includeInactive === '1' || req.query.includeInactive === 'true';
+    const shops = await listMaintenanceRepairShops({ activeOnly, includeInactive });
+    res.json({ shops });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post('/repair-shops', requireMaintenanceEdit, async (req, res, next) => {
+  try {
+    const shop = await createMaintenanceRepairShop(req.body, req.user._id);
+    res.status(201).json({ shop });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.get('/repair-shops/:id/usage', requireMaintenanceEdit, async (req, res, next) => {
+  try {
+    const result = await getMaintenanceRepairShopUsage(req.params.id);
+    res.json(result);
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.patch('/repair-shops/:id', requireMaintenanceEdit, async (req, res, next) => {
+  try {
+    const shop = await updateMaintenanceRepairShop(req.params.id, req.body);
+    res.json({ shop });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.delete('/repair-shops/:id', requireMaintenanceEdit, async (req, res, next) => {
+  try {
+    const shop = await deactivateMaintenanceRepairShop(req.params.id);
+    res.json({ shop });
   } catch (err) {
     next(err);
   }

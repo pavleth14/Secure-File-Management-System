@@ -12,8 +12,8 @@ import MaintenanceTagPill from './MaintenanceTagPill';
 import MaintenanceReplaceCaseStatusDialog from './MaintenanceReplaceCaseStatusDialog';
 import MaintenanceEditTagDialog from './MaintenanceEditTagDialog';
 import { useContextMenu } from '../../hooks/useContextMenu';
-import { buildGoogleMapsSearchUrl } from '../../utils/repairShopMaps';
 import RepairShopLink from './RepairShopLink';
+import MaintenanceRepairShopsDialog from './MaintenanceRepairShopsDialog';
 
 const TAG_FORM_FIELD_BY_TYPE = {
   case_status: 'caseStatus',
@@ -343,6 +343,8 @@ export default function MaintenanceCaseModal({
   const [tagEdit, setTagEdit] = useState(null);
   const [tagEditError, setTagEditError] = useState('');
   const [tagEditSubmitting, setTagEditSubmitting] = useState(false);
+  const [repairShops, setRepairShops] = useState([]);
+  const [shopsDialogOpen, setShopsDialogOpen] = useState(false);
 
   const canUploadAttachments = useMemo(() => {
     if (!caseData?.id) return false;
@@ -370,11 +372,21 @@ export default function MaintenanceCaseModal({
     onTagsChanged?.();
   }, [loadTags, onTagsChanged]);
 
+  const loadRepairShops = useCallback(async () => {
+    try {
+      const { data } = await api.get('/maintenance/repair-shops', { params: { activeOnly: true } });
+      setRepairShops(data.shops || []);
+    } catch {
+      setRepairShops([]);
+    }
+  }, []);
+
   useEffect(() => {
     if (!open) return;
     loadTags();
+    loadRepairShops();
     api.get('/maintenance/assignees').then(({ data }) => setAssignees(data.assignees || []));
-  }, [open, loadTags]);
+  }, [open, loadTags, loadRepairShops]);
 
   const formSessionKey = open ? caseData?.id ?? 'new' : '';
 
@@ -604,6 +616,21 @@ export default function MaintenanceCaseModal({
     onUpload &&
     (caseData ? canUploadAttachments : true);
 
+  const repairShopPreviewUrl = useMemo(() => {
+    if (!form?.repairShop?.trim()) return null;
+    const match = repairShops.find(
+      (shop) => shop.name.toLowerCase() === form.repairShop.trim().toLowerCase()
+    );
+    if (match?.mapsLink) return match.mapsLink;
+    if (
+      caseData?.repairShop &&
+      caseData.repairShop.toLowerCase() === form.repairShop.trim().toLowerCase()
+    ) {
+      return caseData.repairShopMapsUrl || null;
+    }
+    return null;
+  }, [form?.repairShop, repairShops, caseData]);
+
   return (
     <>
       <div
@@ -795,20 +822,34 @@ export default function MaintenanceCaseModal({
           />
 
           <div>
-            <label className="mb-1 block text-xs font-medium uppercase text-slate-500">
-              Repair shop
-            </label>
+            <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
+              <label className="text-xs font-medium uppercase text-slate-500">Repair shop</label>
+              <button
+                type="button"
+                onClick={() => setShopsDialogOpen(true)}
+                className="text-xs text-brand-600 hover:underline dark:text-brand-400"
+              >
+                Manage shops…
+              </button>
+            </div>
             <input
               className={inputClass}
+              list="maintenance-repair-shop-options"
               readOnly={readOnly}
               value={form.repairShop}
               onChange={(e) => setForm({ ...form, repairShop: e.target.value })}
+              placeholder="Pick existing or type new name (auto Maps link)"
             />
-            {form.repairShop?.trim() && buildGoogleMapsSearchUrl(form.repairShop) && (
+            <datalist id="maintenance-repair-shop-options">
+              {repairShops.map((shop) => (
+                <option key={shop.id} value={shop.name} />
+              ))}
+            </datalist>
+            {form.repairShop?.trim() && (
               <p className="mt-1.5 text-sm">
-                <RepairShopLink shop={form.repairShop} />
+                <RepairShopLink shop={form.repairShop} mapsUrl={repairShopPreviewUrl} />
                 <span className="ml-1 text-xs text-slate-500 dark:text-slate-400">
-                  (opens Google Maps in a new tab)
+                  (United States · new tab)
                 </span>
               </p>
             )}
@@ -1085,6 +1126,13 @@ export default function MaintenanceCaseModal({
         onConfirm={confirmEditTag}
         submitting={tagEditSubmitting}
         error={tagEditError}
+      />
+
+      <MaintenanceRepairShopsDialog
+        open={shopsDialogOpen}
+        onClose={() => setShopsDialogOpen(false)}
+        canEdit={canEditMaintenanceCases}
+        onChanged={loadRepairShops}
       />
 
       <ConfirmDialog
