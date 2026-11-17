@@ -12,6 +12,8 @@ export default function MaintenanceRepairShopsDialog({ open, onClose, canEdit, o
   const [newName, setNewName] = useState('');
   const [savingId, setSavingId] = useState(null);
   const [drafts, setDrafts] = useState({});
+  const [nameDrafts, setNameDrafts] = useState({});
+  const [success, setSuccess] = useState('');
 
   const loadShops = useCallback(async () => {
     setLoading(true);
@@ -22,10 +24,13 @@ export default function MaintenanceRepairShopsDialog({ open, onClose, canEdit, o
       });
       setShops(data.shops || []);
       const nextDrafts = {};
+      const nextNames = {};
       for (const shop of data.shops || []) {
-        nextDrafts[shop.id] = shop.mapsUrl || '';
+        nextDrafts[shop.id] = shop.mapsUrl || shop.mapsLink || '';
+        nextNames[shop.id] = shop.name || '';
       }
       setDrafts(nextDrafts);
+      setNameDrafts(nextNames);
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to load repair shops');
       setShops([]);
@@ -56,18 +61,53 @@ export default function MaintenanceRepairShopsDialog({ open, onClose, canEdit, o
     }
   };
 
+  const flashSuccess = (message) => {
+    setSuccess(message);
+    window.setTimeout(() => setSuccess(''), 3000);
+  };
+
   const saveMapsUrl = async (shop) => {
-    if (!canEdit) return;
+    if (!canEdit) {
+      setError('You do not have permission to edit repair shops.');
+      return;
+    }
     setSavingId(shop.id);
     setError('');
+    setSuccess('');
     try {
       await api.patch(`/maintenance/repair-shops/${shop.id}`, {
-        mapsUrl: drafts[shop.id] || '',
+        mapsUrl: String(drafts[shop.id] ?? '').trim(),
       });
+      flashSuccess(`Saved Maps link for “${shop.name}”.`);
       await loadShops();
       onChanged?.();
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to save Maps link');
+    } finally {
+      setSavingId(null);
+    }
+  };
+
+  const saveShopName = async (shop) => {
+    if (!canEdit) {
+      setError('You do not have permission to edit repair shops.');
+      return;
+    }
+    const name = String(nameDrafts[shop.id] ?? '').trim();
+    if (!name) {
+      setError('Shop name cannot be empty');
+      return;
+    }
+    setSavingId(shop.id);
+    setError('');
+    setSuccess('');
+    try {
+      await api.patch(`/maintenance/repair-shops/${shop.id}`, { name });
+      flashSuccess(`Saved shop name “${name}”.`);
+      await loadShops();
+      onChanged?.();
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to save shop name');
     } finally {
       setSavingId(null);
     }
@@ -148,6 +188,11 @@ export default function MaintenanceRepairShopsDialog({ open, onClose, canEdit, o
             {error}
           </p>
         )}
+        {success && (
+          <p className="mb-3 rounded-lg bg-emerald-50 px-3 py-2 text-sm text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-200">
+            {success}
+          </p>
+        )}
 
         {canEdit && (
           <form onSubmit={handleCreate} className="mb-4 flex flex-wrap items-end gap-2">
@@ -215,7 +260,32 @@ export default function MaintenanceRepairShopsDialog({ open, onClose, canEdit, o
                     )}
                   </div>
                   {canEdit && shop.isActive && (
-                    <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:items-end">
+                    <div className="mt-2 space-y-2">
+                      <label className="block text-xs text-slate-500">
+                        Shop name
+                        <input
+                          className={`${inputClass} mt-1`}
+                          value={nameDrafts[shop.id] ?? ''}
+                          onChange={(e) =>
+                            setNameDrafts((prev) => ({ ...prev, [shop.id]: e.target.value }))
+                          }
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              e.preventDefault();
+                              saveShopName(shop);
+                            }
+                          }}
+                        />
+                      </label>
+                      <button
+                        type="button"
+                        disabled={savingId === shop.id}
+                        onClick={() => saveShopName(shop)}
+                        className="rounded border border-slate-300 px-3 py-1.5 text-xs font-medium dark:border-slate-600"
+                      >
+                        Save name
+                      </button>
+                    <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
                       <label className="min-w-0 flex-1 text-xs text-slate-500">
                         Maps link (editable)
                         <input
@@ -224,6 +294,12 @@ export default function MaintenanceRepairShopsDialog({ open, onClose, canEdit, o
                           onChange={(e) =>
                             setDrafts((prev) => ({ ...prev, [shop.id]: e.target.value }))
                           }
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              e.preventDefault();
+                              saveMapsUrl(shop);
+                            }
+                          }}
                         />
                       </label>
                       <button
@@ -242,6 +318,7 @@ export default function MaintenanceRepairShopsDialog({ open, onClose, canEdit, o
                       >
                         Regenerate (auto)
                       </button>
+                    </div>
                     </div>
                   )}
                 </li>

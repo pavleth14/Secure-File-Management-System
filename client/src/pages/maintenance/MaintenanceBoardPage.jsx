@@ -25,6 +25,7 @@ function isDueOverdue(dueDate) {
 }
 
 function buildPayload(form) {
+  const repairShop = String(form.repairShop ?? '').trim();
   return {
     issue: form.issue,
     assigneeId: form.assigneeId || null,
@@ -36,7 +37,7 @@ function buildPayload(form) {
     project: form.project,
     oosStatus: form.oosStatus,
     caseType: form.caseType,
-    repairShop: form.repairShop,
+    repairShop,
     issueDescription: form.issueDescription,
     invoiceStatus: form.invoiceStatus,
     dateClosed: form.dateClosed || null,

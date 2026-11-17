@@ -16,8 +16,11 @@ export function resolveRepairShopMapsUrl(shop) {
 }
 
 export function normalizeMapsUrlInput(value) {
-  const url = String(value || '').trim();
+  let url = String(value || '').trim();
   if (!url) return '';
+  if (!/^https?:\/\//i.test(url)) {
+    url = `https://${url.replace(/^\/\//, '')}`;
+  }
   try {
     const parsed = new URL(url);
     if (!['http:', 'https:'].includes(parsed.protocol)) {
@@ -25,10 +28,12 @@ export function normalizeMapsUrlInput(value) {
       err.status = 400;
       throw err;
     }
-    return url;
+    return parsed.href;
   } catch (e) {
     if (e.status) throw e;
-    const err = new Error('Invalid Maps link URL');
+    const err = new Error(
+      'Invalid Maps link URL. Paste a full Google Maps link or use Regenerate (auto).'
+    );
     err.status = 400;
     throw err;
   }

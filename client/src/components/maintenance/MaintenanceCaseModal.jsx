@@ -838,7 +838,9 @@ export default function MaintenanceCaseModal({
               list="maintenance-repair-shop-options"
               readOnly={readOnly}
               value={form.repairShop}
-              onChange={(e) => setForm({ ...form, repairShop: e.target.value })}
+              onChange={(e) =>
+                setForm({ ...form, repairShop: e.target.value, repairShopId: undefined })
+              }
               placeholder="Pick existing or type new name (auto Maps link)"
             />
             <datalist id="maintenance-repair-shop-options">

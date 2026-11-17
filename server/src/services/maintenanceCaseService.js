@@ -1,3 +1,4 @@
+import mongoose from 'mongoose';
 import { MaintenanceCase } from '../models/MaintenanceCase.js';
 import { User } from '../models/User.js';
 import { Truck } from '../models/Truck.js';
@@ -59,6 +60,9 @@ async function applyRepairShopToCase(maintenanceCase, payload, userId) {
       maintenanceCase.repairShop = '';
       return;
     }
+    if (!mongoose.isValidObjectId(payload.repairShopId)) {
+      if (payload.repairShop === undefined) return;
+    } else {
     const { MaintenanceRepairShop } = await import('../models/MaintenanceRepairShop.js');
     const byId = await MaintenanceRepairShop.findById(payload.repairShopId);
     if (!byId) {
@@ -69,6 +73,7 @@ async function applyRepairShopToCase(maintenanceCase, payload, userId) {
     maintenanceCase.repairShopId = byId._id;
     maintenanceCase.repairShop = byId.name;
     return;
+    }
   }
 
   if (payload.repairShop !== undefined) {
