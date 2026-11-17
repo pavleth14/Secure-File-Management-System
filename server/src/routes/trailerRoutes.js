@@ -4,6 +4,7 @@ import { authMiddleware } from '../middleware/authMiddleware.js';
 import {
   requireDispatchSafetyView,
   requireSafetyEdit,
+  requireTruckTrailerCreate,
   requireSafetyDelete,
   requireFolderLinkAccess,
 } from '../middleware/dispatchMiddleware.js';
@@ -60,7 +61,7 @@ router.get('/', async (req, res, next) => {
   }
 });
 
-router.post('/', requireSafetyEdit, async (req, res, next) => {
+router.post('/', requireTruckTrailerCreate, async (req, res, next) => {
   try {
     const trailer = await createTrailer(req.body, req.user._id, req.user);
     await auditTrailerCreated({ user: req.user, trailer, req });

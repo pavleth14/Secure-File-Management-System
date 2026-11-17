@@ -40,6 +40,11 @@ export function canEditSafetyEntities(user) {
   return Boolean(user?.isSafety || user?.isSafetyManager || isSuperAdmin(user));
 }
 
+/** Create truck/trailer records — Safety editors plus all maintenance module roles. */
+export function canCreateTrucksAndTrailers(user) {
+  return Boolean(canEditSafetyEntities(user) || hasMaintenanceViewAccess(user));
+}
+
 export function canDeleteSafetyEntities(user) {
   return Boolean(user?.isSafetyManager || isSuperAdmin(user));
 }

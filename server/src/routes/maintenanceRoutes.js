@@ -25,6 +25,7 @@ import {
   updateMaintenanceCase,
   deleteMaintenanceCase,
   addMaintenanceCaseComment,
+  updateMaintenanceCaseComment,
   addMaintenanceCaseAttachment,
   listMaintenanceAssignees,
   getMaintenanceCaseAttachmentFile,
@@ -300,6 +301,20 @@ router.post('/cases/:id/comments', requireMaintenanceEdit, async (req, res, next
   try {
     const maintenanceCase = await addMaintenanceCaseComment(
       req.params.id,
+      req.body.text,
+      req.user
+    );
+    res.json({ case: maintenanceCase });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.patch('/cases/:id/comments/:commentId', requireMaintenanceEdit, async (req, res, next) => {
+  try {
+    const maintenanceCase = await updateMaintenanceCaseComment(
+      req.params.id,
+      req.params.commentId,
       req.body.text,
       req.user
     );

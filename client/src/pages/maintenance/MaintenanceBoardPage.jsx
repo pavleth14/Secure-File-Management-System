@@ -231,8 +231,22 @@ export default function MaintenanceBoardPage() {
     await loadCases();
   };
 
+  const handleCommentEdit = async (id, commentId, text) => {
+    const { data } = await api.patch(`/maintenance/cases/${id}/comments/${commentId}`, { text });
+    setSelectedCase(data.case);
+    await loadCases();
+  };
+
   const handleBoardComment = async (caseId, text) => {
     const { data } = await api.post(`/maintenance/cases/${caseId}/comments`, { text });
+    await loadCases();
+    return data.case;
+  };
+
+  const handleBoardCommentEdit = async (caseId, commentId, text) => {
+    const { data } = await api.patch(`/maintenance/cases/${caseId}/comments/${commentId}`, {
+      text,
+    });
     await loadCases();
     return data.case;
   };
@@ -354,6 +368,12 @@ export default function MaintenanceBoardPage() {
                     onSubmitComment={
                       readOnly ? undefined : (text) => handleBoardComment(row.id, text)
                     }
+                    onEditComment={
+                      readOnly
+                        ? undefined
+                        : (commentId, text) => handleBoardCommentEdit(row.id, commentId, text)
+                    }
+                    currentUserId={user?.id}
                     readOnly={readOnly}
                   />
                   <td className="px-3 py-2">
@@ -426,6 +446,7 @@ export default function MaintenanceBoardPage() {
         onSave={handleSave}
         onDelete={handleDelete}
         onComment={handleComment}
+        onCommentEdit={handleCommentEdit}
         onUpload={handleUpload}
         onTagsChanged={loadFilterOptions}
       />

@@ -13,6 +13,7 @@ import {
 } from '../services/truckService.js';
 import {
   requireSafetyEdit,
+  requireTruckTrailerCreate,
   requireSafetyDelete,
   requireFolderLinkAccess,
 } from '../middleware/dispatchMiddleware.js';
@@ -63,7 +64,7 @@ router.get('/', async (req, res, next) => {
   }
 });
 
-router.post('/', requireSafetyEdit, async (req, res, next) => {
+router.post('/', requireTruckTrailerCreate, async (req, res, next) => {
   try {
     const truck = await createTruck(req.body, req.user._id, req.user);
     await auditTruckCreated({ user: req.user, truck, req });

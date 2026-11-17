@@ -695,6 +695,42 @@ export async function addMaintenanceCaseComment(id, text, user) {
   return getMaintenanceCaseById(id);
 }
 
+export async function updateMaintenanceCaseComment(caseId, commentId, text, user) {
+  const trimmed = String(text || '').trim();
+  if (!trimmed || trimmed.length > MAINTENANCE_COMMENT_MAX_LENGTH) {
+    const err = new Error(`Comment must be 1-${MAINTENANCE_COMMENT_MAX_LENGTH} characters`);
+    err.status = 400;
+    throw err;
+  }
+
+  const maintenanceCase = await MaintenanceCase.findById(caseId);
+  if (!maintenanceCase) {
+    const err = new Error('Maintenance case not found');
+    err.status = 404;
+    throw err;
+  }
+
+  const comment = maintenanceCase.comments.id(commentId);
+  if (!comment) {
+    const err = new Error('Comment not found');
+    err.status = 404;
+    throw err;
+  }
+
+  const authorId = comment.author?.toString?.() || String(comment.author);
+  const actorId = user._id?.toString?.() || String(user._id);
+  if (authorId !== actorId) {
+    const err = new Error('You can only edit your own comments');
+    err.status = 403;
+    throw err;
+  }
+
+  comment.text = trimmed;
+  touchLastEdited(maintenanceCase, user._id);
+  await maintenanceCase.save();
+  return getMaintenanceCaseById(caseId);
+}
+
 export async function addMaintenanceCaseAttachment(id, file, user) {
   const maintenanceCase = await MaintenanceCase.findById(id).populate('assigneeId createdBy');
   if (!maintenanceCase) {

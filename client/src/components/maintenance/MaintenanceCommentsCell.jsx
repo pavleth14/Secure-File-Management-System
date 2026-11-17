@@ -1,20 +1,8 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import api from '../../api/client';
-import { formatDate } from '../../utils/format';
-import TruncatedCommentText from '../recruiting/TruncatedCommentText';
 import { formatLastEditedSummary } from '../../utils/maintenanceCaseFormat';
-
-function CommentItem({ comment }) {
-  return (
-    <li className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 dark:border-slate-700 dark:bg-slate-900/50">
-      <TruncatedCommentText text={comment.text} />
-      <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-        {comment.author || 'Unknown'} · {formatDate(comment.createdAt)}
-      </p>
-    </li>
-  );
-}
+import MaintenanceCaseCommentItem from './MaintenanceCaseCommentItem';
 
 const VIEWPORT_PADDING = 8;
 const POPOVER_GAP = 4;
@@ -62,6 +50,8 @@ export default function MaintenanceCommentsCell({
   onToggle,
   onClose,
   onSubmitComment,
+  onEditComment,
+  currentUserId,
   readOnly = false,
 }) {
   const cellRef = useRef(null);
@@ -303,7 +293,17 @@ export default function MaintenanceCommentsCell({
               ) : (
                 <ul className="space-y-2">
                   {comments.map((comment) => (
-                    <CommentItem key={comment.id} comment={comment} />
+                    <MaintenanceCaseCommentItem
+                      key={comment.id}
+                      comment={comment}
+                      currentUserId={currentUserId}
+                      compact
+                      onSave={
+                        onEditComment
+                          ? (text) => onEditComment(comment.id, text)
+                          : undefined
+                      }
+                    />
                   ))}
                 </ul>
               )}

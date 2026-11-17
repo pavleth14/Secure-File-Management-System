@@ -10,7 +10,12 @@ import EquipmentImportButton from '../../components/dispatch-safety/EquipmentImp
 
 export default function TrucksPage() {
   const navigate = useNavigate();
-  const { canEditSafetyEntities, canDeleteSafetyEntities, canLinkFolders } = useAuth();
+  const {
+    canEditSafetyEntities,
+    canCreateTrucksAndTrailers,
+    canDeleteSafetyEntities,
+    canLinkFolders,
+  } = useAuth();
   const [trucks, setTrucks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -136,7 +141,7 @@ export default function TrucksPage() {
             onStatusChange={setStatus}
             onNew={openCreate}
             newLabel="New Truck"
-            canCreate={canEditSafetyEntities}
+            canCreate={canCreateTrucksAndTrailers}
           />
         </div>
         {canEditSafetyEntities && (
@@ -246,7 +251,7 @@ export default function TrucksPage() {
         open={modalOpen}
         onClose={() => setModalOpen(false)}
         onSave={handleSave}
-        canEdit={canEditSafetyEntities}
+        canEdit={selectedTruck ? canEditSafetyEntities : canCreateTrucksAndTrailers}
         canLinkFolder={canLinkFolders}
       />
 

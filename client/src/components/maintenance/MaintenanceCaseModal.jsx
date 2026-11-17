@@ -15,6 +15,9 @@ import { useContextMenu } from '../../hooks/useContextMenu';
 import RepairShopLink from './RepairShopLink';
 import MaintenanceRepairShopsDialog from './MaintenanceRepairShopsDialog';
 import { formatLastEditedSummary } from '../../utils/maintenanceCaseFormat';
+import MaintenanceCaseCommentItem from './MaintenanceCaseCommentItem';
+import TruckFormModal from '../dispatch-safety/TruckFormModal';
+import TrailerFormModal from '../dispatch-safety/TrailerFormModal';
 
 const TAG_FORM_FIELD_BY_TYPE = {
   case_status: 'caseStatus',
@@ -332,11 +335,18 @@ export default function MaintenanceCaseModal({
   onSave,
   onDelete,
   onComment,
+  onCommentEdit,
   onUpload,
   currentUserId,
   onTagsChanged,
 }) {
-  const { user, isSuperAdmin, isMaintenanceManager, canEditMaintenanceCases } = useAuth();
+  const {
+    user,
+    isSuperAdmin,
+    isMaintenanceManager,
+    canEditMaintenanceCases,
+    canCreateTrucksAndTrailers,
+  } = useAuth();
   const canPickAnyAssignee = isSuperAdmin || isMaintenanceManager;
   const resolvedUserId = currentUserId || user?.id;
 
@@ -347,6 +357,8 @@ export default function MaintenanceCaseModal({
   const [initialFormSnapshot, setInitialFormSnapshot] = useState('');
   const [discardConfirmOpen, setDiscardConfirmOpen] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [truckModalOpen, setTruckModalOpen] = useState(false);
+  const [trailerModalOpen, setTrailerModalOpen] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState('');
   const [pendingAttachmentFiles, setPendingAttachmentFiles] = useState([]);
@@ -592,6 +604,26 @@ export default function MaintenanceCaseModal({
     setCommentText('');
   };
 
+  const handleCreateTruck = async (truckForm) => {
+    const { data } = await api.post('/dispatch/trucks', truckForm);
+    const truck = data.truck;
+    setForm((prev) => ({
+      ...prev,
+      truckId: truck.id,
+      truckNumber: truck.truckNumber,
+    }));
+  };
+
+  const handleCreateTrailer = async (form) => {
+    const { data } = await api.post('/dispatch/trailers', form);
+    const trailer = data.trailer;
+    setForm((prev) => ({
+      ...prev,
+      trailerId: trailer.id,
+      trailerNumber: trailer.trailerNumber,
+    }));
+  };
+
   const handleDownloadAttachment = async (fileId, originalName) => {
     if (!caseData?.id) return;
     try {
@@ -717,30 +749,52 @@ export default function MaintenanceCaseModal({
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2">
-            <EquipmentSearch
-              label="Truck"
-              fetchUrl="/dispatch/trucks"
-              display={form.truckNumber}
-              value={form.truckId}
-              readOnly={readOnly}
-              onSelect={(truck) =>
-                setForm({ ...form, truckId: truck.id, truckNumber: truck.truckNumber })
-              }
-            />
-            <EquipmentSearch
-              label="Trailer"
-              fetchUrl="/dispatch/trailers"
-              display={form.trailerNumber}
-              value={form.trailerId}
-              readOnly={readOnly}
-              onSelect={(trailer) =>
-                setForm({
-                  ...form,
-                  trailerId: trailer.id,
-                  trailerNumber: trailer.trailerNumber,
-                })
-              }
-            />
+            <div>
+              <EquipmentSearch
+                label="Truck"
+                fetchUrl="/dispatch/trucks"
+                display={form.truckNumber}
+                value={form.truckId}
+                readOnly={readOnly}
+                onSelect={(truck) =>
+                  setForm({ ...form, truckId: truck.id, truckNumber: truck.truckNumber })
+                }
+              />
+              {canCreateTrucksAndTrailers && !readOnly && (
+                <button
+                  type="button"
+                  onClick={() => setTruckModalOpen(true)}
+                  className="mt-1 text-xs font-medium text-brand-600 hover:underline dark:text-brand-400"
+                >
+                  + New truck
+                </button>
+              )}
+            </div>
+            <div>
+              <EquipmentSearch
+                label="Trailer"
+                fetchUrl="/dispatch/trailers"
+                display={form.trailerNumber}
+                value={form.trailerId}
+                readOnly={readOnly}
+                onSelect={(trailer) =>
+                  setForm({
+                    ...form,
+                    trailerId: trailer.id,
+                    trailerNumber: trailer.trailerNumber,
+                  })
+                }
+              />
+              {canCreateTrucksAndTrailers && !readOnly && (
+                <button
+                  type="button"
+                  onClick={() => setTrailerModalOpen(true)}
+                  className="mt-1 text-xs font-medium text-brand-600 hover:underline dark:text-brand-400"
+                >
+                  + New trailer
+                </button>
+              )}
+            </div>
           </div>
 
           {(form.truckId || form.trailerId) && (
@@ -1041,13 +1095,16 @@ export default function MaintenanceCaseModal({
                 </label>
                 <ul className="max-h-48 space-y-2 overflow-y-auto rounded-lg border p-3 dark:border-slate-700">
                   {(caseData.comments || []).map((c) => (
-                    <li key={c.id} className="text-sm">
-                      <span className="font-medium">{c.author}</span>{' '}
-                      <span className="text-xs text-slate-500">
-                        {new Date(c.createdAt).toLocaleString()}
-                      </span>
-                      <p className="whitespace-pre-wrap">{c.text}</p>
-                    </li>
+                    <MaintenanceCaseCommentItem
+                      key={c.id}
+                      comment={c}
+                      currentUserId={resolvedUserId}
+                      onSave={
+                        onCommentEdit
+                          ? (text) => onCommentEdit(caseData.id, c.id, text)
+                          : undefined
+                      }
+                    />
                   ))}
                 </ul>
                 {!readOnly && (
@@ -1154,6 +1211,24 @@ export default function MaintenanceCaseModal({
         onClose={() => setShopsDialogOpen(false)}
         canEdit={canEditMaintenanceCases}
         onChanged={loadRepairShops}
+      />
+
+      <TruckFormModal
+        truck={null}
+        open={truckModalOpen}
+        onClose={() => setTruckModalOpen(false)}
+        onSave={handleCreateTruck}
+        canEdit={canCreateTrucksAndTrailers}
+        canLinkFolder={false}
+      />
+
+      <TrailerFormModal
+        trailer={null}
+        open={trailerModalOpen}
+        onClose={() => setTrailerModalOpen(false)}
+        onSave={handleCreateTrailer}
+        canEdit={canCreateTrucksAndTrailers}
+        canLinkFolder={false}
       />
 
       <ConfirmDialog

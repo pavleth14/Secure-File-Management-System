@@ -9,7 +9,12 @@ import LinkedFolderCell, { buildViewFilesMenuItem } from '../../components/dispa
 import EquipmentImportButton from '../../components/dispatch-safety/EquipmentImportButton';
 
 export default function TrailersPage() {
-  const { canEditSafetyEntities, canDeleteSafetyEntities, canLinkFolders } = useAuth();
+  const {
+    canEditSafetyEntities,
+    canCreateTrucksAndTrailers,
+    canDeleteSafetyEntities,
+    canLinkFolders,
+  } = useAuth();
   const [trailers, setTrailers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -130,7 +135,7 @@ export default function TrailersPage() {
             onStatusChange={setStatus}
             onNew={openCreate}
             newLabel="New Trailer"
-            canCreate={canEditSafetyEntities}
+            canCreate={canCreateTrucksAndTrailers}
           />
         </div>
         {canEditSafetyEntities && (
@@ -240,7 +245,7 @@ export default function TrailersPage() {
         open={modalOpen}
         onClose={() => setModalOpen(false)}
         onSave={handleSave}
-        canEdit={canEditSafetyEntities}
+        canEdit={selectedTrailer ? canEditSafetyEntities : canCreateTrucksAndTrailers}
         canLinkFolder={canLinkFolders}
       />
 

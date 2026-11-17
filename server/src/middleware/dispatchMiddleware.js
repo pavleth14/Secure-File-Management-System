@@ -1,6 +1,7 @@
 import {
   hasDispatchSafetyViewAccess,
   canEditSafetyEntities,
+  canCreateTrucksAndTrailers,
   canDeleteSafetyEntities,
   canManageDispatchBoardAssignment,
   canEditTruckAssignments,
@@ -22,6 +23,13 @@ export function requireDispatchSafetyView(req, res, next) {
 export function requireSafetyEdit(req, res, next) {
   if (!canEditSafetyEntities(req.user)) {
     return res.status(403).json({ message: 'Safety edit access required' });
+  }
+  next();
+}
+
+export function requireTruckTrailerCreate(req, res, next) {
+  if (!canCreateTrucksAndTrailers(req.user)) {
+    return res.status(403).json({ message: 'Permission required to add trucks or trailers' });
   }
   next();
 }
