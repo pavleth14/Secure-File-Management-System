@@ -36,6 +36,7 @@ const CASE_POPULATE = [
   { path: 'truckId', select: 'truckNumber vin make model year type status' },
   { path: 'trailerId', select: 'trailerNumber vin make model year type status' },
   { path: 'createdBy', select: 'name' },
+  { path: 'lastEditedBy', select: 'name ringCentralExtensionNumber' },
   { path: 'comments.author', select: 'name' },
   { path: 'attachments.fileId', select: 'originalName mimeType size relativePath' },
   {
@@ -44,8 +45,11 @@ const CASE_POPULATE = [
   },
 ];
 
-function touchLastEdited(maintenanceCase) {
+function touchLastEdited(maintenanceCase, userId) {
   maintenanceCase.lastEditedAt = new Date();
+  if (userId) {
+    maintenanceCase.lastEditedBy = userId;
+  }
 }
 
 async function applyRepairShopToCase(maintenanceCase, payload, userId) {
@@ -291,6 +295,11 @@ export async function formatMaintenanceCase(record, tagColorMap) {
     latestCommentPreview: latestComment?.text || '',
     lastEditedAt: obj.lastEditedAt,
     lastEditedAtLabel: formatChicagoDisplay(obj.lastEditedAt),
+    lastEditedById:
+      obj.lastEditedBy?._id?.toString() || obj.lastEditedBy?.toString() || null,
+    lastEditedByName:
+      obj.lastEditedBy?.name || obj.createdBy?.name || null,
+    lastEditedByExtension: obj.lastEditedBy?.ringCentralExtensionNumber || null,
     createdAt: obj.createdAt,
     createdById: obj.createdBy?._id?.toString() || obj.createdBy?.toString() || null,
     createdByName: obj.createdBy?.name || null,
@@ -530,6 +539,7 @@ export async function createMaintenanceCase(payload, user) {
     ...tagFields,
     createdBy: user._id,
     lastEditedAt: new Date(),
+    lastEditedBy: user._id,
   });
 
   await applyRepairShopToCase(maintenanceCase, payload, user._id);
@@ -630,7 +640,7 @@ export async function updateMaintenanceCase(id, payload, user) {
     if (folderId) maintenanceCase.attachmentFolderId = folderId;
   }
 
-  touchLastEdited(maintenanceCase);
+  touchLastEdited(maintenanceCase, user._id);
   await maintenanceCase.save();
   return getMaintenanceCaseById(maintenanceCase._id);
 }
@@ -665,7 +675,7 @@ export async function addMaintenanceCaseComment(id, text, user) {
     author: user._id,
     authorLabel: user.name,
   });
-  touchLastEdited(maintenanceCase);
+  touchLastEdited(maintenanceCase, user._id);
   await maintenanceCase.save();
   return getMaintenanceCaseById(id);
 }
@@ -718,7 +728,7 @@ export async function addMaintenanceCaseAttachment(id, file, user) {
     originalName: fileRecord.originalName,
     uploadedBy: user._id,
   });
-  touchLastEdited(maintenanceCase);
+  touchLastEdited(maintenanceCase, user._id);
   await maintenanceCase.save();
   return getMaintenanceCaseById(id);
 }

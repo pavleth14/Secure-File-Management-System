@@ -14,6 +14,7 @@ import MaintenanceBoardToolbar, {
 import MaintenanceBoardTableHeader from '../../components/maintenance/MaintenanceBoardTableHeader';
 import { MAINTENANCE_TAG_TYPES } from '../../constants/maintenanceConstants';
 import { useContextMenu } from '../../hooks/useContextMenu';
+import { formatLastEditedSummary } from '../../utils/maintenanceCaseFormat';
 
 function isDueOverdue(dueDate) {
   if (!dueDate) return false;
@@ -398,7 +399,9 @@ export default function MaintenanceBoardPage() {
                     readOnly={readOnly}
                   />
                   <td className="whitespace-nowrap px-3 py-2 text-xs text-slate-500">
-                    {row.lastEditedAtLabel}
+                    <span className="whitespace-normal leading-snug" title={formatLastEditedSummary(row)}>
+                      {formatLastEditedSummary(row)}
+                    </span>
                   </td>
                 </tr>
               ))

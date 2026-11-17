@@ -14,6 +14,7 @@ import MaintenanceEditTagDialog from './MaintenanceEditTagDialog';
 import { useContextMenu } from '../../hooks/useContextMenu';
 import RepairShopLink from './RepairShopLink';
 import MaintenanceRepairShopsDialog from './MaintenanceRepairShopsDialog';
+import { formatLastEditedSummary } from '../../utils/maintenanceCaseFormat';
 
 const TAG_FORM_FIELD_BY_TYPE = {
   case_status: 'caseStatus',
@@ -1055,7 +1056,12 @@ export default function MaintenanceCaseModal({
               </div>
 
               <p className="text-xs text-slate-500">
-                Last edited: {caseData.lastEditedAtLabel || '—'}
+                Last update: {formatLastEditedSummary(caseData)}
+                {caseData.createdByName ? (
+                  <span className="mt-1 block text-xs text-slate-400">
+                    Opened by {caseData.createdByName}
+                  </span>
+                ) : null}
               </p>
               {(form.truckVin || form.trailerVin) && (
                 <p className="text-xs text-slate-500">

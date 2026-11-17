@@ -86,6 +86,11 @@ const maintenanceCaseSchema = new mongoose.Schema(
     attachments: { type: [attachmentSchema], default: [] },
     comments: { type: [commentSchema], default: [] },
     lastEditedAt: { type: Date, default: () => new Date() },
+    lastEditedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      default: null,
+    },
     createdBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',

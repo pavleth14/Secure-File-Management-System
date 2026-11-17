@@ -408,7 +408,7 @@ export default function MaintenanceBoardTableHeader({
         )}
 
         <PlainHeader label="Last update" />
-        <PlainHeader label="Edited" />
+        <PlainHeader label="Last update" />
       </tr>
     </thead>
   );
