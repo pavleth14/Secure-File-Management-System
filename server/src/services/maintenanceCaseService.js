@@ -53,7 +53,25 @@ function touchLastEdited(maintenanceCase, userId) {
   }
 }
 
+function normalizeEntityId(value) {
+  if (value === null || value === undefined || value === '') return null;
+  return String(value._id || value).trim();
+}
+
 async function applyRepairShopToCase(maintenanceCase, payload, userId) {
+  if (payload.repairShop !== undefined) {
+    const name = String(payload.repairShop || '').trim();
+    if (!name) {
+      maintenanceCase.repairShop = '';
+      maintenanceCase.repairShopId = null;
+      return;
+    }
+    const shop = await ensureMaintenanceRepairShop(name, userId);
+    maintenanceCase.repairShopId = shop._id;
+    maintenanceCase.repairShop = shop.name;
+    return;
+  }
+
   if (payload.repairShopId !== undefined) {
     if (!payload.repairShopId) {
       maintenanceCase.repairShopId = null;
@@ -74,18 +92,6 @@ async function applyRepairShopToCase(maintenanceCase, payload, userId) {
     maintenanceCase.repairShop = byId.name;
     return;
     }
-  }
-
-  if (payload.repairShop !== undefined) {
-    const name = String(payload.repairShop || '').trim();
-    if (!name) {
-      maintenanceCase.repairShop = '';
-      maintenanceCase.repairShopId = null;
-      return;
-    }
-    const shop = await ensureMaintenanceRepairShop(name, userId);
-    maintenanceCase.repairShopId = shop._id;
-    maintenanceCase.repairShop = shop.name;
   }
 }
 
@@ -592,10 +598,14 @@ export async function updateMaintenanceCase(id, payload, user) {
   }
 
   if (payload.assigneeId !== undefined) {
-    maintenanceCase.assigneeId = await resolveAssigneeIdForActor(
-      user,
-      payload.assigneeId || null
-    );
+    const nextAssignee = normalizeEntityId(payload.assigneeId);
+    const currentAssignee = normalizeEntityId(maintenanceCase.assigneeId);
+    if (nextAssignee !== currentAssignee) {
+      maintenanceCase.assigneeId = await resolveAssigneeIdForActor(
+        user,
+        payload.assigneeId || null
+      );
+    }
   }
   if (payload.dueDate !== undefined) {
     maintenanceCase.dueDate = parseOptionalDate(payload.dueDate);

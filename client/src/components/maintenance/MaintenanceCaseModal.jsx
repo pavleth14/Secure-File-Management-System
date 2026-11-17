@@ -92,8 +92,21 @@ function buildEmptyForm(canPickAnyAssignee, userId) {
 }
 
 function buildFormFromCaseData(caseData) {
+  const {
+    attachments: _attachments,
+    comments: _comments,
+    repairShopId: _repairShopId,
+    repairShopMapsUrl: _repairShopMapsUrl,
+    lastEditedByName: _lastEditedByName,
+    lastEditedById: _lastEditedById,
+    lastEditedByExtension: _lastEditedByExtension,
+    lastEditedAtLabel: _lastEditedAtLabel,
+    createdByName: _createdByName,
+    createdById: _createdById,
+    ...rest
+  } = caseData;
   return {
-    ...caseData,
+    ...rest,
     dueDate: caseData.dueDate ? caseData.dueDate.slice(0, 10) : '',
     dateClosed: caseData.dateClosed ? caseData.dateClosed.slice(0, 10) : '',
     cost: caseData.cost != null && caseData.cost !== '' ? String(caseData.cost) : '',
