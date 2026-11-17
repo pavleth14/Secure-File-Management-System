@@ -445,6 +445,21 @@ export default function MaintenanceCaseModal({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [open, discardConfirmOpen, requestClose]);
 
+  const repairShopPreviewUrl = useMemo(() => {
+    if (!form?.repairShop?.trim()) return null;
+    const match = repairShops.find(
+      (shop) => shop.name.toLowerCase() === form.repairShop.trim().toLowerCase()
+    );
+    if (match?.mapsLink) return match.mapsLink;
+    if (
+      caseData?.repairShop &&
+      caseData.repairShop.toLowerCase() === form.repairShop.trim().toLowerCase()
+    ) {
+      return caseData.repairShopMapsUrl || null;
+    }
+    return null;
+  }, [form?.repairShop, repairShops, caseData]);
+
   if (!open || !form) return null;
 
   const handleCreateTag = async (type, name, color) => {
@@ -615,21 +630,6 @@ export default function MaintenanceCaseModal({
     !readOnly &&
     onUpload &&
     (caseData ? canUploadAttachments : true);
-
-  const repairShopPreviewUrl = useMemo(() => {
-    if (!form?.repairShop?.trim()) return null;
-    const match = repairShops.find(
-      (shop) => shop.name.toLowerCase() === form.repairShop.trim().toLowerCase()
-    );
-    if (match?.mapsLink) return match.mapsLink;
-    if (
-      caseData?.repairShop &&
-      caseData.repairShop.toLowerCase() === form.repairShop.trim().toLowerCase()
-    ) {
-      return caseData.repairShopMapsUrl || null;
-    }
-    return null;
-  }, [form?.repairShop, repairShops, caseData]);
 
   return (
     <>
