@@ -14,7 +14,6 @@ import MaintenanceBoardToolbar, {
 import MaintenanceBoardTableHeader from '../../components/maintenance/MaintenanceBoardTableHeader';
 import { MAINTENANCE_TAG_TYPES } from '../../constants/maintenanceConstants';
 import { useContextMenu } from '../../hooks/useContextMenu';
-import { formatLastEditedSummary } from '../../utils/maintenanceCaseFormat';
 
 function isDueOverdue(dueDate) {
   if (!dueDate) return false;
@@ -76,7 +75,7 @@ export default function MaintenanceBoardPage() {
   const [repairShopsOpen, setRepairShopsOpen] = useState(false);
   const { openContextMenu, contextMenuNode } = useContextMenu();
 
-  const COLUMN_COUNT = 16;
+  const COLUMN_COUNT = 15;
 
   const loadFilterOptions = useCallback(async () => {
     try {
@@ -311,18 +310,6 @@ export default function MaintenanceBoardPage() {
                       : (event) => openContextMenu(event, buildMenuItems(row))
                   }
                 >
-                  <td className="max-w-[12rem] px-3 py-2 font-medium">{row.issue}</td>
-                  <td className="whitespace-nowrap px-3 py-2">
-                    {row.assigneeName || '—'}
-                    {row.assigneeExtension ? ` x${row.assigneeExtension}` : ''}
-                  </td>
-                  <td
-                    className={`whitespace-nowrap px-3 py-2 ${
-                      isDueOverdue(row.dueDate) ? 'font-semibold text-red-600' : ''
-                    }`}
-                  >
-                    {row.dueDateLabel || '—'}
-                  </td>
                   <td className="whitespace-nowrap px-3 py-2">
                     <div className="flex flex-col gap-0.5">
                       {row.truckNumber && (
@@ -345,16 +332,32 @@ export default function MaintenanceBoardPage() {
                       )}
                     </div>
                   </td>
-                  <td className="px-3 py-2">
-                    <MaintenanceTagPill label={row.caseStatus} color={row.caseStatusColor} />
+                  <td className="max-w-[12rem] px-3 py-2 font-medium">{row.issue}</td>
+                  <td className="whitespace-nowrap px-3 py-2">
+                    {row.assigneeName || '—'}
+                    {row.assigneeExtension ? ` x${row.assigneeExtension}` : ''}
                   </td>
-                  <td className="px-3 py-2">{row.priority}</td>
+                  <td
+                    className={`whitespace-nowrap px-3 py-2 ${
+                      isDueOverdue(row.dueDate) ? 'font-semibold text-red-600' : ''
+                    }`}
+                  >
+                    {row.dueDateLabel || '—'}
+                  </td>
+                  <MaintenanceCommentsCell
+                    maintenanceCase={row}
+                    open={openCommentsCaseId === row.id}
+                    onToggle={(caseId) =>
+                      setOpenCommentsCaseId((current) => (current === caseId ? null : caseId))
+                    }
+                    onClose={() => setOpenCommentsCaseId(null)}
+                    onSubmitComment={
+                      readOnly ? undefined : (text) => handleBoardComment(row.id, text)
+                    }
+                    readOnly={readOnly}
+                  />
                   <td className="px-3 py-2">
                     <MaintenanceTagPill label={row.project} color={row.projectColor} />
-                  </td>
-                  <td className="px-3 py-2">{row.oosStatus}</td>
-                  <td className="px-3 py-2">
-                    <MaintenanceTagPill label={row.caseType} color={row.caseTypeColor} />
                   </td>
                   <td className="max-w-[8rem] px-3 py-2">
                     <RepairShopLink
@@ -366,6 +369,11 @@ export default function MaintenanceBoardPage() {
                   <td className="whitespace-nowrap px-3 py-2 tabular-nums">
                     {row.costLabel || '—'}
                   </td>
+                  <td className="px-3 py-2">
+                    <MaintenanceTagPill label={row.caseStatus} color={row.caseStatusColor} />
+                  </td>
+                  <td className="px-3 py-2">{row.priority}</td>
+                  <td className="px-3 py-2">{row.oosStatus}</td>
                   <td className="whitespace-nowrap px-3 py-2">{row.dateClosedLabel || '—'}</td>
                   <td className="px-3 py-2">
                     {row.invoiceStatus ? (
@@ -387,22 +395,8 @@ export default function MaintenanceBoardPage() {
                       '—'
                     )}
                   </td>
-                  <MaintenanceCommentsCell
-                    maintenanceCase={row}
-                    open={openCommentsCaseId === row.id}
-                    onToggle={(caseId) =>
-                      setOpenCommentsCaseId((current) => (current === caseId ? null : caseId))
-                    }
-                    onClose={() => setOpenCommentsCaseId(null)}
-                    onSubmitComment={
-                      readOnly ? undefined : (text) => handleBoardComment(row.id, text)
-                    }
-                    readOnly={readOnly}
-                  />
-                  <td className="whitespace-nowrap px-3 py-2 text-xs text-slate-500">
-                    <span className="whitespace-normal leading-snug" title={formatLastEditedSummary(row)}>
-                      {formatLastEditedSummary(row)}
-                    </span>
+                  <td className="px-3 py-2">
+                    <MaintenanceTagPill label={row.caseType} color={row.caseTypeColor} />
                   </td>
                 </tr>
               ))

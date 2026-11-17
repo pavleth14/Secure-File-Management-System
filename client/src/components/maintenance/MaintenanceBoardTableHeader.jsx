@@ -180,6 +180,22 @@ export default function MaintenanceBoardTableHeader({
     <thead className="bg-slate-50 dark:bg-slate-900/50">
       <tr className="divide-y divide-slate-200 dark:divide-slate-700">
         {filterHeader(
+          'equipment',
+          'Truck / Trailer',
+          Boolean(filters.equipment.trim()),
+          <label className="block">
+            <span className={popoverLabelClass}>Unit number</span>
+            <input
+              type="search"
+              value={filters.equipment}
+              onChange={(event) => set('equipment', event.target.value)}
+              placeholder="Truck or trailer…"
+              className={inputClass}
+            />
+          </label>
+        )}
+
+        {filterHeader(
           'issue',
           'Case / Issue',
           Boolean(filters.issue.trim()) || Boolean(filters.dateOpened),
@@ -244,49 +260,7 @@ export default function MaintenanceBoardTableHeader({
           </label>
         )}
 
-        {filterHeader(
-          'equipment',
-          'Truck / Trailer',
-          Boolean(filters.equipment.trim()),
-          <label className="block">
-            <span className={popoverLabelClass}>Unit number</span>
-            <input
-              type="search"
-              value={filters.equipment}
-              onChange={(event) => set('equipment', event.target.value)}
-              placeholder="Truck or trailer…"
-              className={inputClass}
-            />
-          </label>
-        )}
-
-        {filterHeader(
-          'status',
-          'Status',
-          statusValues.length > 0,
-          <>
-            <span className={popoverLabelClass}>Status (empty = all)</span>
-            <PopoverMultiSelect
-              options={caseStatusOptions}
-              values={statusValues}
-              onChange={(value) => set('statusFilters', value)}
-            />
-          </>
-        )}
-
-        {filterHeader(
-          'priority',
-          'Priority',
-          filters.priorities.length > 0,
-          <>
-            <span className={popoverLabelClass}>Priority</span>
-            <PopoverMultiSelect
-              options={MAINTENANCE_PRIORITIES}
-              values={filters.priorities}
-              onChange={(value) => set('priorities', value)}
-            />
-          </>
-        )}
+        <PlainHeader label="Last update" />
 
         {filterHeader(
           'project',
@@ -298,34 +272,6 @@ export default function MaintenanceBoardTableHeader({
               options={projectOptions}
               values={filters.projects}
               onChange={(value) => set('projects', value)}
-            />
-          </>
-        )}
-
-        {filterHeader(
-          'oos',
-          'OOS',
-          filters.oosStatuses.length > 0,
-          <>
-            <span className={popoverLabelClass}>OOS</span>
-            <PopoverMultiSelect
-              options={MAINTENANCE_OOS_STATUSES}
-              values={filters.oosStatuses}
-              onChange={(value) => set('oosStatuses', value)}
-            />
-          </>
-        )}
-
-        {filterHeader(
-          'type',
-          'Type',
-          filters.caseTypes.length > 0,
-          <>
-            <span className={popoverLabelClass}>Case type</span>
-            <PopoverMultiSelect
-              options={caseTypeOptions}
-              values={filters.caseTypes}
-              onChange={(value) => set('caseTypes', value)}
             />
           </>
         )}
@@ -362,6 +308,48 @@ export default function MaintenanceBoardTableHeader({
               <option value="no">Without cost</option>
             </select>
           </label>
+        )}
+
+        {filterHeader(
+          'status',
+          'Status',
+          statusValues.length > 0,
+          <>
+            <span className={popoverLabelClass}>Status (empty = all)</span>
+            <PopoverMultiSelect
+              options={caseStatusOptions}
+              values={statusValues}
+              onChange={(value) => set('statusFilters', value)}
+            />
+          </>
+        )}
+
+        {filterHeader(
+          'priority',
+          'Priority',
+          filters.priorities.length > 0,
+          <>
+            <span className={popoverLabelClass}>Priority</span>
+            <PopoverMultiSelect
+              options={MAINTENANCE_PRIORITIES}
+              values={filters.priorities}
+              onChange={(value) => set('priorities', value)}
+            />
+          </>
+        )}
+
+        {filterHeader(
+          'oos',
+          'OOS',
+          filters.oosStatuses.length > 0,
+          <>
+            <span className={popoverLabelClass}>OOS</span>
+            <PopoverMultiSelect
+              options={MAINTENANCE_OOS_STATUSES}
+              values={filters.oosStatuses}
+              onChange={(value) => set('oosStatuses', value)}
+            />
+          </>
         )}
 
         {filterHeader(
@@ -407,8 +395,19 @@ export default function MaintenanceBoardTableHeader({
           </>
         )}
 
-        <PlainHeader label="Last update" />
-        <PlainHeader label="Last update" />
+        {filterHeader(
+          'type',
+          'Type',
+          filters.caseTypes.length > 0,
+          <>
+            <span className={popoverLabelClass}>Case type</span>
+            <PopoverMultiSelect
+              options={caseTypeOptions}
+              values={filters.caseTypes}
+              onChange={(value) => set('caseTypes', value)}
+            />
+          </>
+        )}
       </tr>
     </thead>
   );

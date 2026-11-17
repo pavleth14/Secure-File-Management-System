@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import api from '../../api/client';
 import { formatDate } from '../../utils/format';
 import TruncatedCommentText from '../recruiting/TruncatedCommentText';
+import { formatLastEditedSummary } from '../../utils/maintenanceCaseFormat';
 
 function CommentItem({ comment }) {
   return (
@@ -235,6 +236,9 @@ export default function MaintenanceCommentsCell({
       >
         <span className="line-clamp-2">
           {preview || <span className="text-slate-400 dark:text-slate-500">—</span>}
+        </span>
+        <span className="mt-1 block text-[11px] leading-tight text-slate-500 dark:text-slate-400">
+          {formatLastEditedSummary(maintenanceCase)}
         </span>
       </td>
 
