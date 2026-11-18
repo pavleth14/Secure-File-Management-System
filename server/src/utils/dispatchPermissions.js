@@ -37,7 +37,12 @@ export function hasDispatchSafetyViewAccess(user) {
 }
 
 export function canEditSafetyEntities(user) {
-  return Boolean(user?.isSafety || user?.isSafetyManager || isSuperAdmin(user));
+  return Boolean(
+    user?.isSafety ||
+      user?.isSafetyManager ||
+      user?.isMaintenanceManager ||
+      isSuperAdmin(user)
+  );
 }
 
 /** Create truck/trailer records — Safety editors plus all maintenance module roles. */
@@ -46,7 +51,9 @@ export function canCreateTrucksAndTrailers(user) {
 }
 
 export function canDeleteSafetyEntities(user) {
-  return Boolean(user?.isSafetyManager || isSuperAdmin(user));
+  return Boolean(
+    user?.isSafetyManager || user?.isMaintenanceManager || isSuperAdmin(user)
+  );
 }
 
 export function canManageDispatchBoardAssignment(user) {
@@ -64,7 +71,12 @@ export function canEditTruckAssignments(user) {
 }
 
 export function canLinkEntityFolders(user) {
-  return Boolean(user?.isSafety || user?.isSafetyManager || isSuperAdmin(user));
+  return Boolean(
+    user?.isSafety ||
+      user?.isSafetyManager ||
+      user?.isMaintenanceManager ||
+      isSuperAdmin(user)
+  );
 }
 
 export function canAccessLoadsModule(user) {

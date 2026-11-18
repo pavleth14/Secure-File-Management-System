@@ -191,12 +191,13 @@ export function AuthProvider({ children }) {
   const hasDispatchSafetyViewAccess =
     hasDispatchModuleAccess || hasSafetyModuleAccess || hasMaintenanceAccess;
   const shouldShowSafety = hasSafetyModuleAccess || hasDispatchSafetyViewAccess;
-  const canEditSafetyEntities = isSafety || isSafetyManager || isSuperAdmin;
+  const canEditSafetyEntities =
+    isSafety || isSafetyManager || isMaintenanceManager || isSuperAdmin;
   const canCreateTrucksAndTrailers = canEditSafetyEntities || hasMaintenanceAccess;
-  const canDeleteSafetyEntities = isSafetyManager || isSuperAdmin;
+  const canDeleteSafetyEntities = isSafetyManager || isMaintenanceManager || isSuperAdmin;
   const canEditAssignments =
     isSafety || isSafetyManager || isDispatchTeamLeader || isDispatchManager || isSuperAdmin;
-  const canLinkFolders = isSafety || isSafetyManager || isSuperAdmin;
+  const canLinkFolders = isSafety || isSafetyManager || isMaintenanceManager || isSuperAdmin;
   const canManageDispatchBoards = isDispatchManager || isSuperAdmin;
   const canCreateOrEditLoads =
     isDispatcher || isDispatchTeamLeader || isDispatchManager || isSuperAdmin;
