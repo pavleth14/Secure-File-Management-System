@@ -3,6 +3,7 @@ import { MaintenanceCaseTag } from '../models/MaintenanceCaseTag.js';
 import { assertValidTagType } from './maintenanceTagService.js';
 import { ensureMaintenanceTag } from './maintenanceTagService.js';
 import { deleteCaseStatusTag } from './maintenanceCaseStatusTagService.js';
+import { normalizeCaseTypes } from '../utils/maintenanceCaseTypes.js';
 
 const CASE_STATUS_TYPE = 'case_status';
 
@@ -41,6 +42,21 @@ export async function countCasesUsingTagValue(type, tagName) {
   const trimmed = String(tagName || '').trim();
   if (!trimmed) return 0;
   return MaintenanceCase.countDocuments({ [field]: fieldValueRegex(trimmed) });
+}
+
+async function updateCaseTypeArrayOnCases(oldName, updateFn) {
+  const regex = fieldValueRegex(oldName);
+  const docs = await MaintenanceCase.find({ caseType: regex });
+  let changed = 0;
+  for (const doc of docs) {
+    const types = normalizeCaseTypes(doc.caseType);
+    if (!types.some((entry) => namesEquivalent(entry, oldName))) continue;
+    const next = updateFn(types, oldName);
+    doc.caseType = [...new Set(next.filter(Boolean))];
+    await doc.save();
+    changed += 1;
+  }
+  return changed;
 }
 
 export async function getMaintenanceTagUsage(tagId) {
@@ -104,10 +120,19 @@ export async function deleteMaintenanceTagById(tagId, options, userId) {
       throw err;
     }
 
-    await MaintenanceCase.updateMany(
-      { [field]: fieldValueRegex(tag.name) },
-      { $set: { [field]: replacementName } }
-    );
+    if (field === 'caseType') {
+      await updateCaseTypeArrayOnCases(tag.name, (types, removed) =>
+        types.flatMap((entry) => {
+          if (!namesEquivalent(entry, removed)) return [entry];
+          return replacementName ? [replacementName] : [];
+        })
+      );
+    } else {
+      await MaintenanceCase.updateMany(
+        { [field]: fieldValueRegex(tag.name) },
+        { $set: { [field]: replacementName } }
+      );
+    }
   }
 
   const lowerKey = tag.name.toLowerCase();
@@ -175,10 +200,16 @@ export async function updateMaintenanceTagById(tagId, payload, userId) {
   await clearTagNameSlot(tag.type, tag._id, nextName);
 
   if (!namesEquivalent(oldName, nextName)) {
-    await MaintenanceCase.updateMany(
-      { [field]: fieldValueRegex(oldName) },
-      { $set: { [field]: nextName } }
-    );
+    if (field === 'caseType') {
+      await updateCaseTypeArrayOnCases(oldName, (types, fromName) =>
+        types.map((entry) => (namesEquivalent(entry, fromName) ? nextName : entry))
+      );
+    } else {
+      await MaintenanceCase.updateMany(
+        { [field]: fieldValueRegex(oldName) },
+        { $set: { [field]: nextName } }
+      );
+    }
   }
 
   tag.name = nextName;

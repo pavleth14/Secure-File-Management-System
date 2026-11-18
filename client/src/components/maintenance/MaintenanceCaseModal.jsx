@@ -22,7 +22,7 @@ import TrailerFormModal from '../dispatch-safety/TrailerFormModal';
 const TAG_FORM_FIELD_BY_TYPE = {
   case_status: 'caseStatus',
   project: 'project',
-  case_type: 'caseType',
+  case_type: 'caseTypes',
   invoice_status: 'invoiceStatus',
   dispatch_status: 'dispatchStatus',
 };
@@ -51,7 +51,7 @@ const FORM_DIRTY_KEYS = [
   'priority',
   'project',
   'oosStatus',
-  'caseType',
+  'caseTypes',
   'repairShop',
   'issueDescription',
   'invoiceStatus',
@@ -65,9 +65,26 @@ function serializeFormSnapshot(form) {
   const out = {};
   for (const key of FORM_DIRTY_KEYS) {
     const value = form?.[key];
-    out[key] = value === null || value === undefined ? '' : String(value);
+    if (Array.isArray(value)) {
+      out[key] = JSON.stringify(value);
+    } else {
+      out[key] = value === null || value === undefined ? '' : String(value);
+    }
   }
   return JSON.stringify(out);
+}
+
+function normalizeCaseTypesForForm(caseData) {
+  if (Array.isArray(caseData?.caseTypes) && caseData.caseTypes.length) {
+    if (typeof caseData.caseTypes[0] === 'object') {
+      return caseData.caseTypes.map((entry) => entry.name).filter(Boolean);
+    }
+    return caseData.caseTypes.filter(Boolean);
+  }
+  const raw = caseData?.caseType;
+  if (Array.isArray(raw)) return raw.filter(Boolean);
+  const single = String(raw || '').trim();
+  return single ? [single] : [];
 }
 
 function buildEmptyForm(canPickAnyAssignee, userId) {
@@ -83,7 +100,7 @@ function buildEmptyForm(canPickAnyAssignee, userId) {
     priority: 'Normal',
     project: '',
     oosStatus: 'In Service',
-    caseType: '',
+    caseTypes: [],
     repairShop: '',
     issueDescription: '',
     invoiceStatus: '',
@@ -106,10 +123,14 @@ function buildFormFromCaseData(caseData) {
     lastEditedAtLabel: _lastEditedAtLabel,
     createdByName: _createdByName,
     createdById: _createdById,
+    caseType: _caseType,
+    caseTypes: _caseTypes,
+    caseTypeColor: _caseTypeColor,
     ...rest
   } = caseData;
   return {
     ...rest,
+    caseTypes: normalizeCaseTypesForForm(caseData),
     dueDate: caseData.dueDate ? caseData.dueDate.slice(0, 10) : '',
     dateClosed: caseData.dateClosed ? caseData.dateClosed.slice(0, 10) : '',
     cost: caseData.cost != null && caseData.cost !== '' ? String(caseData.cost) : '',
@@ -135,6 +156,7 @@ function TagField({
   manageTags,
   onEditTag,
   onDeleteTag,
+  multiple = false,
 }) {
   const [color, setColor] = useState('#6366F1');
   const [showCreate, setShowCreate] = useState(false);
@@ -146,15 +168,50 @@ function TagField({
     if (!name) return;
     if (tags.some((tag) => tagNamesMatch(tag.name, name))) {
       const existing = tags.find((tag) => tagNamesMatch(tag.name, name));
-      onChange(existing.name);
+      if (multiple) {
+        const current = Array.isArray(value) ? [...value] : [];
+        if (!current.some((entry) => tagNamesMatch(entry, existing.name))) {
+          onChange([...current, existing.name]);
+        }
+      } else {
+        onChange(existing.name);
+      }
       setNewTagName('');
       setShowCreate(false);
       return;
     }
     const createdName = await onCreateTag(type, name, color);
-    onChange(createdName || name);
+    if (multiple) {
+      const current = Array.isArray(value) ? [...value] : [];
+      onChange([...current, createdName || name]);
+    } else {
+      onChange(createdName || name);
+    }
     setNewTagName('');
     setShowCreate(false);
+  };
+
+  const selectedValues = multiple
+    ? Array.isArray(value)
+      ? value
+      : []
+    : value
+      ? [value]
+      : [];
+
+  const isTagSelected = (name) => selectedValues.some((entry) => tagNamesMatch(entry, name));
+
+  const handleTagClick = (name) => {
+    if (multiple) {
+      const current = Array.isArray(value) ? [...value] : [];
+      if (current.some((entry) => tagNamesMatch(entry, name))) {
+        onChange(current.filter((entry) => !tagNamesMatch(entry, name)));
+      } else {
+        onChange([...current, name]);
+      }
+      return;
+    }
+    onChange(name);
   };
 
   const selectedColor = tags.find((t) => tagNamesMatch(t.name, value))?.color;
@@ -163,7 +220,23 @@ function TagField({
     <div>
       <label className="mb-1 block text-xs font-medium uppercase text-slate-500">{label}</label>
       {readOnly ? (
-        <MaintenanceTagPill label={value} color={selectedColor} />
+        multiple ? (
+          <div className="flex flex-wrap gap-1">
+            {selectedValues.length === 0 ? (
+              <span className="text-sm text-slate-400">—</span>
+            ) : (
+              selectedValues.map((name) => (
+                <MaintenanceTagPill
+                  key={name}
+                  label={name}
+                  color={tags.find((t) => tagNamesMatch(t.name, name))?.color}
+                />
+              ))
+            )}
+          </div>
+        ) : (
+          <MaintenanceTagPill label={value} color={selectedColor} />
+        )
       ) : (
         <>
           <div className="flex flex-wrap items-center gap-2">
@@ -171,7 +244,7 @@ function TagField({
               <button
                 key={tag.id}
                 type="button"
-                onClick={() => onChange(tag.name)}
+                onClick={() => handleTagClick(tag.name)}
                 onContextMenu={(event) => {
                   if (!manageTags || readOnly || !onDeleteTag || !onEditTag) return;
                   if (String(tag.id).startsWith('default:')) return;
@@ -189,16 +262,29 @@ function TagField({
                   ]);
                 }}
                 className={`rounded-full px-2 py-0.5 text-xs font-medium text-white ${
-                  tagNamesMatch(value, tag.name) ? 'ring-2 ring-brand-500 ring-offset-1' : ''
+                  isTagSelected(tag.name) ? 'ring-2 ring-brand-500 ring-offset-1' : ''
                 }`}
                 style={{ backgroundColor: tag.color }}
               >
                 {tag.name}
               </button>
             ))}
-            {value && !tags.some((t) => tagNamesMatch(t.name, value)) && (
-              <MaintenanceTagPill label={value} color={selectedColor} />
-            )}
+            {multiple
+              ? selectedValues
+                  .filter((name) => !tags.some((t) => tagNamesMatch(t.name, name)))
+                  .map((name) => (
+                    <button
+                      key={name}
+                      type="button"
+                      onClick={() => handleTagClick(name)}
+                      className="rounded-full ring-2 ring-brand-500 ring-offset-1"
+                    >
+                      <MaintenanceTagPill label={name} color={selectedColor} />
+                    </button>
+                  ))
+              : value && !tags.some((t) => tagNamesMatch(t.name, value)) && (
+                  <MaintenanceTagPill label={value} color={selectedColor} />
+                )}
             <button
               type="button"
               onClick={() => setShowCreate((prev) => !prev)}
@@ -509,6 +595,14 @@ export default function MaintenanceCaseModal({
     const field = TAG_FORM_FIELD_BY_TYPE[tagType];
     if (!field) return;
     setForm((prev) => {
+      if (field === 'caseTypes') {
+        const list = Array.isArray(prev.caseTypes) ? prev.caseTypes : [];
+        if (!list.some((entry) => tagNamesMatch(entry, oldName))) return prev;
+        const next = list
+          .map((entry) => (tagNamesMatch(entry, oldName) ? newName ?? '' : entry))
+          .filter(Boolean);
+        return { ...prev, caseTypes: next };
+      }
       if (!tagNamesMatch(prev[field], oldName)) return prev;
       return { ...prev, [field]: newName ?? '' };
     });
@@ -881,8 +975,9 @@ export default function MaintenanceCaseModal({
           <TagField
             label="Case type"
             type={MAINTENANCE_TAG_TYPES.caseType}
-            value={form.caseType}
-            onChange={(v) => setForm({ ...form, caseType: v })}
+            multiple
+            value={form.caseTypes}
+            onChange={(v) => setForm({ ...form, caseTypes: v })}
             readOnly={readOnly}
             tags={tags[MAINTENANCE_TAG_TYPES.caseType] || []}
             onCreateTag={handleCreateTag}

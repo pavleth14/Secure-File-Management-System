@@ -35,7 +35,7 @@ function buildPayload(form) {
     priority: form.priority,
     project: form.project,
     oosStatus: form.oosStatus,
-    caseType: form.caseType,
+    caseTypes: Array.isArray(form.caseTypes) ? form.caseTypes : [],
     repairShop,
     issueDescription: form.issueDescription,
     invoiceStatus: form.invoiceStatus,
@@ -416,7 +416,21 @@ export default function MaintenanceBoardPage() {
                     )}
                   </td>
                   <td className="px-3 py-2">
-                    <MaintenanceTagPill label={row.caseType} color={row.caseTypeColor} />
+                    <div className="flex max-w-[10rem] flex-wrap gap-1">
+                      {(row.caseTypes?.length
+                        ? row.caseTypes
+                        : row.caseType
+                          ? [{ name: row.caseType, color: row.caseTypeColor }]
+                          : []
+                      ).map((entry) => (
+                        <MaintenanceTagPill
+                          key={entry.name}
+                          label={entry.name}
+                          color={entry.color}
+                        />
+                      ))}
+                      {!row.caseTypes?.length && !row.caseType ? '—' : null}
+                    </div>
                   </td>
                 </tr>
               ))

@@ -65,7 +65,7 @@ const maintenanceCaseSchema = new mongoose.Schema(
       enum: MAINTENANCE_OOS_STATUSES,
       default: 'In Service',
     },
-    caseType: { type: String, trim: true, default: '' },
+    caseType: { type: [String], default: [] },
     repairShop: { type: String, trim: true, default: '' },
     repairShopId: {
       type: mongoose.Schema.Types.ObjectId,

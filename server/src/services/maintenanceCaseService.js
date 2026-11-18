@@ -14,6 +14,10 @@ import {
   canAssignMaintenanceCaseToAnyone,
   canUploadMaintenanceCaseAttachment,
 } from '../utils/maintenancePermissions.js';
+import {
+  normalizeCaseTypes,
+  parseCaseTypesFromPayload,
+} from '../utils/maintenanceCaseTypes.js';
 import { ensureMaintenanceCaseFolder } from './maintenanceCaseFolderService.js';
 import {
   formatChicagoDisplay,
@@ -167,10 +171,12 @@ async function syncTagFields(payload, userId) {
     if (value) await ensureMaintenanceTag('project', value, userId);
     updates.project = value;
   }
-  if (payload.caseType !== undefined) {
-    const value = String(payload.caseType || '').trim();
-    if (value) await ensureMaintenanceTag('case_type', value, userId);
-    updates.caseType = value;
+  const caseTypesPayload = parseCaseTypesFromPayload(payload);
+  if (caseTypesPayload !== undefined) {
+    for (const value of caseTypesPayload) {
+      if (value) await ensureMaintenanceTag('case_type', value, userId);
+    }
+    updates.caseType = caseTypesPayload;
   }
   if (payload.invoiceStatus !== undefined) {
     const value = String(payload.invoiceStatus || '').trim();
@@ -264,8 +270,18 @@ export async function formatMaintenanceCase(record, tagColorMap) {
     project: obj.project || '',
     projectColor: colorFor('project', obj.project),
     oosStatus: obj.oosStatus,
-    caseType: obj.caseType || '',
-    caseTypeColor: colorFor('case_type', obj.caseType),
+    caseTypes: (() => {
+      const types = normalizeCaseTypes(obj.caseType);
+      return types.map((name) => ({
+        name,
+        color: colorFor('case_type', name),
+      }));
+    })(),
+    caseType: normalizeCaseTypes(obj.caseType).join(', '),
+    caseTypeColor: (() => {
+      const first = normalizeCaseTypes(obj.caseType)[0];
+      return first ? colorFor('case_type', first) : '#94A3B8';
+    })(),
     repairShop: obj.repairShop || '',
     repairShopId: obj.repairShopId?._id?.toString() || obj.repairShopId?.toString() || null,
     repairShopMapsUrl: obj.repairShopId
