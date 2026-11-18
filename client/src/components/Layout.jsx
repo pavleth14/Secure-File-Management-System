@@ -183,6 +183,14 @@ function MaintenanceDropdown({ location }) {
             Maintenance Board
           </Link>
           <Link
+            to="/maintenance/parking"
+            className={dropdownLinkClass()}
+            onClick={close}
+            aria-current={location.pathname === '/maintenance/parking' ? 'page' : undefined}
+          >
+            Parking
+          </Link>
+          <Link
             to="/maintenance/company-info"
             className={dropdownLinkClass()}
             onClick={close}

@@ -49,6 +49,13 @@ import {
   getMaintenanceRepairShopUsage,
   deactivateMaintenanceRepairShop,
 } from '../services/maintenanceRepairShopService.js';
+import {
+  listMaintenanceParkingRecords,
+  getMaintenanceParkingRecordById,
+  createMaintenanceParkingRecord,
+  updateMaintenanceParkingRecord,
+  deleteMaintenanceParkingRecord,
+} from '../services/maintenanceParkingService.js';
 import path from 'path';
 
 const router = Router();
@@ -332,6 +339,51 @@ router.get('/cases/:id/attachments/:fileId/download', async (req, res, next) => 
   try {
     const file = await getMaintenanceCaseAttachmentFile(req.params.id, req.params.fileId);
     res.download(resolveFullPath(file.relativePath), file.originalName);
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.get('/parking', async (req, res, next) => {
+  try {
+    const records = await listMaintenanceParkingRecords(req.query);
+    res.json({ records, total: records.length });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.get('/parking/:id', async (req, res, next) => {
+  try {
+    const record = await getMaintenanceParkingRecordById(req.params.id);
+    res.json({ record });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post('/parking', requireMaintenanceEdit, async (req, res, next) => {
+  try {
+    const record = await createMaintenanceParkingRecord(req.body, req.user);
+    res.status(201).json({ record });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.patch('/parking/:id', requireMaintenanceEdit, async (req, res, next) => {
+  try {
+    const record = await updateMaintenanceParkingRecord(req.params.id, req.body, req.user);
+    res.json({ record });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.delete('/parking/:id', requireMaintenanceDelete, async (req, res, next) => {
+  try {
+    const result = await deleteMaintenanceParkingRecord(req.params.id);
+    res.json(result);
   } catch (err) {
     next(err);
   }

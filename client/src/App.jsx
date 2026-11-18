@@ -42,6 +42,7 @@ import DispatchBoardPage from './pages/dispatch/DispatchBoardPage';
 import MaintenanceBoardPage from './pages/maintenance/MaintenanceBoardPage';
 import MaintenanceCompanyInfoPage from './pages/maintenance/MaintenanceCompanyInfoPage';
 import MaintenanceNationalAccountsPage from './pages/maintenance/MaintenanceNationalAccountsPage';
+import MaintenanceParkingPage from './pages/maintenance/MaintenanceParkingPage';
 import { MaintenanceAccessGuard } from './components/MaintenanceGuard';
 
 function ProtectedRoute({ children, roles }) {
@@ -276,6 +277,14 @@ export default function App() {
           element={
             <MaintenanceAccessGuard>
               <MaintenanceNationalAccountsPage />
+            </MaintenanceAccessGuard>
+          }
+        />
+        <Route
+          path="/maintenance/parking"
+          element={
+            <MaintenanceAccessGuard>
+              <MaintenanceParkingPage />
             </MaintenanceAccessGuard>
           }
         />

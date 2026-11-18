@@ -16,3 +16,11 @@ export const MAINTENANCE_TAG_TYPES = {
 };
 
 export const MAINTENANCE_DEFAULT_PROJECTS = ['OTR', 'Aljaska', 'Montana', 'KY', 'NJ'];
+
+export const MAINTENANCE_PARKING_STATUSES = [
+  'Picked up',
+  'Extended',
+  'Canceled',
+  'Local Weekly',
+  'Local Monthly',
+];

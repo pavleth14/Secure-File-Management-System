@@ -24,6 +24,14 @@ export const MAINTENANCE_DEFAULT_PROJECTS = Object.freeze([
   'NJ',
 ]);
 
+export const MAINTENANCE_PARKING_STATUSES = Object.freeze([
+  'Picked up',
+  'Extended',
+  'Canceled',
+  'Local Weekly',
+  'Local Monthly',
+]);
+
 export const MAINTENANCE_COMMENT_MAX_LENGTH = 2000;
 export const MAINTENANCE_ISSUE_MAX_LENGTH = 200;
 export const MAINTENANCE_DESCRIPTION_MAX_LENGTH = 8000;
