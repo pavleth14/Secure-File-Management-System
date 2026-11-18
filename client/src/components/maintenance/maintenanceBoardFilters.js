@@ -1,6 +1,6 @@
 export const MAINTENANCE_BOARD_INITIAL_FILTERS = {
   issue: '',
-  assigneeId: '',
+  assigneeIds: [],
   dateOpened: '',
   dateClosed: '',
   dueDate: '',
@@ -21,7 +21,12 @@ export const MAINTENANCE_BOARD_INITIAL_FILTERS = {
 export function buildMaintenanceCaseQueryParams(filters, { limit = 100 } = {}) {
   const params = { limit };
   if (filters.issue.trim()) params.issue = filters.issue.trim();
-  if (filters.assigneeId) params.assigneeId = filters.assigneeId;
+  const assigneeIds = Array.isArray(filters.assigneeIds) ? filters.assigneeIds.filter(Boolean) : [];
+  if (assigneeIds.length) {
+    params.assigneeId = assigneeIds.join(',');
+  } else if (filters.assigneeId) {
+    params.assigneeId = filters.assigneeId;
+  }
   if (filters.dateOpened) params.dateOpened = filters.dateOpened;
   if (filters.dateClosed) params.dateClosed = filters.dateClosed;
   if (filters.dueDate) params.dueDate = filters.dueDate;

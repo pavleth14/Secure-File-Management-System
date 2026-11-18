@@ -65,6 +65,54 @@ function FilterPopover({ open, anchorRef, onClose, children }) {
   );
 }
 
+const ASSIGNEE_FILTER_UNASSIGNED = 'unassigned';
+
+function AssigneeFilterMultiSelect({ assignees, values, onChange }) {
+  const selected = Array.isArray(values) ? values : [];
+  const toggle = (id) => {
+    if (selected.includes(id)) {
+      onChange(selected.filter((value) => value !== id));
+    } else {
+      onChange([...selected, id]);
+    }
+  };
+
+  return (
+    <div className="max-h-52 space-y-0.5 overflow-y-auto">
+      <label className="flex cursor-pointer items-center gap-2 rounded px-1 py-1 text-sm hover:bg-slate-50 dark:hover:bg-slate-700/60">
+        <input
+          type="checkbox"
+          className="rounded border-slate-300 dark:border-slate-600"
+          checked={selected.includes(ASSIGNEE_FILTER_UNASSIGNED)}
+          onChange={() => toggle(ASSIGNEE_FILTER_UNASSIGNED)}
+        />
+        <span>Unassigned</span>
+      </label>
+      {assignees.length === 0 ? (
+        <p className="px-1 py-1 text-xs text-slate-500">No assignees</p>
+      ) : (
+        assignees.map((person) => (
+          <label
+            key={person.id}
+            className="flex cursor-pointer items-center gap-2 rounded px-1 py-1 text-sm hover:bg-slate-50 dark:hover:bg-slate-700/60"
+          >
+            <input
+              type="checkbox"
+              className="rounded border-slate-300 dark:border-slate-600"
+              checked={selected.includes(person.id)}
+              onChange={() => toggle(person.id)}
+            />
+            <span className="truncate">
+              {person.name}
+              {person.extension ? ` x${person.extension}` : ''}
+            </span>
+          </label>
+        ))
+      )}
+    </div>
+  );
+}
+
 function PopoverMultiSelect({ options, values, onChange }) {
   const toggle = (option) => {
     if (values.includes(option)) {
@@ -159,6 +207,11 @@ export default function MaintenanceBoardTableHeader({
   const dispatchOptions = tagOptions.dispatchStatus || [];
 
   const statusValues = Array.isArray(filters.statusFilters) ? filters.statusFilters : [];
+  const assigneeFilterValues = Array.isArray(filters.assigneeIds)
+    ? filters.assigneeIds
+  : filters.assigneeId
+      ? [filters.assigneeId]
+      : [];
 
   const filterHeader = (id, label, active, content) => (
     <ColumnFilterHeader
@@ -226,23 +279,15 @@ export default function MaintenanceBoardTableHeader({
         {filterHeader(
           'assignee',
           'Assignee',
-          Boolean(filters.assigneeId),
-          <label className="block">
-            <span className={popoverLabelClass}>Assignee</span>
-            <select
-              value={filters.assigneeId}
-              onChange={(event) => set('assigneeId', event.target.value)}
-              className={inputClass}
-            >
-              <option value="">All assignees</option>
-              <option value="unassigned">Unassigned</option>
-              {assignees.map((person) => (
-                <option key={person.id} value={person.id}>
-                  {person.name}
-                </option>
-              ))}
-            </select>
-          </label>
+          assigneeFilterValues.length > 0,
+          <>
+            <span className={popoverLabelClass}>Assignee (multi)</span>
+            <AssigneeFilterMultiSelect
+              assignees={assignees}
+              values={assigneeFilterValues}
+              onChange={(value) => set('assigneeIds', value)}
+            />
+          </>
         )}
 
         {filterHeader(

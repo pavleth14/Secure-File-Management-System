@@ -28,6 +28,7 @@ import {
   updateMaintenanceCaseComment,
   addMaintenanceCaseAttachment,
   listMaintenanceAssignees,
+  listMaintenanceAssigneesForFilter,
   getMaintenanceCaseAttachmentFile,
 } from '../services/maintenanceCaseService.js';
 import { resolveFullPath } from '../config/storage.js';
@@ -180,7 +181,10 @@ router.delete('/repair-shops/:id', requireMaintenanceEdit, async (req, res, next
 
 router.get('/assignees', async (req, res, next) => {
   try {
-    const assignees = await listMaintenanceAssignees(req.user);
+    const assignees =
+      req.query.for === 'filter'
+        ? await listMaintenanceAssigneesForFilter(req.user)
+        : await listMaintenanceAssignees(req.user);
     res.json({ assignees });
   } catch (err) {
     next(err);

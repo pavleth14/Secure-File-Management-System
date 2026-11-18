@@ -81,7 +81,7 @@ export default function MaintenanceBoardPage() {
     try {
       const tagTypes = Object.entries(MAINTENANCE_TAG_TYPES);
       const [assigneeRes, ...tagResponses] = await Promise.all([
-        api.get('/maintenance/assignees'),
+        api.get('/maintenance/assignees', { params: { for: 'filter' } }),
         ...tagTypes.map(([, type]) => api.get(`/maintenance/tags/${type}`)),
       ]);
       setAssignees(assigneeRes.data.assignees || []);

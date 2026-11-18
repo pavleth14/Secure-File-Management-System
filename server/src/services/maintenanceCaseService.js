@@ -13,6 +13,7 @@ import { ensureMaintenanceTag, getTagColorMap } from './maintenanceTagService.js
 import {
   canAssignMaintenanceCaseToAnyone,
   canUploadMaintenanceCaseAttachment,
+  hasMaintenanceModuleAccess,
 } from '../utils/maintenancePermissions.js';
 import {
   normalizeCaseTypes,
@@ -380,11 +381,24 @@ async function buildMaintenanceCaseListFilter(query = {}) {
     and.push({ $or: [{ issue: regex }, { issueDescription: regex }] });
   }
 
-  const assigneeId = String(query.assigneeId || '').trim();
-  if (assigneeId === 'unassigned') {
-    and.push({ $or: [{ assigneeId: null }, { assigneeId: { $exists: false } }] });
-  } else if (assigneeId) {
-    and.push({ assigneeId });
+  const assigneeFilters = parseQueryStringList(query.assigneeId);
+  if (assigneeFilters.length) {
+    const wantsUnassigned = assigneeFilters.includes('unassigned');
+    const ids = assigneeFilters.filter((id) => id !== 'unassigned');
+    const conditions = [];
+    if (ids.length) {
+      conditions.push({ assigneeId: { $in: ids } });
+    }
+    if (wantsUnassigned) {
+      conditions.push({
+        $or: [{ assigneeId: null }, { assigneeId: { $exists: false } }],
+      });
+    }
+    if (conditions.length === 1) {
+      and.push(conditions[0]);
+    } else if (conditions.length > 1) {
+      and.push({ $or: conditions });
+    }
   }
 
   if (query.dateOpened) {
@@ -840,6 +854,22 @@ function formatAssigneeUser(u) {
     email: u.email,
     extension: u.ringCentralExtensionNumber || null,
   };
+}
+
+export async function listMaintenanceAssigneesForFilter(actor) {
+  if (!hasMaintenanceModuleAccess(actor)) {
+    const err = new Error('Maintenance access required');
+    err.status = 403;
+    throw err;
+  }
+
+  const users = await User.find({
+    $or: [{ isMaintenance: true }, { isMaintenanceManager: true }, { role: 'SUPER_ADMIN' }],
+  })
+    .select('name email ringCentralExtensionNumber isMaintenance isMaintenanceManager role')
+    .sort({ name: 1 });
+
+  return users.map(formatAssigneeUser);
 }
 
 export async function listMaintenanceAssignees(actor) {
