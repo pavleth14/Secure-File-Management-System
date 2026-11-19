@@ -4,6 +4,7 @@ import {
   chicagoStartOfDay,
   chicagoEndOfDay,
   formatChicagoDisplay,
+  formatChicagoDateTime,
 } from '../utils/chicagoTime.js';
 
 const POPULATE = [
@@ -65,8 +66,16 @@ function formatDateLabel(date) {
   return formatChicagoDisplay(date).split(',')[0];
 }
 
+function isParkingEndDateToday(endDate) {
+  if (!endDate) return false;
+  const todayKey = formatChicagoDateTime(new Date()).date;
+  const endKey = formatChicagoDateTime(endDate).date;
+  return Boolean(todayKey && endKey && todayKey === endKey);
+}
+
 function formatRecord(doc) {
   const obj = doc.toObject ? doc.toObject() : doc;
+  const parkingExpiresToday = isParkingEndDateToday(obj.endDate);
   return {
     id: obj._id.toString(),
     unitNumber: obj.unitNumber || '',
@@ -87,7 +96,22 @@ function formatRecord(doc) {
     lastEditedAt: obj.lastEditedAt,
     createdByName: obj.createdBy?.name || null,
     lastEditedByName: obj.lastEditedBy?.name || null,
+    parkingExpiresToday,
   };
+}
+
+function sortParkingRecordsForDisplay(records) {
+  return [...records].sort((a, b) => {
+    if (a.parkingExpiresToday !== b.parkingExpiresToday) {
+      return a.parkingExpiresToday ? -1 : 1;
+    }
+    const aStart = a.startDate ? new Date(a.startDate).getTime() : 0;
+    const bStart = b.startDate ? new Date(b.startDate).getTime() : 0;
+    if (aStart !== bStart) return bStart - aStart;
+    const aEdited = a.lastEditedAt ? new Date(a.lastEditedAt).getTime() : 0;
+    const bEdited = b.lastEditedAt ? new Date(b.lastEditedAt).getTime() : 0;
+    return bEdited - aEdited;
+  });
 }
 
 function validatePayload(payload, { partial = false } = {}) {
@@ -176,7 +200,7 @@ export async function listMaintenanceParkingRecords(query = {}) {
     .limit(limit)
     .populate(POPULATE);
 
-  return records.map(formatRecord);
+  return sortParkingRecordsForDisplay(records.map(formatRecord));
 }
 
 export async function getMaintenanceParkingRecordById(id) {

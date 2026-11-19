@@ -98,6 +98,11 @@ export default function MaintenanceParkingModal({
         </div>
 
         <div className="space-y-4 px-6 py-4">
+          {record?.parkingExpiresToday && (
+            <div className="rounded-lg border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-800 dark:border-red-800 dark:bg-red-950/50 dark:text-red-200">
+              Parking ends <strong>today</strong>.
+            </div>
+          )}
           {error && <p className="text-sm text-red-600">{error}</p>}
 
           <div>

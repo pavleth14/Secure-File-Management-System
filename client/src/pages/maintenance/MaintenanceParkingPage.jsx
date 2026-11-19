@@ -69,6 +69,8 @@ export default function MaintenanceParkingPage() {
     );
   };
 
+  const expiringTodayCount = records.filter((row) => row.parkingExpiresToday).length;
+
   return (
     <div>
       <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
@@ -90,6 +92,14 @@ export default function MaintenanceParkingPage() {
       {error && (
         <div className="mb-4 rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700 dark:bg-red-900/30 dark:text-red-300">
           {error}
+        </div>
+      )}
+
+      {expiringTodayCount > 0 && (
+        <div className="mb-4 rounded-lg border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-800 dark:border-red-800 dark:bg-red-950/50 dark:text-red-200">
+          <strong className="font-semibold">Parking ends today:</strong>{' '}
+          {expiringTodayCount} record{expiringTodayCount === 1 ? '' : 's'} — highlighted in red
+          at the top of the table.
         </div>
       )}
 
@@ -153,12 +163,34 @@ export default function MaintenanceParkingPage() {
               {records.map((row) => (
                 <tr
                   key={row.id}
-                  className="cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/80"
+                  className={
+                    row.parkingExpiresToday
+                      ? 'cursor-pointer bg-red-100 hover:bg-red-200/90 dark:bg-red-950/60 dark:hover:bg-red-900/70'
+                      : 'cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/80'
+                  }
                   onClick={() => openRecord(row)}
+                  title={row.parkingExpiresToday ? 'Parking ends today' : undefined}
                 >
-                  <td className="whitespace-nowrap px-3 py-2 font-medium">{row.unitNumber}</td>
+                  <td
+                    className={`whitespace-nowrap px-3 py-2 font-medium ${
+                      row.parkingExpiresToday ? 'text-red-900 dark:text-red-100' : ''
+                    }`}
+                  >
+                    {row.unitNumber}
+                    {row.parkingExpiresToday ? (
+                      <span className="ml-2 text-[10px] font-bold uppercase tracking-wide text-red-700 dark:text-red-300">
+                        Ends today
+                      </span>
+                    ) : null}
+                  </td>
                   <td className="whitespace-nowrap px-3 py-2">{row.startDateLabel || '—'}</td>
-                  <td className="whitespace-nowrap px-3 py-2">{row.endDateLabel || '—'}</td>
+                  <td
+                    className={`whitespace-nowrap px-3 py-2 ${
+                      row.parkingExpiresToday ? 'font-semibold text-red-800 dark:text-red-200' : ''
+                    }`}
+                  >
+                    {row.endDateLabel || '—'}
+                  </td>
                   <td className="whitespace-nowrap px-3 py-2">{row.timeLabel || '—'}</td>
                   <td className="max-w-[14rem] truncate px-3 py-2">{row.address || '—'}</td>
                   <td className="whitespace-nowrap px-3 py-2 tabular-nums">
