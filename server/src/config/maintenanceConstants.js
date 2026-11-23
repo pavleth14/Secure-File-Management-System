@@ -18,7 +18,6 @@ export const MAINTENANCE_OOS_STATUSES = Object.freeze([
 /** Default project filter / case options (weekly reporting). */
 export const MAINTENANCE_DEFAULT_PROJECTS = Object.freeze([
   'OTR',
-  'Aljaska',
   'Montana',
   'KY',
   'NJ',
