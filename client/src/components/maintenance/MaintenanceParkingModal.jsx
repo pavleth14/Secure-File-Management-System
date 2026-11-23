@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import api from '../../api/client';
+import { MAINTENANCE_PARKING_UNIT_SCOPES } from '../../constants/maintenanceConstants';
 
 const inputClass =
   'w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100';
@@ -30,7 +31,9 @@ function buildTimeLabel(hour, minute, meridiem) {
 
 function emptyForm() {
   return {
-    unitNumber: '',
+    unitScope: 'truck',
+    truckNumber: '',
+    trailerNumber: '',
     startDate: '',
     endDate: '',
     timeHour: '',
@@ -43,11 +46,36 @@ function emptyForm() {
   };
 }
 
+function inferScopeFromRecord(record) {
+  if (record.unitScope) return record.unitScope;
+  const truck = String(record.truckNumber || '').trim();
+  const trailer = String(record.trailerNumber || '').trim();
+  if (truck && trailer) return 'truck_trailer';
+  if (trailer && !truck) return 'trailer';
+  return 'truck';
+}
+
 function toForm(record) {
   if (!record) return emptyForm();
   const { hour, minute, meridiem } = parseTimeLabel(record.timeLabel);
+  const unitScope = inferScopeFromRecord(record);
+  let truckNumber = String(record.truckNumber || '').trim();
+  let trailerNumber = String(record.trailerNumber || '').trim();
+  if (!truckNumber && !trailerNumber && record.unitNumber) {
+    if (unitScope === 'trailer') {
+      trailerNumber = record.unitNumber;
+    } else if (unitScope === 'truck_trailer') {
+      const parts = String(record.unitNumber).split(/\s*\+\s*/);
+      truckNumber = parts[0]?.trim() || '';
+      trailerNumber = parts[1]?.trim() || '';
+    } else {
+      truckNumber = record.unitNumber;
+    }
+  }
   return {
-    unitNumber: record.unitNumber || '',
+    unitScope,
+    truckNumber,
+    trailerNumber,
     startDate: record.startDate ? record.startDate.slice(0, 10) : '',
     endDate: record.endDate ? record.endDate.slice(0, 10) : '',
     timeHour: hour,
@@ -66,7 +94,7 @@ function unitStartsWith(unitNumber, query) {
   return String(unitNumber || '').toLowerCase().startsWith(q);
 }
 
-function ParkingUnitSearch({ value, onChange, readOnly }) {
+function ParkingUnitSearch({ value, onChange, readOnly, source, placeholder, required }) {
   const [query, setQuery] = useState(value || '');
   const [options, setOptions] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -75,42 +103,58 @@ function ParkingUnitSearch({ value, onChange, readOnly }) {
     setQuery(value || '');
   }, [value]);
 
-  const searchUnits = useCallback(async (text) => {
-    const trimmed = String(text || '').trim();
-    if (!trimmed) {
-      setOptions([]);
-      return;
-    }
-    setLoading(true);
-    try {
-      const [truckRes, trailerRes] = await Promise.all([
-        api.get('/dispatch/trucks', { params: { search: trimmed } }),
-        api.get('/dispatch/trailers', { params: { search: trimmed } }),
-      ]);
-      const trucks = (truckRes.data.trucks || [])
-        .filter((t) => unitStartsWith(t.truckNumber, trimmed))
-        .map((t) => ({
-          id: `truck-${t.id}`,
-          number: t.truckNumber,
-          kind: 'Truck',
-        }));
-      const trailers = (trailerRes.data.trailers || [])
-        .filter((t) => unitStartsWith(t.trailerNumber, trimmed))
-        .map((t) => ({
-          id: `trailer-${t.id}`,
-          number: t.trailerNumber,
-          kind: 'Trailer',
-        }));
-      const merged = [...trucks, ...trailers]
-        .sort((a, b) => a.number.localeCompare(b.number, undefined, { numeric: true }))
-        .slice(0, 24);
-      setOptions(merged);
-    } catch {
-      setOptions([]);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  const searchUnits = useCallback(
+    async (text) => {
+      const trimmed = String(text || '').trim();
+      if (!trimmed) {
+        setOptions([]);
+        return;
+      }
+      setLoading(true);
+      try {
+        const requests = [];
+        if (source === 'truck' || source === 'both') {
+          requests.push(api.get('/dispatch/trucks', { params: { search: trimmed } }));
+        }
+        if (source === 'trailer' || source === 'both') {
+          requests.push(api.get('/dispatch/trailers', { params: { search: trimmed } }));
+        }
+        const results = await Promise.all(requests);
+        const merged = [];
+        for (const res of results) {
+          if (res.data.trucks) {
+            (res.data.trucks || [])
+              .filter((t) => unitStartsWith(t.truckNumber, trimmed))
+              .forEach((t) => {
+                merged.push({
+                  id: `truck-${t.id}`,
+                  number: t.truckNumber,
+                  kind: 'Truck',
+                });
+              });
+          }
+          if (res.data.trailers) {
+            (res.data.trailers || [])
+              .filter((t) => unitStartsWith(t.trailerNumber, trimmed))
+              .forEach((t) => {
+                merged.push({
+                  id: `trailer-${t.id}`,
+                  number: t.trailerNumber,
+                  kind: 'Trailer',
+                });
+              });
+          }
+        }
+        merged.sort((a, b) => a.number.localeCompare(b.number, undefined, { numeric: true }));
+        setOptions(merged.slice(0, 24));
+      } catch {
+        setOptions([]);
+      } finally {
+        setLoading(false);
+      }
+    },
+    [source]
+  );
 
   useEffect(() => {
     const timer = window.setTimeout(() => searchUnits(query), 200);
@@ -125,7 +169,7 @@ function ParkingUnitSearch({ value, onChange, readOnly }) {
     <div className="relative">
       <input
         className={inputClass}
-        required
+        required={required}
         value={query}
         onChange={(e) => {
           const next = e.target.value;
@@ -135,12 +179,10 @@ function ParkingUnitSearch({ value, onChange, readOnly }) {
         onBlur={() => {
           window.setTimeout(() => setOptions([]), 150);
         }}
-        placeholder="Truck or trailer number"
+        placeholder={placeholder}
         autoComplete="off"
       />
-      {loading && query.trim() && (
-        <p className="mt-1 text-xs text-slate-500">Searching…</p>
-      )}
+      {loading && query.trim() && <p className="mt-1 text-xs text-slate-500">Searching…</p>}
       {options.length > 0 && (
         <ul className="absolute z-30 mt-1 max-h-48 w-full overflow-auto rounded-lg border bg-white shadow-lg dark:border-slate-600 dark:bg-slate-800">
           {options.map((opt) => (
@@ -239,6 +281,124 @@ function ParkingTimePicker({ hour, minute, meridiem, onChange, readOnly }) {
   );
 }
 
+function ParkingUnitFields({ form, setForm, readOnly }) {
+  const scope = form.unitScope;
+
+  if (readOnly) {
+    return (
+      <div className="space-y-2">
+        <p className="text-xs text-slate-500">
+          {MAINTENANCE_PARKING_UNIT_SCOPES.find((s) => s.value === scope)?.label || scope}
+        </p>
+        {scope === 'truck' && <p className="text-sm font-medium">{form.truckNumber || '—'}</p>}
+        {scope === 'trailer' && <p className="text-sm font-medium">{form.trailerNumber || '—'}</p>}
+        {scope === 'truck_trailer' && (
+          <p className="text-sm font-medium">
+            {form.truckNumber || '—'} + {form.trailerNumber || '—'}
+          </p>
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      <fieldset>
+        <legend className="mb-2 text-xs font-medium uppercase text-slate-500">
+          What is parked
+        </legend>
+        <div className="flex flex-wrap gap-2">
+          {MAINTENANCE_PARKING_UNIT_SCOPES.map((opt) => (
+            <label
+              key={opt.value}
+              className={`cursor-pointer rounded-full border px-3 py-1.5 text-sm ${
+                form.unitScope === opt.value
+                  ? 'border-brand-600 bg-brand-50 text-brand-800 dark:border-brand-500 dark:bg-brand-950/50 dark:text-brand-200'
+                  : 'border-slate-300 dark:border-slate-600'
+              }`}
+            >
+              <input
+                type="radio"
+                name="parkingUnitScope"
+                className="sr-only"
+                checked={form.unitScope === opt.value}
+                onChange={() =>
+                  setForm((prev) => ({
+                    ...prev,
+                    unitScope: opt.value,
+                    truckNumber: opt.value === 'trailer' ? '' : prev.truckNumber,
+                    trailerNumber: opt.value === 'truck' ? '' : prev.trailerNumber,
+                  }))
+                }
+              />
+              {opt.label}
+            </label>
+          ))}
+        </div>
+      </fieldset>
+
+      {scope === 'truck' && (
+        <div>
+          <label className="mb-1 block text-xs font-medium uppercase text-slate-500">
+            Truck #
+          </label>
+          <ParkingUnitSearch
+            source="truck"
+            required
+            placeholder="Truck number"
+            value={form.truckNumber}
+            onChange={(truckNumber) => setForm((prev) => ({ ...prev, truckNumber }))}
+          />
+        </div>
+      )}
+
+      {scope === 'trailer' && (
+        <div>
+          <label className="mb-1 block text-xs font-medium uppercase text-slate-500">
+            Trailer #
+          </label>
+          <ParkingUnitSearch
+            source="trailer"
+            required
+            placeholder="Trailer number"
+            value={form.trailerNumber}
+            onChange={(trailerNumber) => setForm((prev) => ({ ...prev, trailerNumber }))}
+          />
+        </div>
+      )}
+
+      {scope === 'truck_trailer' && (
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div>
+            <label className="mb-1 block text-xs font-medium uppercase text-slate-500">
+              Truck #
+            </label>
+            <ParkingUnitSearch
+              source="truck"
+              required
+              placeholder="Truck number"
+              value={form.truckNumber}
+              onChange={(truckNumber) => setForm((prev) => ({ ...prev, truckNumber }))}
+            />
+          </div>
+          <div>
+            <label className="mb-1 block text-xs font-medium uppercase text-slate-500">
+              Trailer #
+            </label>
+            <ParkingUnitSearch
+              source="trailer"
+              required
+              placeholder="Trailer number"
+              value={form.trailerNumber}
+              onChange={(trailerNumber) => setForm((prev) => ({ ...prev, trailerNumber }))}
+            />
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function MaintenanceParkingModal({
   open,
   onClose,
@@ -270,7 +430,9 @@ export default function MaintenanceParkingModal({
     const timeLabel = buildTimeLabel(form.timeHour, form.timeMinute, form.timeMeridiem);
     try {
       await onSave({
-        unitNumber: form.unitNumber.trim(),
+        unitScope: form.unitScope,
+        truckNumber: form.truckNumber.trim(),
+        trailerNumber: form.trailerNumber.trim(),
         startDate: form.startDate || null,
         endDate: form.endDate || null,
         timeLabel,
@@ -315,14 +477,7 @@ export default function MaintenanceParkingModal({
           )}
           {error && <p className="text-sm text-red-600">{error}</p>}
 
-          <div>
-            <label className="mb-1 block text-xs font-medium uppercase text-slate-500">Unit #</label>
-            <ParkingUnitSearch
-              value={form.unitNumber}
-              readOnly={readOnly}
-              onChange={(unitNumber) => setForm((prev) => ({ ...prev, unitNumber }))}
-            />
-          </div>
+          <ParkingUnitFields form={form} setForm={setForm} readOnly={readOnly} />
 
           <div className="grid gap-4 sm:grid-cols-2">
             <div>

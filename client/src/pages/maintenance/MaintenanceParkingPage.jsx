@@ -144,7 +144,7 @@ export default function MaintenanceParkingPage() {
             <thead className="bg-slate-50 text-xs uppercase text-slate-500 dark:bg-slate-900/50">
               <tr>
                 {[
-                  'Unit #',
+                  'Unit',
                   'Start date',
                   'End date',
                   'Time',
@@ -176,7 +176,12 @@ export default function MaintenanceParkingPage() {
                       row.parkingExpiresToday ? 'text-red-900 dark:text-red-100' : ''
                     }`}
                   >
-                    {row.unitNumber}
+                    <span className="block">{row.unitNumber}</span>
+                    {row.unitScopeLabel ? (
+                      <span className="text-[10px] font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                        {row.unitScopeLabel}
+                      </span>
+                    ) : null}
                     {row.parkingExpiresToday ? (
                       <span className="ml-2 text-[10px] font-bold uppercase tracking-wide text-red-700 dark:text-red-300">
                         Ends today

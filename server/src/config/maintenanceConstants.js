@@ -32,6 +32,12 @@ export const MAINTENANCE_PARKING_STATUSES = Object.freeze([
   'Local Monthly',
 ]);
 
+export const MAINTENANCE_PARKING_UNIT_SCOPES = Object.freeze([
+  'truck',
+  'trailer',
+  'truck_trailer',
+]);
+
 export const MAINTENANCE_COMMENT_MAX_LENGTH = 2000;
 export const MAINTENANCE_ISSUE_MAX_LENGTH = 200;
 export const MAINTENANCE_DESCRIPTION_MAX_LENGTH = 8000;

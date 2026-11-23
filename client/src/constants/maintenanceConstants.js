@@ -24,3 +24,9 @@ export const MAINTENANCE_PARKING_STATUSES = [
   'Local Weekly',
   'Local Monthly',
 ];
+
+export const MAINTENANCE_PARKING_UNIT_SCOPES = [
+  { value: 'truck', label: 'Truck' },
+  { value: 'trailer', label: 'Trailer' },
+  { value: 'truck_trailer', label: 'Truck + trailer' },
+];

@@ -1,5 +1,8 @@
 import { MaintenanceParkingRecord } from '../models/MaintenanceParkingRecord.js';
-import { MAINTENANCE_PARKING_STATUSES } from '../config/maintenanceConstants.js';
+import {
+  MAINTENANCE_PARKING_STATUSES,
+  MAINTENANCE_PARKING_UNIT_SCOPES,
+} from '../config/maintenanceConstants.js';
 import {
   chicagoStartOfDay,
   chicagoEndOfDay,
@@ -73,12 +76,55 @@ function isParkingEndDateToday(endDate) {
   return Boolean(todayKey && endKey && todayKey === endKey);
 }
 
+function buildUnitNumber(scope, truckNumber, trailerNumber) {
+  const truck = String(truckNumber || '').trim();
+  const trailer = String(trailerNumber || '').trim();
+  if (scope === 'truck') return truck;
+  if (scope === 'trailer') return trailer;
+  if (scope === 'truck_trailer') {
+    if (truck && trailer) return `${truck} + ${trailer}`;
+    return truck || trailer;
+  }
+  return truck || trailer;
+}
+
+function resolveUnitScope(obj) {
+  if (obj.unitScope && MAINTENANCE_PARKING_UNIT_SCOPES.includes(obj.unitScope)) {
+    return obj.unitScope;
+  }
+  const truck = String(obj.truckNumber || '').trim();
+  const trailer = String(obj.trailerNumber || '').trim();
+  if (truck && trailer) return 'truck_trailer';
+  if (trailer && !truck) return 'trailer';
+  if (truck) return 'truck';
+  return null;
+}
+
+function unitScopeLabel(scope) {
+  if (scope === 'truck') return 'Truck';
+  if (scope === 'trailer') return 'Trailer';
+  if (scope === 'truck_trailer') return 'Truck + trailer';
+  return '';
+}
+
 function formatRecord(doc) {
   const obj = doc.toObject ? doc.toObject() : doc;
   const parkingExpiresToday = isParkingEndDateToday(obj.endDate);
+  const unitScope = resolveUnitScope(obj);
+  const truckNumber = String(obj.truckNumber || '').trim();
+  const trailerNumber = String(obj.trailerNumber || '').trim();
+  const unitNumber =
+    String(obj.unitNumber || '').trim() ||
+    (unitScope
+      ? buildUnitNumber(unitScope, truckNumber, trailerNumber)
+      : String(obj.unitNumber || '').trim());
   return {
     id: obj._id.toString(),
-    unitNumber: obj.unitNumber || '',
+    unitScope,
+    unitScopeLabel: unitScopeLabel(unitScope),
+    truckNumber,
+    trailerNumber,
+    unitNumber,
     startDate: obj.startDate,
     startDateLabel: formatDateLabel(obj.startDate),
     endDate: obj.endDate,
@@ -114,18 +160,87 @@ function sortParkingRecordsForDisplay(records) {
   });
 }
 
-function validatePayload(payload, { partial = false } = {}) {
-  const data = {};
+function normalizeUnitScope(raw) {
+  const scope = String(raw || '').trim();
+  if (!MAINTENANCE_PARKING_UNIT_SCOPES.includes(scope)) {
+    const err = new Error('Invalid parking unit type');
+    err.status = 400;
+    throw err;
+  }
+  return scope;
+}
 
-  if (payload.unitNumber !== undefined || !partial) {
-    const unitNumber = String(payload.unitNumber || '').trim();
-    if (!unitNumber) {
-      const err = new Error('Unit number is required');
+function applyUnitFields(data, payload, { partial, existing } = {}) {
+  const hasScope = payload.unitScope !== undefined;
+  const hasTruck = payload.truckNumber !== undefined;
+  const hasTrailer = payload.trailerNumber !== undefined;
+  const legacyUnit = payload.unitNumber !== undefined;
+
+  if (!partial || hasScope || hasTruck || hasTrailer || legacyUnit || !existing) {
+    let unitScope = hasScope
+      ? normalizeUnitScope(payload.unitScope)
+      : existing?.unitScope
+        ? normalizeUnitScope(existing.unitScope)
+        : null;
+
+    let truckNumber = hasTruck
+      ? String(payload.truckNumber || '').trim()
+      : String(existing?.truckNumber || '').trim();
+    let trailerNumber = hasTrailer
+      ? String(payload.trailerNumber || '').trim()
+      : String(existing?.trailerNumber || '').trim();
+
+    if (!unitScope) {
+      if (legacyUnit && !hasTruck && !hasTrailer) {
+        const legacy = String(payload.unitNumber || '').trim();
+        truckNumber = legacy;
+        unitScope = 'truck';
+      } else if (!partial) {
+        unitScope = 'truck';
+      }
+    }
+
+    if (!unitScope && !partial) {
+      const err = new Error('Parking unit type is required');
       err.status = 400;
       throw err;
     }
-    data.unitNumber = unitNumber;
+
+    if (unitScope === 'truck') {
+      if (!truckNumber) {
+        const err = new Error('Truck number is required');
+        err.status = 400;
+        throw err;
+      }
+      trailerNumber = '';
+    } else if (unitScope === 'trailer') {
+      if (!trailerNumber) {
+        const err = new Error('Trailer number is required');
+        err.status = 400;
+        throw err;
+      }
+      truckNumber = '';
+    } else if (unitScope === 'truck_trailer') {
+      if (!truckNumber || !trailerNumber) {
+        const err = new Error('Truck and trailer numbers are required');
+        err.status = 400;
+        throw err;
+      }
+    }
+
+    if (unitScope) {
+      data.unitScope = unitScope;
+      data.truckNumber = truckNumber;
+      data.trailerNumber = trailerNumber;
+      data.unitNumber = buildUnitNumber(unitScope, truckNumber, trailerNumber);
+    }
   }
+}
+
+function validatePayload(payload, { partial = false, existing = null } = {}) {
+  const data = {};
+
+  applyUnitFields(data, payload, { partial, existing });
 
   if (payload.startDate !== undefined) {
     data.startDate = parseOptionalDate(payload.startDate);
@@ -172,7 +287,10 @@ export async function listMaintenanceParkingRecords(query = {}) {
   const and = [];
   const unit = String(query.unit || query.search || '').trim();
   if (unit) {
-    and.push({ unitNumber: new RegExp(escapeRegex(unit), 'i') });
+    const re = new RegExp(escapeRegex(unit), 'i');
+    and.push({
+      $or: [{ unitNumber: re }, { truckNumber: re }, { trailerNumber: re }],
+    });
   }
 
   const statusList = String(query.status || '')
@@ -232,7 +350,7 @@ export async function updateMaintenanceParkingRecord(id, payload, user) {
     throw err;
   }
 
-  const data = validatePayload(payload, { partial: true });
+  const data = validatePayload(payload, { partial: true, existing: record });
   Object.assign(record, data);
   touchEdited(record, user._id);
   await record.save();
