@@ -311,10 +311,10 @@ function ParkingUnitFields({ form, setForm, readOnly }) {
           {MAINTENANCE_PARKING_UNIT_SCOPES.map((opt) => (
             <label
               key={opt.value}
-              className={`cursor-pointer rounded-full border px-3 py-1.5 text-sm ${
+              className={`cursor-pointer rounded-full border px-3 py-1.5 text-sm transition-colors ${
                 form.unitScope === opt.value
-                  ? 'border-brand-600 bg-brand-50 text-brand-800 dark:border-brand-500 dark:bg-brand-950/50 dark:text-brand-200'
-                  : 'border-slate-300 dark:border-slate-600'
+                  ? 'border-brand-500 bg-brand-50 text-brand-800 dark:border-brand-400 dark:bg-brand-600/35 dark:text-white'
+                  : 'border-slate-300 text-slate-700 dark:border-slate-600 dark:text-slate-300'
               }`}
             >
               <input
