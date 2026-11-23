@@ -29,6 +29,7 @@ export const MAINTENANCE_PARKING_STATUSES = Object.freeze([
   'Canceled',
   'Local Weekly',
   'Local Monthly',
+  'OTR',
 ]);
 
 export const MAINTENANCE_PARKING_UNIT_SCOPES = Object.freeze([
