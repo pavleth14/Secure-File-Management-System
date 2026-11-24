@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import api from '../../api/client';
 import { useAuth } from '../../context/AuthContext';
@@ -350,22 +350,63 @@ function TagField({
 function EquipmentSearch({ label, value, display, onSelect, readOnly, fetchUrl }) {
   const [query, setQuery] = useState(display || '');
   const [options, setOptions] = useState([]);
+  const searchSeqRef = useRef(0);
+  const debounceRef = useRef(null);
+
+  const cancelPendingSearch = useCallback(() => {
+    searchSeqRef.current += 1;
+    if (debounceRef.current) {
+      window.clearTimeout(debounceRef.current);
+      debounceRef.current = null;
+    }
+  }, []);
 
   useEffect(() => {
     setQuery(display || '');
-  }, [display]);
+    setOptions([]);
+    cancelPendingSearch();
+  }, [display, cancelPendingSearch]);
 
-  const search = useCallback(
-    async (text) => {
-      if (!text.trim()) {
+  useEffect(
+    () => () => {
+      if (debounceRef.current) window.clearTimeout(debounceRef.current);
+    },
+    []
+  );
+
+  const scheduleSearch = useCallback(
+    (text) => {
+      cancelPendingSearch();
+      const trimmed = String(text || '').trim();
+      if (!trimmed) {
         setOptions([]);
         return;
       }
-      const { data } = await api.get(fetchUrl, { params: { search: text.trim() } });
-      const list = data.trucks || data.trailers || [];
-      setOptions(list.slice(0, 12));
+      const seq = searchSeqRef.current;
+      debounceRef.current = window.setTimeout(async () => {
+        debounceRef.current = null;
+        try {
+          const { data } = await api.get(fetchUrl, { params: { search: trimmed } });
+          if (seq !== searchSeqRef.current) return;
+          const list = data.trucks || data.trailers || [];
+          setOptions(list.slice(0, 12));
+        } catch {
+          if (seq === searchSeqRef.current) setOptions([]);
+        }
+      }, 200);
     },
-    [fetchUrl]
+    [cancelPendingSearch, fetchUrl]
+  );
+
+  const handleSelect = useCallback(
+    (item) => {
+      cancelPendingSearch();
+      setOptions([]);
+      const number = item.truckNumber || item.trailerNumber;
+      setQuery(number);
+      onSelect(item);
+    },
+    [cancelPendingSearch, onSelect]
   );
 
   if (readOnly) {
@@ -383,9 +424,14 @@ function EquipmentSearch({ label, value, display, onSelect, readOnly, fetchUrl }
       <input
         className={inputClass}
         value={query}
+        autoComplete="off"
         onChange={(e) => {
-          setQuery(e.target.value);
-          search(e.target.value);
+          const next = e.target.value;
+          setQuery(next);
+          scheduleSearch(next);
+        }}
+        onBlur={() => {
+          window.setTimeout(() => setOptions([]), 150);
         }}
         placeholder="Search number…"
       />
@@ -396,11 +442,8 @@ function EquipmentSearch({ label, value, display, onSelect, readOnly, fetchUrl }
               <button
                 type="button"
                 className="block w-full px-3 py-2 text-left text-sm hover:bg-slate-100 dark:hover:bg-slate-700"
-                onClick={() => {
-                  onSelect(item);
-                  setQuery(item.truckNumber || item.trailerNumber);
-                  setOptions([]);
-                }}
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => handleSelect(item)}
               >
                 {item.truckNumber || item.trailerNumber}
               </button>
